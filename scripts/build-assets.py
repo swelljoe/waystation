@@ -35,10 +35,10 @@ GROUND_ATLAS_TILES = [
     (1, 0),
     (0, 2),
     (0, 2),
-    (5, 1),
-    (5, 2),
     (4, 0),
     (5, 0),
+    (5, 1),
+    (4, 1),
     (6, 2),
     (7, 2),
     (6, 3),
@@ -46,7 +46,7 @@ GROUND_ATLAS_TILES = [
     (5, 3),
     (4, 3),
     (4, 2),
-    (4, 1),
+    (5, 2),
     (40, 0),
     (32, 1),
     (33, 1),
@@ -65,6 +65,36 @@ GROUND_ATLAS_TILES = [
     (37, 0),
     (39, 0),
 ]
+
+PROPS_SHEET = "Modern_Farm_v1.2/32x32/3_Props_and_Buildings_32x32.png"
+
+# Pixel rectangles of the individual firewood and dry-plant props in the Modern
+# Farm props sheet.
+KINDLING_PIECES = {
+    "log_left": (68, 714, 94, 732),
+    "log_right": (98, 714, 124, 732),
+    "log_long": (76, 744, 110, 766),
+    "straw": (512, 170, 544, 190),
+    "straw_bits": (548, 172, 570, 186),
+    "twigs": (740, 72, 766, 88),
+}
+
+# The three gatherable kindling piles, each a canvas size plus the pieces to
+# paste and their top-left offsets. Order runs from sound logs to loose tinder.
+KINDLING_PILES = {
+    "kindling_logs.png": (
+        (48, 34),
+        [("log_long", (0, 12)), ("log_right", (20, 0)), ("log_left", (4, 1))],
+    ),
+    "kindling_branches.png": (
+        (48, 32),
+        [("straw", (0, 10)), ("log_long", (12, 4)), ("straw_bits", (2, 2))],
+    ),
+    "kindling_tinder.png": (
+        (46, 30),
+        [("twigs", (16, 0)), ("straw", (0, 8)), ("straw_bits", (20, 14))],
+    ),
+}
 
 
 def sha256(path: Path) -> str:
@@ -327,9 +357,65 @@ def draw_tree() -> Image.Image:
     return image
 
 
+def draw_fallback_log(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int]) -> None:
+    x0, y0, x1, y1 = box
+    radius = (y1 - y0) // 2
+    draw.rounded_rectangle(box, radius=radius, fill="#77543b")
+    draw.rounded_rectangle((x0 + 2, y0 + 1, x1 - 2, y1 - 3), radius=radius, fill="#9d7748")
+    draw.ellipse((x1 - 2 * radius, y0, x1, y1), fill="#c39a5b")
+    draw.ellipse((x1 - 2 * radius + 3, y0 + 3, x1 - 3, y1 - 3), fill="#8a6b41")
+
+
+def draw_fallback_straw(
+    draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], seed: int
+) -> None:
+    x0, y0, x1, y1 = box
+    draw.ellipse(box, fill="#c39a5b")
+    for step in range((x1 - x0) * (y1 - y0) // 8):
+        x = x0 + 2 + (step * 37 + seed) % max(1, x1 - x0 - 4)
+        y = y0 + 2 + (step * 53 + seed) % max(1, y1 - y0 - 4)
+        px(draw, (x, y, x + 1, y), "#f1dfad")
+
+
+def fallback_kindling_pile(name: str) -> Image.Image:
+    """Draw a public-fallback stand-in for one gatherable kindling pile."""
+    size, _ = KINDLING_PILES[name]
+    image = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    if name == "kindling_logs.png":
+        draw_fallback_log(draw, (0, 14, 34, 30))
+        draw_fallback_log(draw, (12, 2, 46, 18))
+    elif name == "kindling_branches.png":
+        draw_fallback_straw(draw, (0, 12, 26, 30), 5)
+        draw_fallback_log(draw, (12, 6, 46, 22))
+    else:
+        draw_fallback_straw(draw, (0, 8, 32, 28), 11)
+        for offset in range(3):
+            top = 2 + offset * 5
+            px(draw, (18 + offset * 2, top, 44 - offset * 4, top + 1), "#77543b")
+    return image
+
+
+def build_kindling_piles(props_path: Path) -> dict[str, Image.Image]:
+    """Assemble the gatherable kindling piles from licensed props, or fall back."""
+    if not props_path.is_file():
+        return {name: fallback_kindling_pile(name) for name in KINDLING_PILES}
+    sheet = Image.open(props_path).convert("RGBA")
+    pieces = {name: sheet.crop(box) for name, box in KINDLING_PIECES.items()}
+    piles = {}
+    for name, (size, layout) in KINDLING_PILES.items():
+        pile = Image.new("RGBA", size, (0, 0, 0, 0))
+        for piece, offset in layout:
+            pile.alpha_composite(pieces[piece], offset)
+        piles[name] = pile
+    return piles
+
+
 def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     world = output / "world"
     world.mkdir(parents=True, exist_ok=True)
+    fallback = "project-authored procedural fallback"
+    sources: dict[str, str] = {}
     terrain_path = source / "Modern_Farm_v1.2/32x32/1_Terrains_32x32.png"
     if terrain_path.is_file():
         sheet = Image.open(terrain_path).convert("RGBA")
@@ -345,18 +431,28 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
             "road.png": patterned_tile("#66533e", "#80694c", 7),
             "water.png": patterned_tile("#2f6670", "#4a8490", 11),
         }
-        tile_source = "project-authored procedural fallback"
+        tile_source = fallback
     tiles["stone.png"] = patterned_tile("#59594f", "#77766a", 13)
     tiles["floor.png"] = patterned_tile("#3f3428", "#594634", 17)
     for name, image in tiles.items():
         image.save(world / name, optimize=False)
+        sources[name] = tile_source if name in {"grass.png", "road.png", "water.png"} else fallback
+
+    props_path = source / PROPS_SHEET
+    kindling_source = "licensed Modern Farm runtime extraction" if props_path.is_file() else fallback
+    for name, image in build_kindling_piles(props_path).items():
+        image.save(world / name, optimize=False)
+        sources[name] = kindling_source
 
     private_tree = source / "THE NATURAL/Props/Tree 08.png"
     tree = Image.open(private_tree).convert("RGBA") if private_tree.is_file() else draw_tree()
     tree.save(world / "tree.png", optimize=False)
+    sources["tree.png"] = "licensed runtime extraction" if private_tree.is_file() else fallback
     terrain_atlas, terrain_atlas_source = build_terrain_atlas(source)
     terrain_atlas.save(world / "terrain.png", optimize=False)
+    sources["terrain.png"] = terrain_atlas_source
     draw_scribe().save(world / "scribe.png", optimize=False)
+    sources["scribe.png"] = fallback
     records = []
     for path in sorted(world.glob("*.png")):
         records.append(
@@ -364,14 +460,7 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
                 "path": str(path.relative_to(output)),
                 "sha256": sha256(path),
                 "size": list(Image.open(path).size),
-                "source": (
-                    "licensed runtime extraction"
-                    if path.name == "tree.png" and private_tree.is_file()
-                    else terrain_atlas_source
-                    if path.name == "terrain.png"
-                    else tile_source if path.name in {"grass.png", "road.png", "water.png"}
-                    else "project-authored procedural fallback"
-                ),
+                "source": sources[path.name],
             }
         )
     return records

@@ -27,10 +27,6 @@ const GRASS_ROCKS: usize = 3;
 
 const DIRT_FULL_A: usize = 4;
 const DIRT_FULL_B: usize = 5;
-const DIRT_ONLY_NW: usize = 6;
-const DIRT_ONLY_NE: usize = 7;
-const DIRT_ONLY_SE: usize = 8;
-const DIRT_ONLY_SW: usize = 9;
 const DIRT_NORTH: usize = 10;
 const DIRT_EAST: usize = 11;
 const DIRT_SOUTH: usize = 12;
@@ -75,10 +71,10 @@ const TILE_DEBUG_INFO: [TileDebugInfo; ATLAS_COLUMNS as usize] = [
     TileDebugInfo::new("G.rocks", 1, 0),
     TileDebugInfo::new("DG.full_a", 0, 2),
     TileDebugInfo::new("DG.full_b", 0, 2),
-    TileDebugInfo::new("DG.only_nw", 5, 1),
-    TileDebugInfo::new("DG.only_ne", 5, 2),
-    TileDebugInfo::new("DG.only_se", 4, 0),
-    TileDebugInfo::new("DG.only_sw", 5, 0),
+    TileDebugInfo::new("DG.only_nw", 4, 0),
+    TileDebugInfo::new("DG.only_ne", 5, 0),
+    TileDebugInfo::new("DG.only_se", 5, 1),
+    TileDebugInfo::new("DG.only_sw", 4, 1),
     TileDebugInfo::new("DG.north", 6, 2),
     TileDebugInfo::new("DG.east", 7, 2),
     TileDebugInfo::new("DG.south", 6, 3),
@@ -86,7 +82,7 @@ const TILE_DEBUG_INFO: [TileDebugInfo; ATLAS_COLUMNS as usize] = [
     TileDebugInfo::new("DG.except_nw", 5, 3),
     TileDebugInfo::new("DG.except_ne", 4, 3),
     TileDebugInfo::new("DG.except_se", 4, 2),
-    TileDebugInfo::new("DG.except_sw", 4, 1),
+    TileDebugInfo::new("DG.except_sw", 5, 2),
     TileDebugInfo::new("W.center", 40, 0),
     TileDebugInfo::new("W.isolated", 32, 1),
     TileDebugInfo::new("W.isolated_small", 33, 1),
@@ -504,12 +500,10 @@ const fn grass_index(variant: u64) -> usize {
 }
 
 const fn dual_grid_index(mask: DualGridMask, variant: u64) -> usize {
+    // THE GROUND draws terrain boundaries hugging cell edges and has no piece
+    // for a lone dirt corner, so single-corner masks (and the checkerboards
+    // the generator removes) render as grass; convex dirt corners round off.
     match mask.0 {
-        0 => grass_index(variant),
-        DualGridMask::NW => DIRT_ONLY_NW,
-        DualGridMask::NE => DIRT_ONLY_NE,
-        DualGridMask::SE => DIRT_ONLY_SE,
-        DualGridMask::SW => DIRT_ONLY_SW,
         3 => DIRT_NORTH,
         6 => DIRT_EAST,
         12 => DIRT_SOUTH,
@@ -520,11 +514,7 @@ const fn dual_grid_index(mask: DualGridMask, variant: u64) -> usize {
         7 => DIRT_EXCEPT_SW,
         15 if variant & 1 == 0 => DIRT_FULL_A,
         15 => DIRT_FULL_B,
-        DualGridMask::CHECKERBOARD_NW_SE if variant & 1 == 0 => DIRT_ONLY_NW,
-        DualGridMask::CHECKERBOARD_NW_SE => DIRT_ONLY_SE,
-        DualGridMask::CHECKERBOARD_NE_SW if variant & 1 == 0 => DIRT_ONLY_NE,
-        DualGridMask::CHECKERBOARD_NE_SW => DIRT_ONLY_SW,
-        _ => GRASS_PLAIN,
+        _ => grass_index(variant),
     }
 }
 
@@ -826,16 +816,12 @@ mod tests {
         grid.add_water(WORLD_SEED);
         grid.enforce_grass_shores();
         for y in (20..=24).rev() {
-            let row: String = (20..=25)
-                .map(|x| terrain_code(grid.get(x, y)))
-                .collect();
+            let row: String = (20..=25).map(|x| terrain_code(grid.get(x, y))).collect();
             println!("before y={y}: {row}");
         }
         grid.resolve_dirt_checkerboards(WORLD_SEED);
         for y in (20..=24).rev() {
-            let row: String = (20..=25)
-                .map(|x| terrain_code(grid.get(x, y)))
-                .collect();
+            let row: String = (20..=25).map(|x| terrain_code(grid.get(x, y))).collect();
             println!("after  y={y}: {row}");
         }
     }
@@ -907,14 +893,14 @@ mod tests {
     }
 
     #[test]
-    fn reported_diagonal_staircase_alternates_the_correct_corner_polarity() {
+    fn reported_diagonal_staircase_renders_convex_corners_as_grass() {
         let grid = WorldGrid::generate(WORLD_SEED);
         for (x, y, mask, index, source) in [
-            (23, 24, 2, DIRT_ONLY_NE, (5, 2)),
-            (24, 23, 2, DIRT_ONLY_NE, (5, 2)),
-            (25, 22, 2, DIRT_ONLY_NE, (5, 2)),
-            (24, 24, 7, DIRT_EXCEPT_SW, (4, 1)),
-            (25, 23, 7, DIRT_EXCEPT_SW, (4, 1)),
+            (23, 24, 2, GRASS_PLAIN, (0, 0)),
+            (24, 23, 2, GRASS_PLAIN, (0, 0)),
+            (25, 22, 2, GRASS_PLAIN, (0, 0)),
+            (24, 24, 7, DIRT_EXCEPT_SW, (5, 2)),
+            (25, 23, 7, DIRT_EXCEPT_SW, (5, 2)),
         ] {
             let actual_mask = DualGridMask::at_intersection(&grid, x, y);
             let actual_index = dual_grid_index(actual_mask, 0);
@@ -936,11 +922,10 @@ mod tests {
     #[test]
     fn dual_grid_catalog_covers_every_supported_dirt_mask() {
         assert_eq!(TILE_DEBUG_INFO.len(), ATLAS_COLUMNS as usize);
+        for mask in [1, 2, 4, 8, 5, 10] {
+            assert_eq!(dual_grid_index(DualGridMask(mask), 0), GRASS_PLAIN);
+        }
         for (mask, index, source) in [
-            (1, DIRT_ONLY_NW, (5, 1)),
-            (2, DIRT_ONLY_NE, (5, 2)),
-            (4, DIRT_ONLY_SE, (4, 0)),
-            (8, DIRT_ONLY_SW, (5, 0)),
             (3, DIRT_NORTH, (6, 2)),
             (6, DIRT_EAST, (7, 2)),
             (12, DIRT_SOUTH, (6, 3)),
@@ -948,7 +933,7 @@ mod tests {
             (14, DIRT_EXCEPT_NW, (5, 3)),
             (13, DIRT_EXCEPT_NE, (4, 3)),
             (11, DIRT_EXCEPT_SE, (4, 2)),
-            (7, DIRT_EXCEPT_SW, (4, 1)),
+            (7, DIRT_EXCEPT_SW, (5, 2)),
             (15, DIRT_FULL_A, (0, 2)),
         ] {
             let info = TILE_DEBUG_INFO[index];

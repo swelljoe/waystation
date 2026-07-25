@@ -296,17 +296,17 @@ fn setup_world(
         Vec2::new(72.0, 96.0),
         Color::srgb(0.37, 0.24, 0.14),
     );
-    for position in [
-        Vec2::new(-390.0, -80.0),
-        Vec2::new(-285.0, 170.0),
-        Vec2::new(-80.0, 355.0),
+    // Fallen wood drying under the old growth, from sound logs to loose tinder.
+    for (position, art) in [
+        (Vec2::new(-390.0, -80.0), "world/kindling_logs.png"),
+        (Vec2::new(-285.0, 170.0), "world/kindling_branches.png"),
+        (Vec2::new(-80.0, 355.0), "world/kindling_tinder.png"),
     ] {
-        spawn_interactable(
+        spawn_interactable_sprite(
             &mut commands,
             InteractableKind::Kindling,
             position,
-            Vec2::new(38.0, 22.0),
-            Color::srgb(0.46, 0.28, 0.13),
+            Sprite::from_image(asset_server.load(art)),
         );
     }
     spawn_interactable(
@@ -436,9 +436,18 @@ fn spawn_interactable(
     size: Vec2,
     color: Color,
 ) -> Entity {
+    spawn_interactable_sprite(commands, kind, position, Sprite::from_color(color, size))
+}
+
+fn spawn_interactable_sprite(
+    commands: &mut Commands,
+    kind: InteractableKind,
+    position: Vec2,
+    sprite: Sprite,
+) -> Entity {
     commands
         .spawn((
-            Sprite::from_color(color, size),
+            sprite,
             Transform::from_xyz(position.x, position.y, 1.0),
             Interactable {
                 kind,
@@ -872,9 +881,16 @@ fn sync_world_state(
         transform.translation.x = -70.0;
     }
     for (mut interactable, mut sprite) in &mut sprites {
-        if interactable.kind == InteractableKind::Kindling && story.stage == StoryStage::Arrival {
-            interactable.consumed = false;
-            sprite.color = Color::srgb(0.46, 0.28, 0.13);
+        if interactable.kind == InteractableKind::Kindling {
+            if story.stage == StoryStage::Arrival {
+                interactable.consumed = false;
+            }
+            // Gathered wood leaves the ground; a replay puts every pile back.
+            sprite.color = if interactable.consumed {
+                Color::srgba(0.0, 0.0, 0.0, 0.0)
+            } else {
+                Color::WHITE
+            };
         }
         if interactable.kind == InteractableKind::Plank {
             interactable.consumed = !matches!(
