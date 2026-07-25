@@ -2,24 +2,30 @@
 
 #![allow(clippy::needless_pass_by_value)]
 
+mod terrain;
+
 use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+use terrain::{MAP_HALF_HEIGHT, MAP_HALF_WIDTH};
 use waystation_shared::{
     fixture_response, vignettes, CardRecipe, InterpretRequest, InterpretResponse,
 };
 
 const PLAYER_SPEED: f32 = 210.0;
 const INTERACT_DISTANCE: f32 = 72.0;
-const WORLD_HALF_WIDTH: f32 = 800.0;
-const WORLD_HALF_HEIGHT: f32 = 500.0;
+const DEVELOPMENT_PRESENTATION_SCALE: f32 = 2.0;
+const CAMERA_HALF_WIDTH: f32 = 480.0 / DEVELOPMENT_PRESENTATION_SCALE;
+const CAMERA_HALF_HEIGHT: f32 = 270.0 / DEVELOPMENT_PRESENTATION_SCALE;
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.08)))
+        .insert_resource(UiScale(DEVELOPMENT_PRESENTATION_SCALE))
         .insert_resource(Story::default())
         .insert_resource(InterpretInbox::default())
+        .init_resource::<terrain::TerrainDebugOverlay>()
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -44,6 +50,7 @@ fn main() {
             (
                 move_player,
                 follow_player,
+                terrain::update_debug_overlay,
                 update_nearby_interaction,
                 handle_interaction,
                 handle_story_input,
@@ -220,27 +227,29 @@ type InboxValue = Option<Result<InterpretResponse, String>>;
 struct InterpretInbox(Arc<Mutex<InboxValue>>);
 
 #[allow(clippy::too_many_lines)]
-fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn((Camera2d, MainCamera));
-    let grass = asset_server.load("world/grass.png");
-    let water = asset_server.load("world/water.png");
-    let road = asset_server.load("world/road.png");
+fn setup_world(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
+    commands.spawn((
+        Camera2d,
+        Projection::Orthographic(OrthographicProjection {
+            scale: DEVELOPMENT_PRESENTATION_SCALE.recip(),
+            ..OrthographicProjection::default_2d()
+        }),
+        MainCamera,
+    ));
+    let world_grid =
+        terrain::spawn_terrain(&mut commands, &asset_server, &mut texture_atlas_layouts);
+    commands.insert_resource(world_grid);
     let stone = asset_server.load("world/stone.png");
     let floor = asset_server.load("world/floor.png");
     let tree = asset_server.load("world/tree.png");
     let scribe = asset_server.load("world/scribe.png");
-    spawn_tile_grid(
-        &mut commands,
-        grass,
-        Vec2::new(-784.0, -496.0),
-        50,
-        32,
-        -10.0,
-    );
 
-    // Protected valley: a river, old road, tree-shadow slopes, and the stone motel court.
-    spawn_tile_grid(&mut commands, water, Vec2::new(-624.0, -496.0), 6, 32, -8.0);
-    spawn_tile_grid(&mut commands, road, Vec2::new(-784.0, -352.0), 50, 3, -7.0);
+    // Protected valley: tree-shadow slopes and the stone motel court sit over
+    // the generated grass, dirt, old road, ponds, and river terrain.
     for (x, y, size) in [
         (-710.0, 420.0, 160.0),
         (-300.0, 430.0, 180.0),
@@ -440,6 +449,7 @@ fn spawn_interactable(
 }
 
 fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+    terrain::spawn_debug_legend(&mut commands);
     commands.spawn((
         Text::new(""),
         TextFont {
@@ -578,9 +588,9 @@ fn move_player(
     if direction != Vec2::ZERO {
         let delta = direction.normalize() * PLAYER_SPEED * time.delta_secs();
         transform.translation.x =
-            (transform.translation.x + delta.x).clamp(-WORLD_HALF_WIDTH, WORLD_HALF_WIDTH);
+            (transform.translation.x + delta.x).clamp(-MAP_HALF_WIDTH, MAP_HALF_WIDTH);
         transform.translation.y =
-            (transform.translation.y + delta.y).clamp(-WORLD_HALF_HEIGHT, WORLD_HALF_HEIGHT);
+            (transform.translation.y + delta.y).clamp(-MAP_HALF_HEIGHT, MAP_HALF_HEIGHT);
     }
 }
 
@@ -594,12 +604,18 @@ fn follow_player(
     camera.translation.x = player
         .translation
         .x
-        .clamp(-WORLD_HALF_WIDTH + 480.0, WORLD_HALF_WIDTH - 480.0)
+        .clamp(
+            -MAP_HALF_WIDTH + CAMERA_HALF_WIDTH,
+            MAP_HALF_WIDTH - CAMERA_HALF_WIDTH,
+        )
         .round();
     camera.translation.y = player
         .translation
         .y
-        .clamp(-WORLD_HALF_HEIGHT + 270.0, WORLD_HALF_HEIGHT - 270.0)
+        .clamp(
+            -MAP_HALF_HEIGHT + CAMERA_HALF_HEIGHT,
+            MAP_HALF_HEIGHT - CAMERA_HALF_HEIGHT,
+        )
         .round();
 }
 

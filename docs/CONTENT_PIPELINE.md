@@ -8,9 +8,16 @@ Shared-crate tests enforce that invariant.
 
 - verifies known hashes when purchased sources are present;
 - never modifies or republishes purchased source sheets;
+- extracts a compact 35-cell terrain atlas from `THE GROUND`, containing only
+  grass variants, the 14 supported dual-grid dirt masks, and cell-centered water
+  transitions understood by the engine;
 - generates nine deterministic 96×64 pixel motifs in the shared card palette;
 - emits a contact sheet and machine-readable provenance report;
 - works without private art for CI, judging, and code review.
+
+When `THE GROUND` is unavailable, the same terrain-atlas slots are filled with
+project-authored procedural fallback art. Atlas slot meanings are stable; world
+generation and mask selection therefore behave identically in both builds.
 
 Future public-domain imports should add creator, title, date, source URL, public-
 domain basis, crop, palette, and output hash to `assets-manifest.json`. Raw imports
@@ -19,4 +26,3 @@ belong outside the public repository until their status has been reviewed.
 The byte-identical Modern Farm terrain sheet can reuse the wang-set metadata and
 autotile generator proven in the sibling Ducks project when the placeholder valley
 is replaced with final licensed art.
-

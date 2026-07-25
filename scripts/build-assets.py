@@ -20,6 +20,51 @@ ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "assets-manifest.json"
 PALETTE = ["#f1dfad", "#c39a5b", "#77543b", "#34322a", "#78966b", "#9d5f55"]
 CARD_SIZE = (96, 64)
+TERRAIN_TILE_SIZE = 32
+
+# Compact runtime atlas order. These coordinates select only the pieces the
+# engine understands from the private 42x12 `THE GROUND` source sheet.
+#
+# 0..3 grass variants
+# 4..17 dirt dual grid: full, single corners, edges, then three corners
+# 18..34 water: center, isolated/caps, outer corners, edges, inner corners
+GROUND_ATLAS_TILES = [
+    (0, 0),
+    (0, 0),
+    (0, 1),
+    (1, 0),
+    (0, 2),
+    (0, 2),
+    (5, 1),
+    (5, 2),
+    (4, 0),
+    (5, 0),
+    (6, 2),
+    (7, 2),
+    (6, 3),
+    (7, 3),
+    (5, 3),
+    (4, 3),
+    (4, 2),
+    (4, 1),
+    (40, 0),
+    (32, 1),
+    (33, 1),
+    (32, 0),
+    (33, 0),
+    (34, 0),
+    (35, 0),
+    (34, 1),
+    (35, 1),
+    (38, 1),
+    (36, 0),
+    (38, 0),
+    (36, 1),
+    (37, 1),
+    (39, 1),
+    (37, 0),
+    (39, 0),
+]
 
 
 def sha256(path: Path) -> str:
@@ -126,6 +171,127 @@ def patterned_tile(base: str, detail: str, seed: int) -> Image.Image:
     return image
 
 
+def fallback_transition_tile(
+    base: Image.Image, terrain: Image.Image, shape: str
+) -> Image.Image:
+    """Create readable public fallback art for a semantic transition piece."""
+    mask = Image.new("L", (TERRAIN_TILE_SIZE, TERRAIN_TILE_SIZE), 0)
+    draw = ImageDraw.Draw(mask)
+    full = (0, 0, TERRAIN_TILE_SIZE - 1, TERRAIN_TILE_SIZE - 1)
+    if shape == "center":
+        draw.rectangle(full, fill=255)
+    elif shape == "outer_nw":
+        draw.rounded_rectangle((5, 5, 40, 40), radius=10, fill=255)
+    elif shape == "outer_ne":
+        draw.rounded_rectangle((-9, 5, 26, 40), radius=10, fill=255)
+    elif shape == "outer_sw":
+        draw.rounded_rectangle((5, -9, 40, 26), radius=10, fill=255)
+    elif shape == "outer_se":
+        draw.rounded_rectangle((-9, -9, 26, 26), radius=10, fill=255)
+    elif shape == "edge_n":
+        draw.rectangle((0, 5, 31, 31), fill=255)
+    elif shape == "edge_e":
+        draw.rectangle((0, 0, 26, 31), fill=255)
+    elif shape == "edge_s":
+        draw.rectangle((0, 0, 31, 26), fill=255)
+    elif shape == "edge_w":
+        draw.rectangle((5, 0, 31, 31), fill=255)
+    elif shape.startswith("inner_"):
+        draw.rectangle(full, fill=255)
+        cutouts = {
+            "inner_nw": (-9, -9, 10, 10),
+            "inner_ne": (21, -9, 40, 10),
+            "inner_se": (21, 21, 40, 40),
+            "inner_sw": (-9, 21, 10, 40),
+        }
+        draw.ellipse(cutouts[shape], fill=0)
+    elif shape == "isolated":
+        draw.rounded_rectangle((5, 5, 26, 26), radius=8, fill=255)
+    elif shape == "small_isolated":
+        draw.ellipse((9, 9, 22, 22), fill=255)
+    elif shape == "cap_w":
+        draw.rounded_rectangle((5, 8, 40, 24), radius=8, fill=255)
+    elif shape == "cap_e":
+        draw.rounded_rectangle((-9, 8, 26, 24), radius=8, fill=255)
+    else:
+        raise ValueError(f"unknown fallback terrain shape: {shape}")
+    return Image.composite(terrain, base, mask)
+
+
+def fallback_dual_grid_tile(
+    base: Image.Image, terrain: Image.Image, dirt_mask: int
+) -> Image.Image:
+    """Draw one four-corner dual-grid mask (NW, NE, SE, SW bits)."""
+    mask = Image.new("L", (TERRAIN_TILE_SIZE, TERRAIN_TILE_SIZE), 0)
+    draw = ImageDraw.Draw(mask)
+    quadrants = [
+        (1, (0, 0, 15, 15)),
+        (2, (16, 0, 31, 15)),
+        (4, (16, 16, 31, 31)),
+        (8, (0, 16, 15, 31)),
+    ]
+    for bit, box in quadrants:
+        if dirt_mask & bit:
+            draw.rectangle(box, fill=255)
+    return Image.composite(terrain, base, mask)
+
+
+def build_terrain_atlas(source: Path) -> tuple[Image.Image, str]:
+    ground_path = source / "THE GROUND/The Ground - 1-1.png"
+    if ground_path.is_file():
+        sheet = Image.open(ground_path).convert("RGBA")
+        tiles = [
+            sheet.crop(
+                (
+                    x * TERRAIN_TILE_SIZE,
+                    y * TERRAIN_TILE_SIZE,
+                    (x + 1) * TERRAIN_TILE_SIZE,
+                    (y + 1) * TERRAIN_TILE_SIZE,
+                )
+            )
+            for x, y in GROUND_ATLAS_TILES
+        ]
+        source_label = "licensed THE GROUND runtime extraction"
+    else:
+        grass = patterned_tile("#34482c", "#526e42", 3)
+        dirt = patterned_tile("#66533e", "#80694c", 7)
+        water = patterned_tile("#2f6670", "#4a8490", 11)
+        grass_variants = [
+            patterned_tile("#34482c", "#526e42", seed) for seed in (3, 9, 17, 25)
+        ]
+        dirt_masks = [15, 15, 1, 2, 4, 8, 3, 6, 12, 9, 14, 13, 11, 7]
+        water_shapes = [
+            "center",
+            "isolated",
+            "small_isolated",
+            "cap_w",
+            "cap_e",
+            "outer_nw",
+            "outer_ne",
+            "outer_sw",
+            "outer_se",
+            "edge_n",
+            "edge_e",
+            "edge_s",
+            "edge_w",
+            "inner_nw",
+            "inner_ne",
+            "inner_se",
+            "inner_sw",
+        ]
+        tiles = grass_variants
+        tiles.extend(fallback_dual_grid_tile(grass, dirt, mask) for mask in dirt_masks)
+        tiles.extend(fallback_transition_tile(grass, water, shape) for shape in water_shapes)
+        source_label = "project-authored procedural fallback"
+
+    atlas = Image.new(
+        "RGBA", (len(tiles) * TERRAIN_TILE_SIZE, TERRAIN_TILE_SIZE), (0, 0, 0, 0)
+    )
+    for index, tile in enumerate(tiles):
+        atlas.paste(tile, (index * TERRAIN_TILE_SIZE, 0))
+    return atlas, source_label
+
+
 def crop_tile(sheet: Image.Image, tile_id: int) -> Image.Image:
     columns = sheet.width // 32
     x = (tile_id % columns) * 32
@@ -188,6 +354,8 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     private_tree = source / "THE NATURAL/Props/Tree 08.png"
     tree = Image.open(private_tree).convert("RGBA") if private_tree.is_file() else draw_tree()
     tree.save(world / "tree.png", optimize=False)
+    terrain_atlas, terrain_atlas_source = build_terrain_atlas(source)
+    terrain_atlas.save(world / "terrain.png", optimize=False)
     draw_scribe().save(world / "scribe.png", optimize=False)
     records = []
     for path in sorted(world.glob("*.png")):
@@ -199,6 +367,8 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
                 "source": (
                     "licensed runtime extraction"
                     if path.name == "tree.png" and private_tree.is_file()
+                    else terrain_atlas_source
+                    if path.name == "terrain.png"
                     else tile_source if path.name in {"grass.png", "road.png", "water.png"}
                     else "project-authored procedural fallback"
                 ),

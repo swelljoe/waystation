@@ -33,6 +33,10 @@ The fixture server listens on `http://127.0.0.1:7777`. Controls are:
 - Space: advance quiet story moments and dialogue
 - 1–3: choose paper, illumination, and border
 - R: replay with the next authored traveler after the ending
+- F3: toggle logical-cell, dual-grid mask, and atlas identifiers
+
+The development client currently uses a fixed 2× presentation scale for both
+world rendering and UI. This is temporary until dynamic display scaling is added.
 
 ## Run with Podman
 

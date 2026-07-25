@@ -49,3 +49,29 @@ The multi-stage `Containerfile` creates procedural art, compiles the Bevy client
 WebAssembly with Trunk, compiles the native Axum service, and copies only runtime
 artifacts into an unprivileged Debian image. Port 7777 is the project default.
 
+## World terrain
+
+`crates/game/src/terrain.rs` owns the seeded logical `WorldGrid`. Every cell is a
+semantic `Grass`, `Dirt`, or `Water` value; image coordinates never enter world
+generation. Rendering derives compact-atlas selections from those semantic values.
+
+Grass and dirt use a dual grid: each rendered sprite is centered on the shared
+intersection of four logical cells and selected from their four-bit dirt mask.
+The rendered layer is offset half a tile from logical cell centers. The asset set
+provides all masks except the two ambiguous diagonal checkerboards, which world
+generation removes deterministically. Water remains a cell-centered,
+eight-neighbor overlay.
+
+The logical grid remains a Bevy resource after startup so navigation, collision,
+spawning, and future chunk streaming can query the same terrain source of truth.
+Water generation enforces a grass shore because the current art does not define a
+direct water-to-dirt transition.
+
+The F3 terrain-debug overlay labels both logical cells and nearby rendered
+dual-grid intersections. Its world, render-mask, runtime-atlas, and private-source
+coordinate notation is documented in `docs/TERRAIN_DEBUG.md`.
+
+During terrain development the client uses a fixed 2× presentation scale: the 2D
+camera projection renders half the former world extent, and Bevy's `UiScale`
+doubles fixed UI measurements. Camera edge clamping uses the scaled viewport.
+This constant is intentionally centralized pending dynamic display scaling.

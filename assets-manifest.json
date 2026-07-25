@@ -19,6 +19,13 @@
       "required_file": "THE NATURAL/Tiles/The Natural 1-4 Tileset.png"
     },
     {
+      "id": "the-ground",
+      "creator": "Purchased itch.io asset pack",
+      "source": "Recorded in the purchaser's itch.io library",
+      "license": "Commercial game use; no redistribution of source assets",
+      "required_file": "THE GROUND/The Ground - 1-1.png"
+    },
+    {
       "id": "time-fantasy-animals",
       "creator": "Purchased itch.io asset pack",
       "source": "Recorded in the purchaser's itch.io library",
@@ -33,4 +40,3 @@
     "motifs": ["road-lamp", "shelter-tree", "open-hands"]
   }
 }
-
