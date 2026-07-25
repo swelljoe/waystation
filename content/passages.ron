@@ -1,0 +1,45 @@
+[
+    (
+        id: "PSA.34.18",
+        need_id: "comfort",
+        need_label: "Comfort in grief",
+        reference: "Psalm 34:18",
+        fixture_content: "The LORD is near to the brokenhearted; He saves the contrite in spirit.",
+    ),
+    (
+        id: "PSA.23.4",
+        need_id: "presence",
+        need_label: "Presence on a dark road",
+        reference: "Psalm 23:4",
+        fixture_content: "Even though I walk through the valley of the shadow of death, I will fear no evil, for You are with me.",
+    ),
+    (
+        id: "MAT.11.28-30",
+        need_id: "rest",
+        need_label: "Rest for the weary",
+        reference: "Matthew 11:28–30",
+        fixture_content: "Come to Me, all you who are weary and burdened, and I will give you rest.",
+    ),
+    (
+        id: "ISA.40.31",
+        need_id: "courage",
+        need_label: "Strength for the road",
+        reference: "Isaiah 40:31",
+        fixture_content: "But those who wait upon the LORD will renew their strength; they will mount up with wings like eagles.",
+    ),
+    (
+        id: "GAL.3.28",
+        need_id: "belonging",
+        need_label: "A place of equal dignity",
+        reference: "Galatians 3:28",
+        fixture_content: "There is neither Jew nor Greek, slave nor free, male nor female, for you are all one in Christ Jesus.",
+    ),
+    (
+        id: "LUK.6.36",
+        need_id: "mercy",
+        need_label: "Mercy freely given",
+        reference: "Luke 6:36",
+        fixture_content: "Be merciful, just as your Father is merciful.",
+    ),
+]
+

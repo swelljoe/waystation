@@ -1,0 +1,9 @@
+target
+dist
+.git
+.env
+.env.*
+assets
+private-assets
+brainstorming.md
+competition-rules.txt

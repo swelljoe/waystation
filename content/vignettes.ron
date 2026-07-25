@@ -1,0 +1,33 @@
+[
+    (
+        id: "mara_grief",
+        traveler_name: "Mara",
+        lines: [
+            "I saw your smoke from the ridge. I had forgotten what a tended fire looked like.",
+            "My brother walked ahead to find the river crossing. Three days now, and no returning sign.",
+            "The road says to keep moving. My heart says I have left him behind.",
+        ],
+        needs: ["comfort", "presence"],
+    ),
+    (
+        id: "oren_weariness",
+        traveler_name: "Oren",
+        lines: [
+            "There are fever herbs in my pack for the settlement beyond the pass.",
+            "Everyone called me strong when they loaded it. No one asked whether I was tired.",
+            "If I rest, I fail them. If I do not, I may never reach them.",
+        ],
+        needs: ["rest", "courage"],
+    ),
+    (
+        id: "fen_belonging",
+        traveler_name: "Fen",
+        lines: [
+            "The north camp sent me away. They said there was not enough winter for another mouth.",
+            "Perhaps a person can be extra, like a stone in a shoe.",
+            "I do not need much. Only somewhere my name is not a burden.",
+        ],
+        needs: ["belonging", "mercy"],
+    ),
+]
+

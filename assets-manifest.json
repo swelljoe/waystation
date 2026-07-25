@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "private_root": "assets",
+  "generated_root": "runtime-assets",
+  "packs": [
+    {
+      "id": "modern-farm-v1.2",
+      "creator": "LimeZu",
+      "source": "https://limezu.itch.io/modern-farm",
+      "license": "Commercial and non-commercial game use; no redistribution of source assets",
+      "required_file": "Modern_Farm_v1.2/32x32/1_Terrains_32x32.png",
+      "sha256": "d59fed990e400067f4b752fa253ecec5e2d003f4da174ebd2ea6c70f510d5252"
+    },
+    {
+      "id": "the-natural",
+      "creator": "Purchased itch.io asset pack",
+      "source": "Recorded in the purchaser's itch.io library",
+      "license": "Commercial game use; no redistribution of source assets",
+      "required_file": "THE NATURAL/Tiles/The Natural 1-4 Tileset.png"
+    },
+    {
+      "id": "time-fantasy-animals",
+      "creator": "Purchased itch.io asset pack",
+      "source": "Recorded in the purchaser's itch.io library",
+      "license": "Commercial game use; no redistribution of source assets",
+      "required_file": "tf_animals/sheets/animals1.png"
+    }
+  ],
+  "generated_art": {
+    "license": "Project-authored procedural pixel motifs; distributable with the game code",
+    "card_size": [96, 64],
+    "palette": ["#f1dfad", "#c39a5b", "#77543b", "#34322a", "#78966b", "#9d5f55"],
+    "motifs": ["road-lamp", "shelter-tree", "open-hands"]
+  }
+}
+
