@@ -2,6 +2,12 @@
   "schema_version": 1,
   "private_root": "assets",
   "generated_root": "runtime-assets",
+  "private_asset_policy": {
+    "default": "licensed source art; do not redistribute raw files or generated catalogs",
+    "redistributable_directories": ["custom"],
+    "catalog_tags": "meta/asset-tags.json",
+    "runtime_strategy": "flatten baked room rectangles and extract only authored mutable-template state crops into gitignored runtime art"
+  },
   "packs": [
     {
       "id": "modern-farm-v1.2",
@@ -38,5 +44,29 @@
     "card_size": [96, 64],
     "palette": ["#f1dfad", "#c39a5b", "#77543b", "#34322a", "#78966b", "#9d5f55"],
     "motifs": ["road-lamp", "shelter-tree", "open-hands"]
-  }
+  },
+  "bundled_fonts": [
+    {
+      "family": "EB Garamond",
+      "source": "https://github.com/google/fonts/tree/main/ofl/ebgaramond",
+      "license": "SIL Open Font License 1.1",
+      "source_file": "open-assets/fonts/EBGaramond-Variable.ttf",
+      "runtime_file": "fonts/EBGaramond-Variable.ttf",
+      "sha256": "ef9512f92f6d579e5dc75af59a5a4b1b8b47d2eda89e00b954d44520e5369027",
+      "license_file": "open-assets/fonts/OFL-EB-Garamond.txt",
+      "runtime_license_file": "fonts/OFL-EB-Garamond.txt",
+      "license_sha256": "0985066662eb755ed3683ae5482a81a9195b49ce3f7e165cc2388b3dbece7dd7"
+    },
+    {
+      "family": "Noto Emoji",
+      "source": "https://github.com/google/fonts/tree/main/ofl/notoemoji",
+      "license": "SIL Open Font License 1.1",
+      "source_file": "open-assets/fonts/NotoEmoji-Variable.ttf",
+      "runtime_file": "fonts/NotoEmoji-Variable.ttf",
+      "sha256": "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551",
+      "license_file": "open-assets/fonts/OFL-Noto-Emoji.txt",
+      "runtime_license_file": "fonts/OFL-Noto-Emoji.txt",
+      "license_sha256": "500bb1ccf43df7bbb522112f9133a52b16e1c35e809632f5d8609b179152de5b"
+    }
+  ]
 }

@@ -75,3 +75,30 @@ During terrain development the client uses a fixed 2× presentation scale: the 2
 camera projection renders half the former world extent, and Bevy's `UiScale`
 doubles fixed UI measurements. Camera edge clamping uses the scaled viewport.
 This constant is intentionally centralized pending dynamic display scaling.
+
+## Authored interiors
+
+Interior source data lives in `content/interiors`. Schema v2 separates reusable
+mutable templates, automatically identified structural/fixture instances, and
+legacy baked placements. Templates own state-specific private source crops;
+instances own room-cell anchors and initial state. Source pixels are always
+composited at native size, and the source selection grid never changes scale.
+Collisions, entry cells, and exits remain independent of pixels.
+
+`scripts/build-assets.py` turns baked placements into a cached room background
+and extracts each mutable template state as a separate runtime sprite. The Bevy
+client spawns mutable instances over the cache, records changes under stable
+`room-id/instance-id` keys, and includes those values in browser save data. The
+runtime never needs access to the private library.
+
+`scripts/level_editor.py` serves a localhost-only browser editor. Its asset
+catalog is generated from filenames, image dimensions, and the distributable
+sidecar tags in `meta/asset-tags.json`. The editor supports multi-cell stamps for
+48-pixel RPG sheets, ordered layers, collision painting, entry/exit placement,
+undo, direct JSON save/load, reusable damaged/repaired templates, and repairable
+structure or fixture stamping.
+
+The Bevy client places interior maps in a separate world-space island. Door
+interaction moves the player between exterior and interior spawn cells; camera
+scale changes to frame the room against a near-black brown backdrop. Interior
+movement checks the authored collision grid.

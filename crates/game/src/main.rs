@@ -2,9 +2,13 @@
 
 #![allow(clippy::needless_pass_by_value)]
 
+mod interior;
 mod terrain;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -16,8 +20,13 @@ use waystation_shared::{
 const PLAYER_SPEED: f32 = 210.0;
 const INTERACT_DISTANCE: f32 = 72.0;
 const DEVELOPMENT_PRESENTATION_SCALE: f32 = 2.0;
+const INTERIOR_CAMERA_SCALE: f32 = 0.72;
 const CAMERA_HALF_WIDTH: f32 = 480.0 / DEVELOPMENT_PRESENTATION_SCALE;
 const CAMERA_HALF_HEIGHT: f32 = 270.0 / DEVELOPMENT_PRESENTATION_SCALE;
+const ROMAN_FONT_PATH: &str = "fonts/EBGaramond-Variable.ttf";
+const EMOJI_FONT_PATH: &str = "fonts/NotoEmoji-Variable.ttf";
+const MOTEL_DOOR_POSITION: Vec2 = Vec2::new(120.0, -68.0);
+const EXTERIOR_DOORSTEP_POSITION: Vec2 = Vec2::new(120.0, -112.0);
 
 fn main() {
     App::new()
@@ -25,7 +34,9 @@ fn main() {
         .insert_resource(UiScale(DEVELOPMENT_PRESENTATION_SCALE))
         .insert_resource(Story::default())
         .insert_resource(InterpretInbox::default())
+        .insert_resource(initial_world_location())
         .init_resource::<terrain::TerrainDebugOverlay>()
+        .init_resource::<InteriorState>()
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -44,7 +55,10 @@ fn main() {
                 })
                 .set(ImagePlugin::default_nearest()),
         )
-        .add_systems(Startup, (load_story, setup_world, setup_ui).chain())
+        .add_systems(
+            Startup,
+            (load_story, setup_world, load_ui_fonts, setup_ui).chain(),
+        )
         .add_systems(
             Update,
             (
@@ -67,6 +81,20 @@ fn main() {
 #[cfg(target_arch = "wasm32")]
 const fn asset_root() -> &'static str {
     "runtime-assets"
+}
+
+#[cfg(target_arch = "wasm32")]
+const fn initial_world_location() -> WorldLocation {
+    WorldLocation::Exterior
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn initial_world_location() -> WorldLocation {
+    if std::env::var_os("WAYSTATION_START_INTERIOR").is_some() {
+        WorldLocation::Interior
+    } else {
+        WorldLocation::Exterior
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -92,6 +120,9 @@ enum InteractableKind {
     Plank,
     Desk,
     Traveler,
+    MotelDoor,
+    InteriorExit,
+    InteriorRepairable,
 }
 
 #[derive(Component)]
@@ -99,6 +130,15 @@ struct Interactable {
     kind: InteractableKind,
     consumed: bool,
 }
+
+#[derive(Component)]
+struct MutableInteriorElement {
+    id: String,
+    state: String,
+}
+
+#[derive(Resource, Default)]
+struct InteriorState(HashMap<String, String>);
 
 #[derive(Component)]
 struct StatusText;
@@ -120,6 +160,36 @@ struct ProvenanceText;
 
 #[derive(Component)]
 struct CardArt;
+
+#[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
+enum WorldLocation {
+    Exterior,
+    Interior,
+}
+
+#[derive(Resource)]
+struct UiFonts {
+    roman: Handle<Font>,
+    emoji: Handle<Font>,
+}
+
+impl UiFonts {
+    fn roman(&self, font_size: f32) -> TextFont {
+        TextFont {
+            font: self.roman.clone(),
+            font_size,
+            ..default()
+        }
+    }
+
+    fn emoji(&self, font_size: f32) -> TextFont {
+        TextFont {
+            font: self.emoji.clone(),
+            font_size,
+            ..default()
+        }
+    }
+}
 
 #[derive(Resource, Default)]
 struct Nearby(Option<Entity>);
@@ -164,18 +234,22 @@ struct SaveData {
     dialogue_line: usize,
     result: Option<InterpretResponse>,
     card: CardRecipe,
+    #[serde(default)]
+    interior_states: HashMap<String, String>,
 }
 
-impl From<&Story> for SaveData {
-    fn from(story: &Story) -> Self {
+impl SaveData {
+    #[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
+    fn capture(story: &Story, interior_state: &InteriorState) -> Self {
         Self {
-            version: 1,
+            version: 2,
             stage: story.stage,
             kindling: story.kindling,
             vignette_index: story.vignette_index,
             dialogue_line: story.dialogue_line,
             result: story.result.clone(),
             card: story.card.clone(),
+            interior_states: interior_state.0.clone(),
         }
     }
 }
@@ -231,6 +305,8 @@ fn setup_world(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    location: Res<WorldLocation>,
+    interior_state: Res<InteriorState>,
 ) {
     commands.spawn((
         Camera2d,
@@ -247,6 +323,27 @@ fn setup_world(
     let floor = asset_server.load("world/floor.png");
     let tree = asset_server.load("world/tree.png");
     let scribe = asset_server.load("world/scribe.png");
+    let interior_map = interior::InteriorMap::motel_room();
+    interior::spawn(&mut commands, &asset_server, &interior_map);
+    for element in interior_map.mutable_elements() {
+        let state_key = format!("{}/{}", interior_map.id, element.id);
+        let state = interior_state
+            .0
+            .get(&state_key)
+            .map_or(element.initial_state.as_str(), String::as_str);
+        let entity =
+            interior::spawn_mutable(&mut commands, &asset_server, &interior_map, element, state);
+        commands.entity(entity).insert((
+            Interactable {
+                kind: InteractableKind::InteriorRepairable,
+                consumed: state == "repaired",
+            },
+            MutableInteriorElement {
+                id: element.id.clone(),
+                state: state.to_owned(),
+            },
+        ));
+    }
 
     // Protected valley: tree-shadow slopes and the stone motel court sit over
     // the generated grass, dirt, old road, ponds, and river terrain.
@@ -337,6 +434,13 @@ fn setup_world(
         Vec2::new(82.0, 54.0),
         Color::srgb(0.30, 0.20, 0.12),
     );
+    spawn_interactable(
+        &mut commands,
+        InteractableKind::MotelDoor,
+        MOTEL_DOOR_POSITION,
+        Vec2::new(34.0, 22.0),
+        Color::srgb(0.24, 0.13, 0.08),
+    );
     let traveler = spawn_interactable(
         &mut commands,
         InteractableKind::Traveler,
@@ -348,11 +452,24 @@ fn setup_world(
         .entity(traveler)
         .insert((Traveler, Visibility::Hidden));
 
+    let player_position = if *location == WorldLocation::Interior {
+        interior_map.cell_center(interior_map.entry)
+    } else {
+        Vec2::new(-650.0, -260.0)
+    };
     commands.spawn((
         Sprite::from_image(scribe),
-        Transform::from_xyz(-650.0, -260.0, 5.0),
+        Transform::from_xyz(player_position.x, player_position.y, 5.0),
         Player,
     ));
+    spawn_interactable(
+        &mut commands,
+        InteractableKind::InteriorExit,
+        interior_map.cell_center(interior_map.exits[0]),
+        Vec2::splat(30.0),
+        Color::srgba(0.0, 0.0, 0.0, 0.0),
+    );
+    commands.insert_resource(interior_map);
     commands.insert_resource(Nearby::default());
 }
 
@@ -379,7 +496,7 @@ fn spawn_tile_grid(
 }
 
 #[cfg(target_arch = "wasm32")]
-fn load_story(mut story: ResMut<Story>) {
+fn load_story(mut story: ResMut<Story>, mut interior_state: ResMut<InteriorState>) {
     let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     else {
         return;
@@ -390,7 +507,7 @@ fn load_story(mut story: ResMut<Story>) {
     let Ok(save) = serde_json::from_str::<SaveData>(&raw) else {
         return;
     };
-    if save.version != 1 || save.vignette_index >= vignettes().len() {
+    if !matches!(save.version, 1 | 2) || save.vignette_index >= vignettes().len() {
         return;
     }
     story.stage = save.stage;
@@ -399,6 +516,7 @@ fn load_story(mut story: ResMut<Story>) {
     story.dialogue_line = save.dialogue_line;
     story.result = save.result;
     story.card = save.card;
+    interior_state.0 = save.interior_states;
     story.notice = Some("The old trail returns to memory.".to_owned());
 }
 
@@ -406,15 +524,15 @@ fn load_story(mut story: ResMut<Story>) {
 const fn load_story() {}
 
 #[cfg(target_arch = "wasm32")]
-fn save_story(story: Res<Story>) {
-    if !story.is_changed() {
+fn save_story(story: Res<Story>, interior_state: Res<InteriorState>) {
+    if !story.is_changed() && !interior_state.is_changed() {
         return;
     }
     let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     else {
         return;
     };
-    if let Ok(raw) = serde_json::to_string(&SaveData::from(&*story)) {
+    if let Ok(raw) = serde_json::to_string(&SaveData::capture(&story, &interior_state)) {
         let _ = storage.set_item("waystation-save-v1", &raw);
     }
 }
@@ -457,41 +575,55 @@ fn spawn_interactable_sprite(
         .id()
 }
 
-fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn load_ui_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(UiFonts {
+        roman: asset_server.load(ROMAN_FONT_PATH),
+        emoji: asset_server.load(EMOJI_FONT_PATH),
+    });
+}
+
+fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<UiFonts>) {
     terrain::spawn_debug_legend(&mut commands);
-    commands.spawn((
-        Text::new(""),
-        TextFont {
-            font_size: 18.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.92, 0.86, 0.67)),
-        Node {
-            position_type: PositionType::Absolute,
-            left: Val::Px(18.0),
-            top: Val::Px(16.0),
-            max_width: Val::Px(410.0),
-            ..default()
-        },
-        StatusText,
-    ));
-    commands.spawn((
-        Text::new(""),
-        TextFont {
-            font_size: 19.0,
-            ..default()
-        },
-        TextColor(Color::WHITE),
-        Node {
-            position_type: PositionType::Absolute,
-            left: Val::Percent(25.0),
-            bottom: Val::Px(18.0),
-            width: Val::Percent(50.0),
-            justify_content: JustifyContent::Center,
-            ..default()
-        },
-        PromptText,
-    ));
+    let status_color = Color::srgb(0.92, 0.86, 0.67);
+    commands
+        .spawn((
+            Text::new("📜  "),
+            fonts.emoji(18.0),
+            TextColor(status_color),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(18.0),
+                top: Val::Px(16.0),
+                max_width: Val::Px(410.0),
+                ..default()
+            },
+        ))
+        .with_child((
+            TextSpan::new(""),
+            fonts.roman(18.0),
+            TextColor(status_color),
+            StatusText,
+        ));
+    commands
+        .spawn((
+            Text::new("☞  "),
+            fonts.emoji(19.0),
+            TextColor(Color::WHITE),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Percent(25.0),
+                bottom: Val::Px(18.0),
+                width: Val::Percent(50.0),
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+        ))
+        .with_child((
+            TextSpan::new(""),
+            fonts.roman(19.0),
+            TextColor(Color::WHITE),
+            PromptText,
+        ));
 
     commands
         .spawn((
@@ -517,10 +649,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .with_children(|parent| {
             parent.spawn((
                 Text::new(""),
-                TextFont {
-                    font_size: 30.0,
-                    ..default()
-                },
+                fonts.roman(30.0),
                 TextColor(Color::srgb(0.95, 0.79, 0.39)),
                 OverlayTitle,
             ));
@@ -536,10 +665,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             ));
             parent.spawn((
                 Text::new(""),
-                TextFont {
-                    font_size: 20.0,
-                    ..default()
-                },
+                fonts.roman(20.0),
                 TextColor(Color::srgb(0.93, 0.90, 0.80)),
                 Node {
                     max_width: Val::Px(680.0),
@@ -549,10 +675,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             ));
             parent.spawn((
                 Text::new(""),
-                TextFont {
-                    font_size: 13.0,
-                    ..default()
-                },
+                fonts.roman(13.0),
                 TextColor(Color::srgb(0.62, 0.66, 0.61)),
                 ProvenanceText,
             ));
@@ -563,7 +686,9 @@ fn move_player(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     story: Res<Story>,
-    mut player: Query<&mut Transform, With<Player>>,
+    location: Res<WorldLocation>,
+    interior: Res<interior::InteriorMap>,
+    mut player: Query<&mut Transform, (With<Player>, Without<MutableInteriorElement>)>,
 ) {
     if matches!(
         story.stage,
@@ -596,36 +721,65 @@ fn move_player(
     }
     if direction != Vec2::ZERO {
         let delta = direction.normalize() * PLAYER_SPEED * time.delta_secs();
-        transform.translation.x =
-            (transform.translation.x + delta.x).clamp(-MAP_HALF_WIDTH, MAP_HALF_WIDTH);
-        transform.translation.y =
-            (transform.translation.y + delta.y).clamp(-MAP_HALF_HEIGHT, MAP_HALF_HEIGHT);
+        if *location == WorldLocation::Exterior {
+            transform.translation.x =
+                (transform.translation.x + delta.x).clamp(-MAP_HALF_WIDTH, MAP_HALF_WIDTH);
+            transform.translation.y =
+                (transform.translation.y + delta.y).clamp(-MAP_HALF_HEIGHT, MAP_HALF_HEIGHT);
+        } else {
+            let mut next = transform.translation.truncate();
+            let next_x = Vec2::new(next.x + delta.x, next.y);
+            if interior.is_walkable(next_x) {
+                next.x = next_x.x;
+            }
+            let next_y = Vec2::new(next.x, next.y + delta.y);
+            if interior.is_walkable(next_y) {
+                next.y = next_y.y;
+            }
+            transform.translation.x = next.x;
+            transform.translation.y = next.y;
+        }
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn follow_player(
+    location: Res<WorldLocation>,
+    interior: Res<interior::InteriorMap>,
     player: Query<&Transform, (With<Player>, Without<MainCamera>)>,
-    mut camera: Query<&mut Transform, (With<MainCamera>, Without<Player>)>,
+    mut camera: Query<(&mut Transform, &mut Projection), (With<MainCamera>, Without<Player>)>,
 ) {
-    let (Ok(player), Ok(mut camera)) = (player.single(), camera.single_mut()) else {
+    let (Ok(player), Ok((mut camera, mut projection))) = (player.single(), camera.single_mut())
+    else {
         return;
     };
-    camera.translation.x = player
-        .translation
-        .x
-        .clamp(
-            -MAP_HALF_WIDTH + CAMERA_HALF_WIDTH,
-            MAP_HALF_WIDTH - CAMERA_HALF_WIDTH,
+    let camera_scale = if *location == WorldLocation::Exterior {
+        DEVELOPMENT_PRESENTATION_SCALE.recip()
+    } else {
+        INTERIOR_CAMERA_SCALE
+    };
+    if let Projection::Orthographic(orthographic) = &mut *projection {
+        orthographic.scale = camera_scale;
+    }
+    let position = if *location == WorldLocation::Exterior {
+        Vec2::new(
+            player.translation.x.clamp(
+                -MAP_HALF_WIDTH + CAMERA_HALF_WIDTH,
+                MAP_HALF_WIDTH - CAMERA_HALF_WIDTH,
+            ),
+            player.translation.y.clamp(
+                -MAP_HALF_HEIGHT + CAMERA_HALF_HEIGHT,
+                MAP_HALF_HEIGHT - CAMERA_HALF_HEIGHT,
+            ),
         )
-        .round();
-    camera.translation.y = player
-        .translation
-        .y
-        .clamp(
-            -MAP_HALF_HEIGHT + CAMERA_HALF_HEIGHT,
-            MAP_HALF_HEIGHT - CAMERA_HALF_HEIGHT,
+    } else {
+        interior.camera_position(
+            player.translation.truncate(),
+            Vec2::new(480.0 * camera_scale, 270.0 * camera_scale),
         )
-        .round();
+    };
+    camera.translation.x = position.x.round();
+    camera.translation.y = position.y.round();
 }
 
 fn update_nearby_interaction(
@@ -654,11 +808,26 @@ fn update_nearby_interaction(
     nearby.0 = closest;
 }
 
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn handle_interaction(
     keys: Res<ButtonInput<KeyCode>>,
     nearby: Res<Nearby>,
     mut story: ResMut<Story>,
+    mut location: ResMut<WorldLocation>,
+    interior: Res<interior::InteriorMap>,
+    asset_server: Res<AssetServer>,
+    mut interior_state: ResMut<InteriorState>,
+    mut player: Query<&mut Transform, With<Player>>,
     mut interactables: Query<&mut Interactable>,
+    mut mutable_elements: Query<
+        (
+            &mut MutableInteriorElement,
+            &mut Sprite,
+            &mut Transform,
+            &mut Visibility,
+        ),
+        Without<Player>,
+    >,
 ) {
     if !keys.just_pressed(KeyCode::KeyE) {
         return;
@@ -723,6 +892,62 @@ fn handle_interaction(
             story.stage = StoryStage::Dialogue;
             story.dialogue_line = 0;
             story.notice = None;
+        }
+        InteractableKind::MotelDoor => {
+            if let Ok(mut transform) = player.single_mut() {
+                let position = interior.cell_center(interior.entry);
+                transform.translation.x = position.x;
+                transform.translation.y = position.y;
+                *location = WorldLocation::Interior;
+                story.notice = Some(format!(
+                    "Inside {}, the valley light falls away behind you.",
+                    interior.name
+                ));
+            }
+        }
+        InteractableKind::InteriorExit => {
+            if let Ok(mut transform) = player.single_mut() {
+                transform.translation.x = EXTERIOR_DOORSTEP_POSITION.x;
+                transform.translation.y = EXTERIOR_DOORSTEP_POSITION.y;
+                *location = WorldLocation::Exterior;
+                story.notice = Some("You step back into the valley air.".to_owned());
+            }
+        }
+        InteractableKind::InteriorRepairable => {
+            let Ok((mut instance, mut sprite, mut transform, mut visibility)) =
+                mutable_elements.get_mut(entity)
+            else {
+                return;
+            };
+            let Some(element) = interior.mutable_element(&instance.id) else {
+                return;
+            };
+            let Some(repaired) = element.states.get("repaired") else {
+                story.notice = Some(format!("{} cannot be repaired yet.", element.label));
+                return;
+            };
+            if let Some(path) = &repaired.image_path {
+                sprite.image = asset_server.load(path.clone());
+            }
+            sprite.custom_size = Some(repaired.size.max(Vec2::ONE));
+            let center = interior.element_center(element, repaired.size);
+            transform.translation.x = center.x;
+            transform.translation.y = center.y;
+            *visibility = if repaired.visible {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+            "repaired".clone_into(&mut instance.state);
+            interior_state.0.insert(
+                format!("{}/{}", interior.id, instance.id),
+                instance.state.clone(),
+            );
+            target.consumed = true;
+            story.notice = Some(format!(
+                "You restore the {}. The {} is sound again.",
+                element.label, element.kind
+            ));
         }
         _ => {
             story.notice = Some("There may be a use for this later.".to_owned());
@@ -939,7 +1164,7 @@ fn sync_ui(
     asset_server: Res<AssetServer>,
     interactables: Query<&Interactable>,
     mut status: Query<
-        &mut Text,
+        &mut TextSpan,
         (
             With<StatusText>,
             Without<PromptText>,
@@ -949,7 +1174,7 @@ fn sync_ui(
         ),
     >,
     mut prompt: Query<
-        &mut Text,
+        &mut TextSpan,
         (
             With<PromptText>,
             Without<StatusText>,
@@ -1027,6 +1252,9 @@ fn sync_ui(
                 InteractableKind::Plank => "E — take the cedar plank",
                 InteractableKind::Desk => "E — repair the writing desk",
                 InteractableKind::Traveler => "E — welcome the traveler",
+                InteractableKind::MotelDoor => "E — enter the motel room",
+                InteractableKind::InteriorExit => "E — step back outside",
+                InteractableKind::InteriorRepairable => "E — repair this part of the room",
             },
         );
     if let Ok(mut text) = prompt.single_mut() {
@@ -1171,5 +1399,19 @@ mod tests {
             assert!(waystation_shared::vignette(&item.id).is_some());
             assert!(fixture_response(&item.id).is_some());
         }
+    }
+
+    #[test]
+    fn save_data_keeps_mutable_room_state_by_stable_id() {
+        let story = Story::default();
+        let mut interior_state = InteriorState::default();
+        interior_state
+            .0
+            .insert("motel-room-01/mirror-01".to_owned(), "repaired".to_owned());
+
+        let save = SaveData::capture(&story, &interior_state);
+
+        assert_eq!(save.version, 2);
+        assert_eq!(save.interior_states["motel-room-01/mirror-01"], "repaired");
     }
 }

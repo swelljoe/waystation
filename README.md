@@ -38,6 +38,41 @@ The fixture server listens on `http://127.0.0.1:7777`. Controls are:
 The development client currently uses a fixed 2× presentation scale for both
 world rendering and UI. This is temporary until dynamic display scaling is added.
 
+To start directly in the authored motel room while iterating on interiors, run:
+
+```bash
+WAYSTATION_START_INTERIOR=1 cargo run -p waystation-game
+```
+
+## Author interiors
+
+The local level editor searches the private art library, selects single- or
+multi-cell rectangles from sprite sheets, and paints floor, wall, object, and
+overlay layers with the mouse. It also edits collision, entry, and exit cells.
+
+```bash
+make editor
+```
+
+Open <http://127.0.0.1:7790>, save the room, then run `make assets` to flatten its
+private source stamps into gitignored runtime art. For repairable content:
+
+1. Select the damaged crop and choose **Use selection as damaged**.
+2. Select its repaired crop and choose **Use selection as repaired**.
+3. Choose **Repairable structure** or **Repairable fixture**, enter a reusable
+   kind such as `wood-floor` or `mirror`, then stamp instances.
+4. Reuse the same kind to stamp more automatically identified instances without
+   recapturing its artwork.
+
+Baked scenery goes into the cached room background. Mutable template states are
+extracted as separate native-size sprites and are never baked into that image.
+In the current slice, approach the cracked motel-room mirror and press `E` to
+repair it. Browser saves persist the state under `room-id/instance-id`.
+
+Asset tags live in `meta/asset-tags.json`; expand that sidecar as packs are
+reviewed. The editor binds only to localhost because it serves licensed source
+sheets.
+
 ## Run with Podman
 
 ```bash

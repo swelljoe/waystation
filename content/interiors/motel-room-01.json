@@ -1,0 +1,368 @@
+{
+  "schema_version": 2,
+  "id": "motel-room-01",
+  "name": "Motel Room 01",
+  "background": "#49382b",
+  "floor_line": "#34261d",
+  "grid": {
+    "width": 14,
+    "height": 11,
+    "tile_size": 32
+  },
+  "templates": {
+    "mirror": {
+      "label": "cracked mirror",
+      "kind": "mirror",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-04.png",
+            "grid": 48,
+            "x": 14,
+            "y": 10,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "horror hotel/tile-B-04.png",
+            "grid": 48,
+            "x": 12,
+            "y": 10,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
+    }
+  },
+  "entry": {
+    "x": 12,
+    "y": 9
+  },
+  "exits": [
+    {
+      "x": 12,
+      "y": 10,
+      "to": "exterior",
+      "spawn": "motel-door"
+    }
+  ],
+  "collision": [],
+  "placements": [
+    {
+      "layer": "floor",
+      "x": 2,
+      "y": 0,
+      "width": 6,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 8,
+        "y": 0,
+        "width": 4,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 8,
+      "y": 0,
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 8,
+        "y": 4,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 11,
+      "y": 0,
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 8,
+        "y": 8,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 0,
+      "y": 0,
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 8,
+        "y": 6,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 5,
+      "y": 0,
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 12,
+        "y": 6,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 0,
+      "y": 3,
+      "width": 6,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 0,
+        "width": 4,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 9,
+      "y": 7,
+      "width": 6,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 0,
+        "width": 4,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 0,
+      "y": 7,
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 6,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 11,
+      "y": 3,
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 8,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 6,
+      "y": 3,
+      "width": 3,
+      "height": 6,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 0,
+        "width": 2,
+        "height": 4
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 9,
+      "y": 3,
+      "width": 3,
+      "height": 6,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 0,
+        "width": 2,
+        "height": 4
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 3,
+      "y": 6,
+      "width": 3,
+      "height": 6,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 0,
+        "width": 2,
+        "height": 4
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 6,
+      "y": 8,
+      "width": 3,
+      "height": 6,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 0,
+        "width": 2,
+        "height": 4
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 9,
+      "y": 10,
+      "width": 3,
+      "height": 2,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 9,
+        "width": 2,
+        "height": 1
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 0,
+      "y": 10,
+      "width": 3,
+      "height": 2,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 1,
+        "width": 2,
+        "height": 1
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 12,
+      "y": 10,
+      "width": 3,
+      "height": 2,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 1,
+        "width": 2,
+        "height": 1
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 12,
+      "y": 6,
+      "width": 3,
+      "height": 2,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 1,
+        "width": 2,
+        "height": 1
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 0,
+      "y": 6,
+      "width": 3,
+      "height": 2,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 1,
+        "width": 2,
+        "height": 1
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 0,
+      "y": 7,
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 0,
+        "y": 4,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "floor",
+      "x": 5,
+      "y": 0,
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-04.png",
+        "grid": 48,
+        "x": 4,
+        "y": 8,
+        "width": 2,
+        "height": 2
+      }
+    }
+  ],
+  "structures": [],
+  "fixtures": [
+    {
+      "id": "mirror-01",
+      "template": "mirror",
+      "x": 10,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "initial_state": "damaged"
+    }
+  ]
+}

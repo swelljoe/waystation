@@ -36,6 +36,13 @@ rendered sprites meet. Specifically, `W(x,y)` is shared by rendered tiles
 removes the two ambiguous checkerboard masks (`M05` and `M0A`) because this art
 set intentionally has no matching pieces.
 
+`THE GROUND` is an edge-matched set: every transition piece is dominated by one
+terrain, with the boundary drawn as a fringe hugging the tile edge. There is no
+art for a lone dirt corner, so the single-corner masks (`M01`, `M02`, `M04`,
+`M08`) render as plain grass and convex dirt corners round off by a quarter
+cell. Atlas slots A6-A9 still hold the pack's dirt-side outer-corner pieces but
+no mask maps to them.
+
 ## Atlas catalog
 
 | Atlas | Role | THE GROUND source |
@@ -46,10 +53,10 @@ set intentionally has no matching pieces.
 | A3 | `G.rocks` | G(1,0) |
 | A4 | `DG.full_a` | G(0,2) |
 | A5 | `DG.full_b` | G(0,2) |
-| A6 | `DG.only_nw` | G(5,1) |
-| A7 | `DG.only_ne` | G(5,2) |
-| A8 | `DG.only_se` | G(4,0) |
-| A9 | `DG.only_sw` | G(5,0) |
+| A6 | `DG.only_nw` (unused) | G(4,0) |
+| A7 | `DG.only_ne` (unused) | G(5,0) |
+| A8 | `DG.only_se` (unused) | G(5,1) |
+| A9 | `DG.only_sw` (unused) | G(4,1) |
 | A10 | `DG.north` | G(6,2) |
 | A11 | `DG.east` | G(7,2) |
 | A12 | `DG.south` | G(6,3) |
@@ -57,7 +64,7 @@ set intentionally has no matching pieces.
 | A14 | `DG.except_nw` | G(5,3) |
 | A15 | `DG.except_ne` | G(4,3) |
 | A16 | `DG.except_se` | G(4,2) |
-| A17 | `DG.except_sw` | G(4,1) |
+| A17 | `DG.except_sw` | G(5,2) |
 | A18 | `W.center` | G(40,0) |
 | A19 | `W.isolated` | G(32,1) |
 | A20 | `W.isolated_small` | G(33,1) |

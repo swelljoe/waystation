@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Waystation Interior Editor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="eyebrow">THE WAYSTATION</span>
+        <strong>Interior Editor</strong>
+      </div>
+      <label>Room ID <input id="room-id" value="motel-room-01" spellcheck="false" /></label>
+      <label>Name <input id="room-name" value="Motel Room 01" /></label>
+      <label>W <input id="room-width" type="number" min="4" max="128" value="18" /></label>
+      <label>H <input id="room-height" type="number" min="4" max="128" value="11" /></label>
+      <button id="new-room">New</button>
+      <select id="level-list" aria-label="Saved level"></select>
+      <button id="load-room">Load</button>
+      <button id="save-room" class="primary">Save</button>
+      <button id="export-room">Export JSON</button>
+    </header>
+
+    <main class="workspace">
+      <aside class="library panel">
+        <div class="panel-heading">
+          <div><span class="eyebrow">PRIVATE LIBRARY</span><h1>Asset browser</h1></div>
+          <span id="asset-count" class="count">…</span>
+        </div>
+        <input id="asset-search" class="search" type="search" placeholder="bed, desk, wall, floor…" />
+        <select id="pack-filter"><option value="">All packs</option></select>
+        <p class="hint">Tags come from filenames plus <code>meta/asset-tags.json</code>. Licensed pixels stay local.</p>
+        <div id="asset-list" class="asset-list" aria-live="polite"></div>
+      </aside>
+
+      <section class="stage panel">
+        <div class="toolbar">
+          <div class="tool-group" id="tool-group">
+            <button data-tool="stamp" class="active">Stamp</button>
+            <button data-tool="erase">Erase</button>
+            <button data-tool="collision">Collision</button>
+            <button data-tool="entry">Entry</button>
+            <button data-tool="exit">Exit</button>
+          </div>
+          <label>Layer
+            <select id="layer">
+              <option value="floor">Floor</option>
+              <option value="wall">Wall</option>
+              <option value="object">Object</option>
+              <option value="overlay">Overlay</option>
+            </select>
+          </label>
+          <label>Behavior
+            <select id="behavior">
+              <option value="baked">Baked scenery</option>
+              <option value="structure">Repairable structure</option>
+              <option value="fixture">Repairable fixture</option>
+            </select>
+          </label>
+          <label>Floor <input id="background" type="color" value="#49382b" /></label>
+          <label>Zoom
+            <select id="zoom"><option>0.5</option><option selected>1</option><option>1.5</option><option>2</option></select>
+          </label>
+          <button id="undo">Undo</button>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="room-canvas" aria-label="Room grid"></canvas>
+        </div>
+        <div class="statusbar"><span id="status">Loading asset catalog…</span><span>Right-click erases · Ctrl/Cmd+Z undoes</span></div>
+      </section>
+
+      <aside class="palette panel">
+        <div class="panel-heading">
+          <div><span class="eyebrow">SOURCE SHEET</span><h2 id="sheet-name">Choose an asset</h2></div>
+        </div>
+        <div class="sheet-controls">
+          <label>Source grid <input id="source-grid" type="number" min="1" max="256" value="48" /></label>
+          <span id="sheet-dimensions" class="count"></span>
+        </div>
+        <p class="hint">Drag across one or more cells to make a rectangular stamp. Source grid changes selection precision only; stamps always keep their native pixel size.</p>
+        <div class="sheet-wrap"><canvas id="sheet-canvas"></canvas></div>
+        <section class="selection-card">
+          <span class="eyebrow">SELECTED STAMP</span>
+          <strong id="selection-title">None</strong>
+          <p id="selection-details">Pick a sheet, then drag over the object or tile you want.</p>
+        </section>
+        <section class="mutable-card">
+          <span class="eyebrow">MUTABLE CONTENT</span>
+          <label>Kind <input id="element-kind" value="floor" spellcheck="false" /></label>
+          <label>Label <input id="element-label" value="floorboard" /></label>
+          <div class="capture-row">
+            <button id="capture-damaged">Use selection as damaged</button>
+            <small id="damaged-source">not captured</small>
+          </div>
+          <div class="capture-row">
+            <button id="capture-repaired">Use selection as repaired</button>
+            <small id="repaired-source">not captured</small>
+          </div>
+          <p class="hint">Choose repairable structure or fixture above, capture both state crops, then stamp instances. IDs are generated automatically.</p>
+        </section>
+        <details>
+          <summary>Room format</summary>
+          <p class="hint">Rooms store source rectangles, layers, collision cells, entry, and exits. The asset build flattens private pixels into a runtime room image.</p>
+        </details>
+      </aside>
+    </main>
+    <script src="editor.js"></script>
+  </body>
+</html>

@@ -7,6 +7,8 @@
 !.env.example
 waystation-save.json
 *.log
+__pycache__/
+*.pyc
 
 # Purchased source art is intentionally kept out of the public repository.
 /assets/

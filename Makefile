@@ -1,12 +1,21 @@
-.PHONY: assets check test analyze build server game web container run-container
+.PHONY: assets catalog editor check test analyze build server game web container run-container
 
 assets:
 	python3 scripts/build-assets.py
+
+catalog:
+	python3 scripts/asset_catalog.py --output assets/.catalog.json
+
+editor:
+	python3 scripts/level_editor.py
 
 check:
 	cargo check --workspace
 
 test:
+	python3 scripts/test_asset_catalog.py
+	python3 scripts/test_build_assets.py
+	python3 scripts/test_level_editor.py
 	cargo test --workspace
 
 analyze:

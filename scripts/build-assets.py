@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
+import shutil
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -21,6 +23,9 @@ MANIFEST = ROOT / "assets-manifest.json"
 PALETTE = ["#f1dfad", "#c39a5b", "#77543b", "#34322a", "#78966b", "#9d5f55"]
 CARD_SIZE = (96, 64)
 TERRAIN_TILE_SIZE = 32
+INTERIOR_ROOT = ROOT / "content/interiors"
+INTERIOR_LAYER_ORDER = {"floor": 0, "wall": 1, "object": 2, "overlay": 3}
+INTERIOR_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 # Compact runtime atlas order. These coordinates select only the pieces the
 # engine understands from the private 42x12 `THE GROUND` source sheet.
@@ -466,6 +471,153 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     return records
 
 
+def private_asset_path(source: Path, relative: str) -> Path:
+    path = (source / relative).resolve()
+    try:
+        path.relative_to(source.resolve())
+    except ValueError as error:
+        raise SystemExit(f"interior source escapes private asset root: {relative}") from error
+    return path
+
+
+def fallback_interior_stamp(
+    size: tuple[int, int], layer: str, seed: int
+) -> Image.Image:
+    """Make a readable open-build stand-in for one unavailable private stamp."""
+    colors = {
+        "floor": (91, 72, 52, 255),
+        "wall": (70, 62, 54, 255),
+        "object": (119, 84, 57, 255),
+        "overlay": (146, 112, 70, 210),
+    }
+    image = Image.new("RGBA", size, colors[layer])
+    draw = ImageDraw.Draw(image)
+    detail = (42, 38, 33, 170)
+    draw.rectangle((0, 0, size[0] - 1, size[1] - 1), outline=detail, width=2)
+    for offset in range(seed % 7, max(size), 13):
+        draw.line((offset, 0, 0, offset), fill=detail, width=1)
+    return image
+
+
+def load_interior_stamp(
+    source_spec: dict[str, object], source: Path, layer: str
+) -> Image.Image:
+    """Crop one native-size private stamp or produce an equally sized fallback."""
+    source_grid = int(source_spec["grid"])
+    source_box = (
+        int(source_spec["x"]) * source_grid,
+        int(source_spec["y"]) * source_grid,
+        (int(source_spec["x"]) + int(source_spec["width"])) * source_grid,
+        (int(source_spec["y"]) + int(source_spec["height"])) * source_grid,
+    )
+    private_path = private_asset_path(source, str(source_spec["path"]))
+    if private_path.is_file():
+        with Image.open(private_path) as source_image:
+            if source_box[2] > source_image.width or source_box[3] > source_image.height:
+                raise SystemExit(f"interior crop exceeds {private_path}: {source_box}")
+            return source_image.convert("RGBA").crop(source_box)
+
+    fallback_size = (
+        int(source_spec["width"]) * source_grid,
+        int(source_spec["height"]) * source_grid,
+    )
+    stamp_seed = int(hashlib.sha256(str(source_spec).encode()).hexdigest()[:8], 16)
+    return fallback_interior_stamp(fallback_size, layer, stamp_seed)
+
+
+def render_interior(level: dict[str, object], source: Path) -> Image.Image:
+    grid = level["grid"]
+    tile_size = int(grid["tile_size"])
+    room_size = (int(grid["width"]) * tile_size, int(grid["height"]) * tile_size)
+    image = Image.new("RGBA", room_size, str(level.get("background", "#100c09")))
+    floor_draw = ImageDraw.Draw(image)
+    floor_line = str(level.get("floor_line", "#2d2119"))
+    for y in range(tile_size, room_size[1], tile_size):
+        floor_draw.line((0, y, room_size[0], y), fill=floor_line, width=1)
+    for row, y in enumerate(range(0, room_size[1], tile_size)):
+        offset = tile_size if row % 2 == 0 else tile_size * 2
+        for x in range(offset, room_size[0], tile_size * 2):
+            floor_draw.line(
+                (x, y, x, min(y + tile_size, room_size[1])), fill=floor_line, width=1
+            )
+    placements = sorted(
+        level["placements"], key=lambda item: INTERIOR_LAYER_ORDER[item["layer"]]
+    )
+    for placement in placements:
+        source_spec = placement["source"]
+        stamp = load_interior_stamp(source_spec, source, placement["layer"])
+
+        placement_size = (
+            int(placement["width"]) * tile_size,
+            int(placement["height"]) * tile_size,
+        )
+        position = (int(placement["x"]) * tile_size, int(placement["y"]) * tile_size)
+        if placement.get("repeat", False):
+            repeated = Image.new("RGBA", placement_size, (0, 0, 0, 0))
+            for y in range(0, placement_size[1], stamp.height):
+                for x in range(0, placement_size[0], stamp.width):
+                    repeated.alpha_composite(stamp, (x, y))
+            stamp = repeated
+        image.alpha_composite(stamp, position)
+    return image
+
+
+def write_mutable_interior_art(
+    level: dict[str, object], source: Path, output: Path, interiors: Path
+) -> list[dict[str, object]]:
+    records = []
+    room_id = str(level["id"])
+    room_directory = interiors / room_id
+    if room_directory.exists():
+        shutil.rmtree(room_directory)
+    room_directory.mkdir(parents=True)
+    for template_id, template in level.get("templates", {}).items():
+        if INTERIOR_ID.fullmatch(template_id) is None:
+            raise SystemExit(f"invalid mutable interior template: {template_id}")
+        for state_name, visual in template["states"].items():
+            if INTERIOR_ID.fullmatch(state_name) is None:
+                raise SystemExit(f"invalid mutable interior state: {state_name}")
+            if visual.get("visible", True) is False:
+                continue
+            stamp = load_interior_stamp(visual["source"], source, template["layer"])
+            destination = room_directory / f"{template_id}--{state_name}.png"
+            stamp.save(destination, optimize=False)
+            records.append(
+                {
+                    "path": str(destination.relative_to(output)),
+                    "sha256": sha256(destination),
+                    "size": list(stamp.size),
+                    "source": "authored mutable template state flattened from a private crop or public fallback",
+                }
+            )
+    return records
+
+
+def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
+    interiors = output / "interiors"
+    interiors.mkdir(parents=True, exist_ok=True)
+    for stale in interiors.glob("*.png"):
+        stale.unlink()
+    records = []
+    for level_path in sorted(INTERIOR_ROOT.glob("*.json")):
+        level = json.loads(level_path.read_text(encoding="utf-8"))
+        if level.get("schema_version") not in {1, 2} or level.get("id") != level_path.stem:
+            raise SystemExit(f"invalid interior identity in {level_path}")
+        image = render_interior(level, source)
+        destination = interiors / f"{level['id']}.png"
+        image.save(destination, optimize=False)
+        records.append(
+            {
+                "path": str(destination.relative_to(output)),
+                "sha256": sha256(destination),
+                "size": list(image.size),
+                "source": "authored interior flattened from private stamps or public fallbacks",
+            }
+        )
+        records.extend(write_mutable_interior_art(level, source, output, interiors))
+    return records
+
+
 def verify_private_sources(source: Path, manifest: dict[str, object], strict: bool) -> list[dict[str, object]]:
     checks = []
     for pack in manifest["packs"]:
@@ -484,6 +636,41 @@ def verify_private_sources(source: Path, manifest: dict[str, object], strict: bo
     return checks
 
 
+def write_bundled_fonts(
+    manifest: dict[str, object], output: Path
+) -> list[dict[str, str]]:
+    """Verify tracked open fonts and copy them into the generated runtime tree."""
+    records = []
+    for font in manifest["bundled_fonts"]:
+        source = ROOT / font["source_file"]
+        actual = sha256(source)
+        if actual != font["sha256"]:
+            raise SystemExit(f"hash mismatch for {source}: {actual}")
+
+        destination = output / font["runtime_file"]
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+
+        license_source = ROOT / font["license_file"]
+        license_actual = sha256(license_source)
+        if license_actual != font["license_sha256"]:
+            raise SystemExit(f"hash mismatch for {license_source}: {license_actual}")
+        license_destination = output / font["runtime_license_file"]
+        license_destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(license_source, license_destination)
+
+        records.append(
+            {
+                "family": font["family"],
+                "path": font["runtime_file"],
+                "sha256": actual,
+                "source": font["source"],
+                "license": font["license"],
+            }
+        )
+    return records
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, default=ROOT / "assets")
@@ -496,14 +683,20 @@ def main() -> None:
     checks = verify_private_sources(args.source, manifest, args.strict_private)
     generated = write_card_art(args.output)
     generated.extend(write_world_art(args.source, args.output))
+    generated.extend(write_interior_art(args.source, args.output))
+    fonts = write_bundled_fonts(manifest, args.output)
     report = {
         "schema_version": 1,
         "private_checks": checks,
         "generated": generated,
+        "bundled_fonts": fonts,
     }
     report_path = args.output / "provenance.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {len(generated)} runtime assets and {report_path}")
+    print(
+        f"wrote {len(generated)} generated assets, {len(fonts)} bundled fonts, "
+        f"and {report_path}"
+    )
 
 
 if __name__ == "__main__":
