@@ -16,6 +16,7 @@ test:
 	python3 scripts/test_asset_catalog.py
 	python3 scripts/test_build_assets.py
 	python3 scripts/test_level_editor.py
+	node scripts/test_level_editor_ui.js
 	cargo test --workspace
 
 analyze:

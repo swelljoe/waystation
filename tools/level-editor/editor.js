@@ -12,6 +12,7 @@ const state = {
   tool: "stamp",
   layer: "floor",
   zoom: 1,
+  collisionVisible: true,
   room: null,
   undo: [],
   stateSources: { damaged: null, repaired: null },
@@ -85,6 +86,10 @@ function undo() {
 
 function roomTileSize() {
   return state.room.grid.tile_size;
+}
+
+function collisionCellsForRendering(room, visible) {
+  return visible ? room.collision : [];
 }
 
 function placementPixelSize(placement) {
@@ -200,8 +205,11 @@ function drawRoom() {
   }
   context.stroke();
 
-  context.fillStyle = "rgba(180,65,65,.42)";
-  for (const cell of state.room.collision) context.fillRect(cell.x * tile, cell.y * tile, tile, tile);
+  const visibleCollision = collisionCellsForRendering(state.room, state.collisionVisible);
+  if (visibleCollision.length) {
+    context.fillStyle = "rgba(180,65,65,.42)";
+    for (const cell of visibleCollision) context.fillRect(cell.x * tile, cell.y * tile, tile, tile);
+  }
   context.font = `${Math.max(12, tile * .48)}px system-ui`;
   context.textAlign = "center";
   context.textBaseline = "middle";
@@ -494,6 +502,18 @@ function exportRoom() {
   URL.revokeObjectURL(link.href);
 }
 
+function toggleCollisionVisibility() {
+  state.collisionVisible = !state.collisionVisible;
+  const button = $("#toggle-collision");
+  button.textContent = `Collision: ${state.collisionVisible ? "shown" : "hidden"}`;
+  button.setAttribute("aria-pressed", String(state.collisionVisible));
+  button.title = state.collisionVisible
+    ? "Hide the collision overlay without changing collision data"
+    : "Show the collision overlay";
+  drawRoom();
+  setStatus(`Collision overlay ${state.collisionVisible ? "shown" : "hidden"}; collision data is unchanged.`);
+}
+
 function bindEvents() {
   $("#asset-search").addEventListener("input", filterAssets);
   $("#pack-filter").addEventListener("change", filterAssets);
@@ -502,6 +522,7 @@ function bindEvents() {
   $("#capture-repaired").addEventListener("click", () => captureStateSource("repaired"));
   $("#background").addEventListener("input", (event) => { state.room.background = event.target.value; drawRoom(); });
   $("#zoom").addEventListener("change", (event) => { state.zoom = Number(event.target.value); drawRoom(); });
+  $("#toggle-collision").addEventListener("click", toggleCollisionVisibility);
   $("#source-grid").addEventListener("change", () => { state.selection = null; drawSheet(); updateSelectionDetails(); });
   $("#tool-group").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-tool]"); if (!button) return;
@@ -556,4 +577,8 @@ async function initialize() {
   setStatus(`Ready · ${state.catalog.count.toLocaleString()} private images indexed.`);
 }
 
-initialize().catch((error) => { console.error(error); setStatus(`Editor failed to start: ${error.message}`); });
+if (typeof window !== "undefined") {
+  initialize().catch((error) => { console.error(error); setStatus(`Editor failed to start: ${error.message}`); });
+}
+
+if (typeof module !== "undefined") module.exports = { collisionCellsForRendering };
