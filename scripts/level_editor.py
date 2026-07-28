@@ -11,6 +11,7 @@ import tempfile
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
+from threading import Lock
 from typing import Any
 from urllib.parse import unquote, urlparse
 
@@ -19,6 +20,7 @@ from asset_catalog import DEFAULT_ASSET_ROOT, catalog_assets
 ROOT = Path(__file__).resolve().parent.parent
 EDITOR_ROOT = ROOT / "tools/level-editor"
 LEVEL_ROOT = ROOT / "content/interiors"
+REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
 LEVEL_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 MAX_REQUEST_BYTES = 5 * 1024 * 1024
 
@@ -35,13 +37,95 @@ def safe_child(root: Path, relative: str) -> Path | None:
     return candidate
 
 
-def validate_level(level: Any, level_id: str, asset_root: Path) -> list[str]:
+def validate_transform(transform: Any, label: str) -> list[str]:
+    if transform is None:
+        return []
+    if not isinstance(transform, dict):
+        return [f"{label}.transform must be an object"]
+    errors = []
+    unknown = sorted(set(transform) - {"flip_x", "flip_y"})
+    if unknown:
+        errors.append(f"{label}.transform has unknown fields: {', '.join(unknown)}")
+    for key in ("flip_x", "flip_y"):
+        if key in transform and not isinstance(transform[key], bool):
+            errors.append(f"{label}.transform.{key} must be a boolean")
+    return errors
+
+
+def validate_pixel_position(position: Any, label: str) -> list[str]:
+    if not isinstance(position, dict):
+        return [f"{label}.position must be an object"]
+    errors = []
+    if not isinstance(position.get("grid"), int) or not 1 <= position["grid"] <= 256:
+        errors.append(f"{label}.position.grid must be an integer from 1 to 256")
+    for axis in ("x", "y"):
+        if not isinstance(position.get(axis), int):
+            errors.append(f"{label}.position.{axis} must be an integer")
+    return errors
+
+
+def validate_repair_pair(pair: Any, pair_id: str, asset_root: Path) -> list[str]:
+    errors = []
+    label = f"repair pair {pair_id!r}"
+    if LEVEL_ID.fullmatch(pair_id) is None:
+        errors.append(f"{label} has an invalid id")
+    if not isinstance(pair, dict):
+        return [f"{label} must be an object"]
+    if not isinstance(pair.get("label"), str) or not pair["label"].strip():
+        errors.append(f"{label} needs a label")
+    kind = pair.get("kind")
+    if not isinstance(kind, str) or LEVEL_ID.fullmatch(kind) is None:
+        errors.append(f"{label} has an invalid kind")
+    if pair.get("layer") not in {"floor", "wall", "object", "overlay"}:
+        errors.append(f"{label} has an invalid layer")
+    states = pair.get("states")
+    if not isinstance(states, dict):
+        return [*errors, f"{label} needs damaged and repaired visual states"]
+    for required_state in ("damaged", "repaired"):
+        if required_state not in states:
+            errors.append(f"{label} needs a {required_state} state")
+    for state_name, visual in states.items():
+        state_label = f"{label}.states[{state_name!r}]"
+        if not isinstance(state_name, str) or LEVEL_ID.fullmatch(state_name) is None:
+            errors.append(f"{state_label} has an invalid name")
+        if not isinstance(visual, dict):
+            errors.append(f"{state_label} must be an object")
+            continue
+        if visual.get("visible", True) is False:
+            continue
+        source = visual.get("source")
+        source_path = source.get("path") if isinstance(source, dict) else None
+        private_path = safe_child(asset_root, source_path) if isinstance(source_path, str) else None
+        if private_path is None or not private_path.is_file():
+            errors.append(f"{state_label} has an invalid source path")
+        source_numeric = ("grid", "x", "y", "width", "height")
+        if not isinstance(source, dict) or not all(
+            isinstance(source.get(key), int) for key in source_numeric
+        ):
+            errors.append(f"{state_label} needs an integer source rectangle")
+        elif (
+            source["grid"] < 1
+            or source["x"] < 0
+            or source["y"] < 0
+            or source["width"] < 1
+            or source["height"] < 1
+        ):
+            errors.append(f"{state_label} has an invalid source rectangle")
+    return errors
+
+
+def validate_level(
+    level: Any,
+    level_id: str,
+    asset_root: Path,
+    repair_pairs: dict[str, Any] | None = None,
+) -> list[str]:
     errors = []
     if not isinstance(level, dict):
         return ["level must be a JSON object"]
     schema_version = level.get("schema_version")
-    if schema_version not in {1, 2}:
-        errors.append("schema_version must be 1 or 2")
+    if schema_version not in {1, 2, 3, 4}:
+        errors.append("schema_version must be 1, 2, 3, or 4")
     if level.get("id") != level_id:
         errors.append("level id must match the save name")
     grid = level.get("grid")
@@ -69,11 +153,17 @@ def validate_level(level: Any, level_id: str, asset_root: Path) -> list[str]:
                 errors.append(f"placements[{index}] has an invalid source path")
             if placement.get("layer") not in {"floor", "wall", "object", "overlay"}:
                 errors.append(f"placements[{index}] has an invalid layer")
-            numeric = ("x", "y", "width", "height")
-            if not all(isinstance(placement.get(key), int) for key in numeric):
-                errors.append(f"placements[{index}] needs integer position and size")
+            if not all(isinstance(placement.get(key), int) for key in ("width", "height")):
+                errors.append(f"placements[{index}] needs integer size")
             elif not 1 <= placement["width"] <= 128 or not 1 <= placement["height"] <= 128:
                 errors.append(f"placements[{index}] width and height must be from 1 to 128")
+            position = placement.get("position")
+            if position is None:
+                if not all(isinstance(placement.get(key), int) for key in ("x", "y")):
+                    errors.append(f"placements[{index}] needs integer x and y or a pixel position")
+            else:
+                errors.extend(validate_pixel_position(position, f"placements[{index}]"))
+            errors.extend(validate_transform(placement.get("transform"), f"placements[{index}]"))
             source_numeric = ("grid", "x", "y", "width", "height")
             if not isinstance(source, dict) or not all(
                 isinstance(source.get(key), int) for key in source_numeric
@@ -161,20 +251,31 @@ def validate_level(level: Any, level_id: str, asset_root: Path) -> list[str]:
             else:
                 mutable_ids.add(element_id)
             template_id = element.get("template")
-            if not isinstance(template_id, str) or template_id not in templates:
+            shared_template = (
+                (repair_pairs or {}).get(template_id) if isinstance(template_id, str) else None
+            )
+            if not isinstance(template_id, str) or (
+                template_id not in templates and shared_template is None
+            ):
                 errors.append(f"{label} references an unknown template")
-            numeric = ("x", "y", "width", "height")
-            if not all(isinstance(element.get(key), int) for key in numeric):
-                errors.append(f"{label} needs integer position and size")
+            if not all(isinstance(element.get(key), int) for key in ("width", "height")):
+                errors.append(f"{label} needs integer size")
             elif not 1 <= element["width"] <= 128 or not 1 <= element["height"] <= 128:
                 errors.append(f"{label} width and height must be from 1 to 128")
+            position = element.get("position")
+            if position is None:
+                if not all(isinstance(element.get(key), int) for key in ("x", "y")):
+                    errors.append(f"{label} needs integer x and y or a pixel position")
+            else:
+                errors.extend(validate_pixel_position(position, label))
+            errors.extend(validate_transform(element.get("transform"), label))
 
             initial_state = element.get("initial_state")
-            template_states = (
-                templates.get(template_id, {}).get("states", {})
-                if isinstance(template_id, str)
-                else {}
-            )
+            if isinstance(schema_version, int) and schema_version >= 3:
+                template = shared_template or templates.get(template_id, {})
+            else:
+                template = templates.get(template_id, shared_template or {})
+            template_states = template.get("states", {}) if isinstance(template, dict) else {}
             if not isinstance(initial_state, str) or initial_state not in template_states:
                 errors.append(f"{label} initial_state must name one of its states")
     for key in ("collision", "exits"):
@@ -205,6 +306,9 @@ class EditorServer(ThreadingHTTPServer):
     asset_root: Path
     level_root: Path
     catalog: dict[str, Any]
+    repair_pair_path: Path
+    repair_pairs: dict[str, Any]
+    repair_pair_lock: Lock
 
 
 class EditorHandler(BaseHTTPRequestHandler):
@@ -237,10 +341,40 @@ class EditorHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def read_json_body(self) -> Any | None:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self.send_error(HTTPStatus.BAD_REQUEST, "invalid content length")
+            return None
+        if not 0 < length <= MAX_REQUEST_BYTES:
+            self.send_error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return None
+        try:
+            return json.loads(self.rfile.read(length))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self.send_error(HTTPStatus.BAD_REQUEST, "invalid JSON")
+            return None
+
+    def save_repair_pairs(self) -> None:
+        document = {"schema_version": 1, "pairs": self.server.repair_pairs}
+        destination = self.server.repair_pair_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        serialized = json.dumps(document, indent=2) + "\n"
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=destination.parent, delete=False
+        ) as temporary:
+            temporary.write(serialized)
+            temporary_path = Path(temporary.name)
+        temporary_path.replace(destination)
+
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         request_path = unquote(urlparse(self.path).path)
         if request_path == "/api/catalog":
             self.send_json(self.server.catalog)
+            return
+        if request_path == "/api/repair-pairs":
+            self.send_json({"schema_version": 1, "pairs": self.server.repair_pairs})
             return
         if request_path == "/api/levels":
             levels = sorted(path.stem for path in self.server.level_root.glob("*.json"))
@@ -269,6 +403,29 @@ class EditorHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         request_path = unquote(urlparse(self.path).path)
+        if request_path.startswith("/api/repair-pairs/"):
+            pair_id = request_path.removeprefix("/api/repair-pairs/")
+            if not LEVEL_ID.fullmatch(pair_id):
+                self.send_error(HTTPStatus.BAD_REQUEST, "invalid repair pair id")
+                return
+            pair = self.read_json_body()
+            if pair is None:
+                return
+            errors = validate_repair_pair(pair, pair_id, self.server.asset_root)
+            if errors:
+                self.send_json({"saved": False, "errors": errors}, HTTPStatus.UNPROCESSABLE_ENTITY)
+                return
+            with self.server.repair_pair_lock:
+                self.server.repair_pairs[pair_id] = pair
+                self.save_repair_pairs()
+            self.send_json(
+                {
+                    "saved": True,
+                    "id": pair_id,
+                    "path": str(self.server.repair_pair_path.relative_to(ROOT)),
+                }
+            )
+            return
         if not request_path.startswith("/api/levels/"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -276,20 +433,12 @@ class EditorHandler(BaseHTTPRequestHandler):
         if not LEVEL_ID.fullmatch(level_id):
             self.send_error(HTTPStatus.BAD_REQUEST, "invalid level id")
             return
-        try:
-            length = int(self.headers.get("Content-Length", "0"))
-        except ValueError:
-            self.send_error(HTTPStatus.BAD_REQUEST, "invalid content length")
+        level = self.read_json_body()
+        if level is None:
             return
-        if not 0 < length <= MAX_REQUEST_BYTES:
-            self.send_error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
-            return
-        try:
-            level = json.loads(self.rfile.read(length))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            self.send_error(HTTPStatus.BAD_REQUEST, "invalid JSON")
-            return
-        errors = validate_level(level, level_id, self.server.asset_root)
+        errors = validate_level(
+            level, level_id, self.server.asset_root, self.server.repair_pairs
+        )
         if errors:
             self.send_json({"saved": False, "errors": errors}, HTTPStatus.UNPROCESSABLE_ENTITY)
             return
@@ -303,6 +452,38 @@ class EditorHandler(BaseHTTPRequestHandler):
             temporary_path = Path(temporary.name)
         temporary_path.replace(destination)
         self.send_json({"saved": True, "path": str(destination.relative_to(ROOT))})
+
+    def do_DELETE(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        request_path = unquote(urlparse(self.path).path)
+        if not request_path.startswith("/api/repair-pairs/"):
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        pair_id = request_path.removeprefix("/api/repair-pairs/")
+        if not LEVEL_ID.fullmatch(pair_id):
+            self.send_error(HTTPStatus.BAD_REQUEST, "invalid repair pair id")
+            return
+        used_by = []
+        for level_path in sorted(self.server.level_root.glob("*.json")):
+            level = json.loads(level_path.read_text(encoding="utf-8"))
+            instances = [*level.get("structures", []), *level.get("fixtures", [])]
+            if any(instance.get("template") == pair_id for instance in instances):
+                used_by.append(level_path.stem)
+        if used_by:
+            self.send_json(
+                {
+                    "deleted": False,
+                    "errors": [f"repair pair is used by: {', '.join(used_by)}"],
+                },
+                HTTPStatus.CONFLICT,
+            )
+            return
+        with self.server.repair_pair_lock:
+            if pair_id not in self.server.repair_pairs:
+                self.send_error(HTTPStatus.NOT_FOUND, "unknown repair pair")
+                return
+            del self.server.repair_pairs[pair_id]
+            self.save_repair_pairs()
+        self.send_json({"deleted": True, "id": pair_id})
 
 
 def main() -> None:
@@ -318,6 +499,13 @@ def main() -> None:
     server.asset_root = args.assets.resolve()
     server.level_root = LEVEL_ROOT
     server.catalog = catalog
+    server.repair_pair_path = REPAIR_PAIR_PATH
+    if REPAIR_PAIR_PATH.is_file():
+        repair_pair_document = json.loads(REPAIR_PAIR_PATH.read_text(encoding="utf-8"))
+        server.repair_pairs = repair_pair_document.get("pairs", {})
+    else:
+        server.repair_pairs = {}
+    server.repair_pair_lock = Lock()
     print(f"Indexed {catalog['count']} images.")
     print(f"Level editor: http://{args.bind}:{args.port}")
     print("This server is local-only and serves licensed source art. Press Ctrl-C to stop.")

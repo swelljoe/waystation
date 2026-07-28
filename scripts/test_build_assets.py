@@ -86,6 +86,67 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertEqual(rendered.getpixel((1, 0)), (0, 255, 0, 255))
         self.assertEqual(rendered.getpixel((2, 0)), (255, 0, 0, 255))
 
+    def test_baked_stamp_flips_both_axes_without_scaling(self) -> None:
+        source = Image.new("RGBA", (2, 2))
+        source.putdata(
+            [
+                (255, 0, 0, 255),
+                (0, 255, 0, 255),
+                (0, 0, 255, 255),
+                (255, 255, 0, 255),
+            ]
+        )
+        source.save(self.assets / "sheet.png")
+        level = self.level_with(
+            {
+                "layer": "object",
+                "x": 0,
+                "y": 0,
+                "width": 1,
+                "height": 1,
+                "transform": {"flip_x": True, "flip_y": True},
+                "source": {
+                    "path": "sheet.png",
+                    "grid": 2,
+                    "x": 0,
+                    "y": 0,
+                    "width": 1,
+                    "height": 1,
+                },
+            }
+        )
+
+        rendered = BUILD_ASSETS.render_interior(level, self.assets)
+
+        self.assertEqual(rendered.getpixel((0, 0)), (255, 255, 0, 255))
+        self.assertEqual(rendered.getpixel((1, 0)), (0, 0, 255, 255))
+        self.assertEqual(rendered.getpixel((0, 1)), (0, 255, 0, 255))
+        self.assertEqual(rendered.getpixel((1, 1)), (255, 0, 0, 255))
+
+    def test_per_placement_snap_grid_resolves_to_exact_pixels(self) -> None:
+        Image.new("RGBA", (2, 2), "#ff0000").save(self.assets / "sheet.png")
+        level = self.level_with(
+            {
+                "layer": "object",
+                "position": {"grid": 16, "x": 1, "y": 2},
+                "width": 1,
+                "height": 1,
+                "source": {
+                    "path": "sheet.png",
+                    "grid": 2,
+                    "x": 0,
+                    "y": 0,
+                    "width": 1,
+                    "height": 1,
+                },
+            }
+        )
+
+        rendered = BUILD_ASSETS.render_interior(level, self.assets)
+
+        self.assertEqual(rendered.getpixel((16, 32)), (255, 0, 0, 255))
+        self.assertEqual(rendered.getpixel((15, 32)), (0, 0, 0, 255))
+
     def test_mutable_states_are_extracted_instead_of_baked(self) -> None:
         Image.new("RGBA", (8, 4), "#ff0000").save(self.assets / "sheet.png")
         source = {"path": "sheet.png", "grid": 4, "x": 0, "y": 0, "width": 1, "height": 1}
@@ -138,6 +199,56 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertEqual(len(records), 2)
         with Image.open(interiors / "test-room" / "floor--damaged.png") as damaged:
             self.assertEqual(damaged.size, (4, 4))
+
+    def test_distinct_shared_pairs_can_reuse_the_same_repaired_crop(self) -> None:
+        Image.new("RGBA", (12, 4), "#ff0000").save(self.assets / "sheet.png")
+        source = {"path": "sheet.png", "grid": 4, "x": 0, "y": 0, "width": 1, "height": 1}
+        repaired = {**source, "x": 2}
+        pair = {
+            "label": "wall damage",
+            "kind": "wall",
+            "layer": "wall",
+            "states": {"damaged": {"source": source}, "repaired": {"source": repaired}},
+        }
+        repair_pairs = {
+            "wall-crack-a": pair,
+            "wall-crack-b": {
+                **pair,
+                "states": {
+                    "damaged": {"source": {**source, "x": 1}},
+                    "repaired": {"source": repaired},
+                },
+            },
+        }
+        level = {
+            **self.level_with({
+                "layer": "floor",
+                "x": 0,
+                "y": 0,
+                "width": 1,
+                "height": 1,
+                "source": source,
+            }),
+            "schema_version": 3,
+            "id": "test-room",
+            "templates": {},
+            "structures": [
+                {"id": "a-01", "template": "wall-crack-a"},
+                {"id": "b-01", "template": "wall-crack-b"},
+            ],
+            "fixtures": [],
+        }
+        output = self.assets / "runtime"
+        interiors = output / "interiors"
+        interiors.mkdir(parents=True)
+
+        records = BUILD_ASSETS.write_mutable_interior_art(
+            level, self.assets, output, interiors, repair_pairs
+        )
+
+        self.assertEqual(len(records), 4)
+        self.assertTrue((interiors / "test-room" / "wall-crack-a--repaired.png").is_file())
+        self.assertTrue((interiors / "test-room" / "wall-crack-b--repaired.png").is_file())
 
 
 if __name__ == "__main__":

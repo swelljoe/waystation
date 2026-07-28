@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "pairs": {
+    "mirror": {
+      "label": "cracked mirror",
+      "kind": "mirror",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-04.png",
+            "grid": 48,
+            "x": 14,
+            "y": 10,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "horror hotel/tile-B-04.png",
+            "grid": 48,
+            "x": 12,
+            "y": 10,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
+    },
+    "old-room-wall-1": {
+      "label": "Old Room Wall",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 8,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "horror hotel/Auto-tile-A4-walls-3.png",
+            "grid": 48,
+            "x": 14,
+            "y": 8,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
+    },
+    "old-room-wall-2": {
+      "label": "Old Room Wall 2",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 8,
+            "y": 4,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "horror hotel/Auto-tile-A4-walls-3.png",
+            "grid": 48,
+            "x": 14,
+            "y": 8,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
+    },
+    "old-room-wall-3": {
+      "label": "Old Room Wall 3",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 8,
+            "y": 8,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "horror hotel/Auto-tile-A4-walls-3.png",
+            "grid": 48,
+            "x": 14,
+            "y": 8,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
+    },
+    "old-room-wall-4": {
+      "label": "Old Room Wall 4",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 10,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "horror hotel/Auto-tile-A4-walls-3.png",
+            "grid": 48,
+            "x": 14,
+            "y": 8,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
+    },
+    "broken-floorboards-1": {
+      "label": "Broken Floorboards 1",
+      "kind": "floor",
+      "layer": "floor",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 0,
+            "y": 6,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "horror hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
+    },
+    "broken-floorboards-2": {
+      "label": "Broken Floorboards 2",
+      "kind": "floor",
+      "layer": "floor",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 0,
+            "y": 8,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "horror hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
+    }
+  }
+}

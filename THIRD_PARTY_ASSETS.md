@@ -18,7 +18,7 @@ Everything under `assets/` is treated as licensed and non-redistributable by
 default; `assets/custom/` is the sole project-authored exception. Authored room
 JSON may record source paths and crop rectangles, but the raw sheets and generated
 catalog remain ignored. The runtime build receives only flattened room images and
-the specific state crops used by authored mutable templates.
+the specific state crops used by authored repair pairs.
 
 The runtime bundle also includes two open fonts:
 

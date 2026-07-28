@@ -6,7 +6,7 @@
     "default": "licensed source art; do not redistribute raw files or generated catalogs",
     "redistributable_directories": ["custom"],
     "catalog_tags": "meta/asset-tags.json",
-    "runtime_strategy": "flatten baked room rectangles and extract only authored mutable-template state crops into gitignored runtime art"
+    "runtime_strategy": "flatten baked room rectangles and extract only referenced repair-pair state crops into gitignored runtime art"
   },
   "packs": [
     {

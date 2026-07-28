@@ -49,6 +49,16 @@ WAYSTATION_START_INTERIOR=1 cargo run -p waystation-game
 The local level editor searches the private art library, selects single- or
 multi-cell rectangles from sprite sheets, and paints floor, wall, object, and
 overlay layers with the mouse. It also edits collision, entry, and exit cells.
+Hold the mouse button to paint continuously. Stamp strokes advance by the full
+native-art footprint rounded up to the current snap interval, preventing
+differently sized stamps from overlapping one another; collision strokes advance
+one gameplay cell at a time. One undo reverts the complete stroke.
+
+**Snap grid** controls destination placement independently of **Source grid**.
+Set it to `16` for half-cell art offsets, or any 1–256 pixel interval needed by a
+pack. Each placement remembers the grid used when it was stamped, so changing the
+control never moves existing art. Collision, entry, and exit editing remains on
+the room's logical gameplay grid.
 
 ```bash
 make editor
@@ -57,14 +67,24 @@ make editor
 Open <http://127.0.0.1:7790>, save the room, then run `make assets` to flatten its
 private source stamps into gitignored runtime art. For repairable content:
 
-1. Select the damaged crop and choose **Use selection as damaged**.
-2. Select its repaired crop and choose **Use selection as repaired**.
-3. Choose **Repairable structure** or **Repairable fixture**, enter a reusable
-   kind such as `wood-floor` or `mirror`, then stamp instances.
-4. Reuse the same kind to stamp more automatically identified instances without
-   recapturing its artwork.
+1. In the **Repair-pair library**, choose **New pair** and give the transition a
+   stable ID, label, kind, and render layer.
+2. Select the damaged crop and choose **Use selection as damaged**, then select
+   the repaired crop and choose **Use selection as repaired**.
+3. Save the pair. It is now searchable and reusable in every room.
+4. Select a saved pair, choose **Repairable structure** or **Repairable
+   fixture**, then stamp automatically identified instances.
 
-Baked scenery goes into the cached room background. Mutable template states are
+Pair identity is independent of its two crops. Multiple damaged variants may
+share one repaired crop, and multiple repair outcomes may share one damaged crop.
+Use **Duplicate** to retain both crops under a new identity, then replace only the
+side that differs. The library is stored in `content/repair-pairs.json`.
+
+Use **Flip H** and **Flip V** before stamping to mirror baked scenery or a
+repairable instance without creating another source asset. Repair-pair instances
+apply one stored orientation to both damaged and repaired states.
+
+Baked scenery goes into the cached room background. Repair-pair states are
 extracted as separate native-size sprites and are never baked into that image.
 In the current slice, approach the cracked motel-room mirror and press `E` to
 repair it. Browser saves persist the state under `room-id/instance-id`.

@@ -15,8 +15,9 @@ Shared-crate tests enforce that invariant.
 - emits a contact sheet and machine-readable provenance report;
 - flattens authored interior layers from private source-sheet rectangles into
   runtime room images at their native pixel dimensions, with procedural
-  stand-ins when private art is absent;
-- extracts reusable mutable-template states as separate native-size runtime
+  stand-ins when private art is absent, applying authored horizontal/vertical
+  flips and per-placement pixel snap offsets without resampling;
+- extracts reusable repair-pair states as separate native-size runtime
   sprites so repaired structures and fixtures are not baked into room caches;
 - verifies and copies bundled open fonts and their license files;
 - works without private art for CI, judging, and code review.
@@ -33,6 +34,11 @@ The private asset catalog is deliberately metadata-only. Automatic tags come
 from paths; human-reviewed sheet-level tags such as `bed`, `front desk`, and
 `wall` live in `meta/asset-tags.json`. Run `make catalog` to inspect the generated
 catalog or `make editor` to browse it visually.
+
+Reusable damaged/repaired transitions live in `content/repair-pairs.json`.
+Rooms refer to stable pair IDs; source-crop equality has no semantic meaning, so
+many pairs may intentionally share either side. The local editor manages this
+library, while the build extracts only pairs actually referenced by each room.
 
 The byte-identical Modern Farm terrain sheet can reuse the wang-set metadata and
 autotile generator proven in the sibling Ducks project when the placeholder valley

@@ -45,6 +45,7 @@
             <button data-tool="exit">Exit</button>
           </div>
           <button id="toggle-collision" type="button" aria-pressed="true" title="Hide the collision overlay without changing collision data">Collision: shown</button>
+          <button id="focus-repair-pairs" type="button">Repair-pair library</button>
           <label>Layer
             <select id="layer">
               <option value="floor">Floor</option>
@@ -60,16 +61,22 @@
               <option value="fixture">Repairable fixture</option>
             </select>
           </label>
+          <span class="toolbar-label">Orientation</span>
+          <div class="tool-group" id="orientation-group">
+            <button id="flip-horizontal" type="button" aria-pressed="false" title="Flip the next stamp horizontally">Flip H</button>
+            <button id="flip-vertical" type="button" aria-pressed="false" title="Flip the next stamp vertically">Flip V</button>
+          </div>
           <label>Floor <input id="background" type="color" value="#49382b" /></label>
           <label>Zoom
             <select id="zoom"><option>0.5</option><option selected>1</option><option>1.5</option><option>2</option></select>
           </label>
+          <label>Snap grid <input id="snap-grid" type="number" min="1" max="256" value="32" /></label>
           <button id="undo">Undo</button>
         </div>
         <div class="canvas-wrap">
           <canvas id="room-canvas" aria-label="Room grid"></canvas>
         </div>
-        <div class="statusbar"><span id="status">Loading asset catalog…</span><span>Right-click erases · Ctrl/Cmd+Z undoes</span></div>
+        <div class="statusbar"><span id="status">Loading asset catalog…</span><span>Drag paints · Right-click erases · Ctrl/Cmd+Z undoes</span></div>
       </section>
 
       <aside class="palette panel">
@@ -87,10 +94,29 @@
           <strong id="selection-title">None</strong>
           <p id="selection-details">Pick a sheet, then drag over the object or tile you want.</p>
         </section>
-        <section class="mutable-card">
-          <span class="eyebrow">MUTABLE CONTENT</span>
-          <label>Kind <input id="element-kind" value="floor" spellcheck="false" /></label>
-          <label>Label <input id="element-label" value="floorboard" /></label>
+        <section class="mutable-card" id="repair-pair-library">
+          <div class="pair-heading">
+            <div><span class="eyebrow">REPAIR-PAIR LIBRARY</span><strong id="pair-mode-title">Browse and stamp</strong></div>
+            <span id="pair-count" class="count">…</span>
+          </div>
+          <input id="pair-search" type="search" placeholder="mirror, floorboard, plaster…" />
+          <div id="pair-list" class="pair-list" aria-live="polite"></div>
+          <div class="pair-actions">
+            <button id="new-pair" type="button">New pair</button>
+            <button id="duplicate-pair" type="button" disabled>Duplicate</button>
+            <button id="delete-pair" type="button" disabled>Delete</button>
+          </div>
+          <label>Pair ID <input id="pair-id" placeholder="cracked-mirror" spellcheck="false" /></label>
+          <label>Label <input id="pair-label" placeholder="Cracked mirror" /></label>
+          <label>Kind <input id="pair-kind" placeholder="mirror" spellcheck="false" /></label>
+          <label>Layer
+            <select id="pair-layer">
+              <option value="floor">Floor</option>
+              <option value="wall">Wall</option>
+              <option value="object" selected>Object</option>
+              <option value="overlay">Overlay</option>
+            </select>
+          </label>
           <div class="capture-row">
             <button id="capture-damaged">Use selection as damaged</button>
             <small id="damaged-source">not captured</small>
@@ -99,11 +125,12 @@
             <button id="capture-repaired">Use selection as repaired</button>
             <small id="repaired-source">not captured</small>
           </div>
-          <p class="hint">Choose repairable structure or fixture above, capture both state crops, then stamp instances. IDs are generated automatically.</p>
+          <button id="save-pair" class="primary" type="button">Save pair</button>
+          <p class="hint">Each pair has its own stable ID. Either crop may be reused by any number of other pairs. Select a saved pair, choose repairable structure or fixture above, then stamp it into the room.</p>
         </section>
         <details>
           <summary>Room format</summary>
-          <p class="hint">Rooms store source rectangles, layers, collision cells, entry, and exits. The asset build flattens private pixels into a runtime room image.</p>
+          <p class="hint">Rooms store source rectangles, per-placement pixel snap positions, layers, optional flips, collision cells, entry, and exits. The asset build flattens private pixels into a runtime room image.</p>
         </details>
       </aside>
     </main>

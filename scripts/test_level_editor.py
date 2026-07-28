@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from level_editor import safe_child, validate_level
+from level_editor import safe_child, validate_level, validate_repair_pair
 
 
 class LevelEditorValidationTests(unittest.TestCase):
@@ -66,6 +66,33 @@ class LevelEditorValidationTests(unittest.TestCase):
             validate_level(self.level, "test-room", self.assets),
         )
 
+    def test_stamp_accepts_boolean_flips(self) -> None:
+        self.level["placements"][0]["transform"] = {"flip_x": True, "flip_y": False}
+        self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
+
+    def test_transform_rejects_non_boolean_flip(self) -> None:
+        self.level["placements"][0]["transform"] = {"flip_x": "yes"}
+        self.assertIn(
+            "placements[0].transform.flip_x must be a boolean",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
+    def test_schema_four_accepts_per_placement_snap_grid(self) -> None:
+        self.level["schema_version"] = 4
+        placement = self.level["placements"][0]
+        del placement["x"]
+        del placement["y"]
+        placement["position"] = {"grid": 16, "x": 3, "y": -1}
+
+        self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
+
+    def test_pixel_position_rejects_invalid_grid(self) -> None:
+        self.level["placements"][0]["position"] = {"grid": 0, "x": 1, "y": 2}
+        self.assertIn(
+            "placements[0].position.grid must be an integer from 1 to 256",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
     def test_asset_path_cannot_escape_private_root(self) -> None:
         self.assertIsNone(safe_child(self.assets, "../secret.png"))
 
@@ -115,6 +142,56 @@ class LevelEditorValidationTests(unittest.TestCase):
             "fixtures[0] has a duplicate id",
             validate_level(self.level, "test-room", self.assets),
         )
+
+    def test_schema_three_resolves_a_shared_repair_pair(self) -> None:
+        self.level["schema_version"] = 3
+        self.level["templates"] = {}
+        source = {"path": "sheet.png", "grid": 48, "x": 0, "y": 0, "width": 1, "height": 1}
+        pair = {
+            "label": "cracked plaster",
+            "kind": "plaster",
+            "layer": "wall",
+            "states": {"damaged": {"source": source}, "repaired": {"source": source}},
+        }
+        self.level["structures"].append(
+            {
+                "id": "plaster-01",
+                "template": "cracked-plaster",
+                "x": 0,
+                "y": 0,
+                "width": 1,
+                "height": 1,
+                "initial_state": "damaged",
+            }
+        )
+
+        self.assertEqual(
+            validate_level(
+                self.level,
+                "test-room",
+                self.assets,
+                {"cracked-plaster": pair},
+            ),
+            [],
+        )
+
+    def test_repair_pairs_may_share_either_source_crop(self) -> None:
+        shared = {"path": "sheet.png", "grid": 48, "x": 0, "y": 0, "width": 1, "height": 1}
+        first = {
+            "label": "broken wall a",
+            "kind": "wall",
+            "layer": "wall",
+            "states": {"damaged": {"source": shared}, "repaired": {"source": shared}},
+        }
+        second = {
+            "label": "broken wall b",
+            "kind": "wall",
+            "layer": "wall",
+            "states": {"damaged": {"source": {**shared, "x": 1}}, "repaired": {"source": shared}},
+        }
+
+        self.assertEqual(validate_repair_pair(first, "wall-a", self.assets), [])
+        self.assertEqual(validate_repair_pair(second, "wall-b", self.assets), [])
 
 
 if __name__ == "__main__":

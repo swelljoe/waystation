@@ -78,16 +78,35 @@ This constant is intentionally centralized pending dynamic display scaling.
 
 ## Authored interiors
 
-Interior source data lives in `content/interiors`. Schema v2 separates reusable
-mutable templates, automatically identified structural/fixture instances, and
-legacy baked placements. Templates own state-specific private source crops;
-instances own room-cell anchors and initial state. Source pixels are always
-composited at native size, and the source selection grid never changes scale.
-Collisions, entry cells, and exits remain independent of pixels.
+Interior source data lives in `content/interiors`. Schema v4 combines globally
+reusable repair pairs, automatically identified structural/fixture instances,
+legacy baked placements, and per-placement pixel snap positions.
+`content/repair-pairs.json` owns every pair's stable
+identity, semantics, render layer, and damaged/repaired private source crops;
+room instances reference the pair ID and own room-cell anchors plus initial
+state. Either crop may be shared by any number of independently identified
+pairs. Source pixels are always composited at native size, and the source
+selection grid never changes scale. Collisions, entry cells, and exits remain
+independent of pixels. Schema-v2 room-local templates remain readable for
+backward compatibility.
+
+New placements store `position: {grid, x, y}`. Multiplying the signed integer
+coordinates by that placement's grid yields its exact native-pixel offset from
+the room's top-left corner. Because the grid travels with each placement, one
+room may safely mix 16-, 32-, and 48-pixel snapping and later editor changes do
+not reinterpret existing positions. Legacy schema-v1–v3 `x`/`y` cell anchors
+remain supported. Collision, entry, and exit coordinates intentionally stay on
+the independent logical gameplay grid.
+
+Baked placements and mutable instances may carry optional `flip_x`/`flip_y`
+booleans. The editor previews those transforms without interpolation. The asset
+build applies them once while flattening baked scenery; Bevy applies instance
+flips through the sprite renderer. One instance transform covers every repair-
+pair state, preserving alignment across state changes without duplicated art.
 
 `scripts/build-assets.py` turns baked placements into a cached room background
-and extracts each mutable template state as a separate runtime sprite. The Bevy
-client spawns mutable instances over the cache, records changes under stable
+and extracts each repair-pair state referenced by that room as a separate runtime
+sprite. The Bevy client spawns mutable instances over the cache, records changes under stable
 `room-id/instance-id` keys, and includes those values in browser save data. The
 runtime never needs access to the private library.
 
@@ -95,8 +114,17 @@ runtime never needs access to the private library.
 catalog is generated from filenames, image dimensions, and the distributable
 sidecar tags in `meta/asset-tags.json`. The editor supports multi-cell stamps for
 48-pixel RPG sheets, ordered layers, collision painting, entry/exit placement,
-undo, direct JSON save/load, reusable damaged/repaired templates, and repairable
-structure or fixture stamping.
+undo, direct JSON save/load, a searchable repair-pair library with create/edit/
+duplicate/delete controls and side-by-side previews, and repairable structure or
+fixture stamping. Duplication preserves both source crops but requires a new ID,
+making convergent or divergent repair transitions quick to author. Pair deletion
+is rejected while a saved room references it.
+
+Room pointer drags are authored as single undoable paint strokes. Baked stamps
+stride by their native crop's room-cell footprint; repairable stamps stride by
+the maximum width and height across all visible pair states. Collision painting
+uses a one-cell stride. Bresenham interpolation fills pointer positions skipped
+by fast movement without allowing stamps within one stroke to overlap.
 
 The Bevy client places interior maps in a separate world-space island. Door
 interaction moves the player between exterior and interior spawn cells; camera

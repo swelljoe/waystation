@@ -4,6 +4,8 @@ const imageCache = new Map();
 
 const state = {
   catalog: null,
+  repairPairs: {},
+  selectedRepairPair: null,
   filtered: [],
   sheet: null,
   sheetImage: null,
@@ -12,15 +14,18 @@ const state = {
   tool: "stamp",
   layer: "floor",
   zoom: 1,
+  snapGrid: 32,
+  stampTransform: { flip_x: false, flip_y: false },
   collisionVisible: true,
   room: null,
+  roomDrag: null,
   undo: [],
   stateSources: { damaged: null, repaired: null },
 };
 
 function freshRoom() {
   return {
-    schema_version: 2,
+    schema_version: 4,
     id: "motel-room-01",
     name: "Motel Room 01",
     background: "#49382b",
@@ -37,7 +42,7 @@ function freshRoom() {
 }
 
 function normalizeRoom(room) {
-  room.schema_version = 2;
+  room.schema_version = 4;
   room.placements ||= [];
   room.templates ||= {};
   room.structures ||= [];
@@ -92,6 +97,35 @@ function collisionCellsForRendering(room, visible) {
   return visible ? room.collision : [];
 }
 
+function authoredStampTransform() {
+  return state.stampTransform.flip_x || state.stampTransform.flip_y
+    ? structuredClone(state.stampTransform)
+    : null;
+}
+
+function drawTransformedImage(context, image, sourceBox, destinationBox, transform = {}) {
+  const flipX = transform.flip_x === true;
+  const flipY = transform.flip_y === true;
+  context.save();
+  context.translate(
+    destinationBox.x + (flipX ? destinationBox.width : 0),
+    destinationBox.y + (flipY ? destinationBox.height : 0),
+  );
+  context.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  context.drawImage(
+    image,
+    sourceBox.x,
+    sourceBox.y,
+    sourceBox.width,
+    sourceBox.height,
+    0,
+    0,
+    destinationBox.width,
+    destinationBox.height,
+  );
+  context.restore();
+}
+
 function placementPixelSize(placement) {
   if (placement.repeat) {
     return {
@@ -105,6 +139,19 @@ function placementPixelSize(placement) {
   };
 }
 
+function placementPixelPosition(placement, tileSize = roomTileSize()) {
+  if (placement.position) {
+    return {
+      x: placement.position.x * placement.position.grid,
+      y: placement.position.y * placement.position.grid,
+    };
+  }
+  return {
+    x: placement.x * tileSize,
+    y: placement.y * tileSize,
+  };
+}
+
 function roomRenderables() {
   const renderables = state.room.placements.map((placement, index) => ({
     placement,
@@ -113,7 +160,7 @@ function roomRenderables() {
   }));
   for (const collection of ["structures", "fixtures"]) {
     state.room[collection].forEach((element, index) => {
-      const template = state.room.templates[element.template];
+      const template = templateForRoom(element.template);
       const visual = template?.states[element.initial_state];
       if (!visual || visual.visible === false || !visual.source) return;
       renderables.push({
@@ -126,6 +173,10 @@ function roomRenderables() {
   return renderables.sort((a, b) => layerOrder[a.placement.layer] - layerOrder[b.placement.layer]);
 }
 
+function templateForRoom(templateId) {
+  return state.repairPairs[templateId] || state.room.templates[templateId];
+}
+
 function roomCell(event) {
   const canvas = $("#room-canvas");
   const rect = canvas.getBoundingClientRect();
@@ -134,6 +185,32 @@ function roomCell(event) {
   const y = Math.floor(((event.clientY - rect.top) * canvas.height / rect.height) / tile);
   if (x < 0 || y < 0 || x >= state.room.grid.width || y >= state.room.grid.height) return null;
   return { x, y };
+}
+
+function roomSnapCell(event, snapGrid) {
+  const canvas = $("#room-canvas");
+  const rect = canvas.getBoundingClientRect();
+  const pixelX = (event.clientX - rect.left) * canvas.width / rect.width;
+  const pixelY = (event.clientY - rect.top) * canvas.height / rect.height;
+  if (pixelX < 0 || pixelY < 0 || pixelX >= canvas.width || pixelY >= canvas.height) return null;
+  const snap = snapGrid * state.zoom;
+  return { x: Math.floor(pixelX / snap), y: Math.floor(pixelY / snap) };
+}
+
+function drawRoomGrid(context, canvas, spacing, color) {
+  if (spacing <= 0) return;
+  context.lineWidth = 1;
+  context.strokeStyle = color;
+  context.beginPath();
+  for (let x = 0; x <= canvas.width; x += spacing) {
+    context.moveTo(Math.round(x) + .5, 0);
+    context.lineTo(Math.round(x) + .5, canvas.height);
+  }
+  for (let y = 0; y <= canvas.height; y += spacing) {
+    context.moveTo(0, Math.round(y) + .5);
+    context.lineTo(canvas.width, Math.round(y) + .5);
+  }
+  context.stroke();
 }
 
 function drawRoom() {
@@ -152,8 +229,9 @@ function drawRoom() {
     const source = placement.source;
     const sourceWidth = source.width * source.grid;
     const sourceHeight = source.height * source.grid;
-    const destinationX = placement.x * tile;
-    const destinationY = placement.y * tile;
+    const position = placementPixelPosition(placement);
+    const destinationX = position.x * state.zoom;
+    const destinationY = position.y * state.zoom;
     if (placement.repeat) {
       const repeatWidth = placement.width * tile;
       const repeatHeight = placement.height * tile;
@@ -163,47 +241,32 @@ function drawRoom() {
       context.clip();
       for (let y = 0; y < repeatHeight; y += sourceHeight * state.zoom) {
         for (let x = 0; x < repeatWidth; x += sourceWidth * state.zoom) {
-          context.drawImage(
+          drawTransformedImage(
+            context,
             image,
-            source.x * source.grid,
-            source.y * source.grid,
-            sourceWidth,
-            sourceHeight,
-            destinationX + x,
-            destinationY + y,
-            sourceWidth * state.zoom,
-            sourceHeight * state.zoom,
+            { x: source.x * source.grid, y: source.y * source.grid, width: sourceWidth, height: sourceHeight },
+            { x: destinationX + x, y: destinationY + y, width: sourceWidth * state.zoom, height: sourceHeight * state.zoom },
+            placement.transform,
           );
         }
       }
       context.restore();
     } else {
-      context.drawImage(
+      drawTransformedImage(
+        context,
         image,
-        source.x * source.grid,
-        source.y * source.grid,
-        sourceWidth,
-        sourceHeight,
-        destinationX,
-        destinationY,
-        sourceWidth * state.zoom,
-        sourceHeight * state.zoom,
+        { x: source.x * source.grid, y: source.y * source.grid, width: sourceWidth, height: sourceHeight },
+        { x: destinationX, y: destinationY, width: sourceWidth * state.zoom, height: sourceHeight * state.zoom },
+        placement.transform,
       );
     }
   }
 
-  context.lineWidth = 1;
-  context.strokeStyle = "rgba(224,196,134,.18)";
-  context.beginPath();
-  for (let x = 0; x <= state.room.grid.width; x++) {
-    context.moveTo(Math.round(x * tile) + .5, 0);
-    context.lineTo(Math.round(x * tile) + .5, canvas.height);
+  const snapSpacing = state.snapGrid * state.zoom;
+  drawRoomGrid(context, canvas, snapSpacing, "rgba(224,196,134,.16)");
+  if (state.snapGrid !== roomTileSize()) {
+    drawRoomGrid(context, canvas, tile, "rgba(224,196,134,.3)");
   }
-  for (let y = 0; y <= state.room.grid.height; y++) {
-    context.moveTo(0, Math.round(y * tile) + .5);
-    context.lineTo(canvas.width, Math.round(y * tile) + .5);
-  }
-  context.stroke();
 
   const visibleCollision = collisionCellsForRendering(state.room, state.collisionVisible);
   if (visibleCollision.length) {
@@ -227,8 +290,9 @@ function eraseAt(cell) {
   for (let renderIndex = renderables.length - 1; renderIndex >= 0; renderIndex--) {
     const { placement: p, collection, index } = renderables[renderIndex];
     const size = placementPixelSize(p);
-    const placementLeft = p.x * tileSize;
-    const placementTop = p.y * tileSize;
+    const position = placementPixelPosition(p);
+    const placementLeft = position.x;
+    const placementTop = position.y;
     if (
       cellLeft < placementLeft + size.width &&
       cellLeft + tileSize > placementLeft &&
@@ -242,89 +306,246 @@ function eraseAt(cell) {
   return false;
 }
 
-function editRoom(cell, forceErase = false) {
-  if (!cell) return;
+function footprintForPixelSizes(pixelSizes, tileSize) {
+  if (!pixelSizes.length) return null;
+  return {
+    width: Math.ceil(Math.max(...pixelSizes.map((size) => size.width)) / tileSize),
+    height: Math.ceil(Math.max(...pixelSizes.map((size) => size.height)) / tileSize),
+  };
+}
+
+function activeStampSpec() {
+  const behavior = $("#behavior").value;
+  const tileSize = roomTileSize();
+  const snapGrid = state.snapGrid;
+  if (behavior === "baked") {
+    if (!state.selection) {
+      setStatus("Select a source-sheet rectangle first.");
+      return null;
+    }
+    const pixelSizes = [
+      { width: state.selection.width * state.selection.grid, height: state.selection.height * state.selection.grid },
+    ];
+    const footprint = footprintForPixelSizes(pixelSizes, tileSize);
+    const strokeFootprint = footprintForPixelSizes(pixelSizes, snapGrid);
+    return { behavior, snapGrid, strokeFootprint, ...footprint };
+  }
+  const templateId = state.selectedRepairPair;
+  const template = templateId ? templateForRoom(templateId) : null;
+  if (!template) {
+    setStatus("Select a saved repair pair from the library first.");
+    return null;
+  }
+  const stateSizes = Object.values(template.states)
+    .filter((visual) => visual.visible !== false && visual.source)
+    .map((visual) => ({
+      width: visual.source.width * visual.source.grid,
+      height: visual.source.height * visual.source.grid,
+    }));
+  const footprint = footprintForPixelSizes(stateSizes, tileSize);
+  if (!footprint) {
+    setStatus(`Template ${templateId} has no visible state crops.`);
+    return null;
+  }
+  return {
+    behavior,
+    snapGrid,
+    strokeFootprint: footprintForPixelSizes(stateSizes, snapGrid),
+    collection: behavior === "structure" ? "structures" : "fixtures",
+    templateId,
+    template,
+    ...footprint,
+  };
+}
+
+function editRoom(cell, forceErase = false, options = {}) {
+  if (!cell) return false;
+  const { recordUndo = true, collisionMode = null, stampSpec = null } = options;
   const tool = forceErase ? "erase" : state.tool;
   if (tool === "stamp") {
-    const behavior = $("#behavior").value;
-    if (behavior === "baked" && !state.selection) { setStatus("Select a source-sheet rectangle first."); return; }
-    pushUndo();
-    const tileSize = roomTileSize();
-    if (behavior === "baked") {
+    const spec = stampSpec || activeStampSpec();
+    if (!spec) return false;
+    if (recordUndo) pushUndo();
+    if (spec.behavior === "baked") {
       const s = state.selection;
-      state.room.placements.push({
+      const transform = authoredStampTransform();
+      const placement = {
         layer: state.layer,
-        x: cell.x,
-        y: cell.y,
-        width: Math.ceil(s.width * s.grid / tileSize),
-        height: Math.ceil(s.height * s.grid / tileSize),
+        position: { grid: spec.snapGrid, x: cell.x, y: cell.y },
+        width: spec.width,
+        height: spec.height,
         source: selectionSource(),
-      });
-      setStatus(`Placed ${s.width * s.grid}×${s.height * s.grid}px baked stamp on ${state.layer}.`);
+      };
+      if (transform) placement.transform = transform;
+      state.room.placements.push(placement);
+      setStatus(`Placed ${s.width * s.grid}×${s.height * s.grid}px baked stamp on a ${spec.snapGrid}px grid.`);
     } else {
-      const collection = behavior === "structure" ? "structures" : "fixtures";
-      const templateId = slugify($("#element-kind").value) || (behavior === "structure" ? state.layer : "fixture");
-      const label = $("#element-label").value.trim() || templateId.replaceAll("-", " ");
-      let template = state.room.templates[templateId];
-      if (!template) {
-        if (!state.stateSources.damaged || !state.stateSources.repaired) {
-          state.undo.pop();
-          setStatus(`Template ${templateId} is new; capture both damaged and repaired crops first.`);
-          return;
-        }
-        template = {
-          label,
-          kind: templateId,
-          layer: state.layer,
-          states: {
-            damaged: { source: structuredClone(state.stateSources.damaged) },
-            repaired: { source: structuredClone(state.stateSources.repaired) },
-          },
-        };
-        state.room.templates[templateId] = template;
-      }
-      const stateSizes = Object.values(template.states)
-        .filter((visual) => visual.visible !== false && visual.source)
-        .map((visual) => ({
-          width: visual.source.width * visual.source.grid,
-          height: visual.source.height * visual.source.grid,
-        }));
-      if (!stateSizes.length) {
-        state.undo.pop();
-        setStatus(`Template ${templateId} has no visible state crops.`);
-        return;
-      }
-      const width = Math.ceil(Math.max(...stateSizes.map((size) => size.width)) / tileSize);
-      const height = Math.ceil(Math.max(...stateSizes.map((size) => size.height)) / tileSize);
-      const id = nextElementId(templateId);
-      state.room[collection].push({
+      const id = nextElementId(spec.templateId);
+      const transform = authoredStampTransform();
+      const element = {
         id,
-        template: templateId,
-        x: cell.x,
-        y: cell.y,
-        width,
-        height,
+        template: spec.templateId,
+        position: { grid: spec.snapGrid, x: cell.x, y: cell.y },
+        width: spec.width,
+        height: spec.height,
         initial_state: "damaged",
-      });
-      setStatus(`Placed repairable ${template.label} as ${id}; future stamps can reuse template ${templateId}.`);
+      };
+      if (transform) element.transform = transform;
+      state.room[spec.collection].push(element);
+      setStatus(`Placed ${spec.template.label} as ${id} on a ${spec.snapGrid}px grid.`);
     }
   } else if (tool === "erase") {
-    pushUndo();
-    if (!eraseAt(cell)) state.undo.pop();
+    if (recordUndo) pushUndo();
+    if (!eraseAt(cell)) {
+      if (recordUndo) state.undo.pop();
+      return false;
+    }
   } else if (tool === "collision") {
-    pushUndo();
     const index = state.room.collision.findIndex((item) => item.x === cell.x && item.y === cell.y);
-    if (index >= 0) state.room.collision.splice(index, 1);
+    const mode = collisionMode || (index >= 0 ? "remove" : "add");
+    if ((mode === "add" && index >= 0) || (mode === "remove" && index < 0)) return false;
+    if (recordUndo) pushUndo();
+    if (mode === "remove") state.room.collision.splice(index, 1);
     else state.room.collision.push(cell);
   } else if (tool === "entry") {
-    pushUndo(); state.room.entry = cell;
+    if (recordUndo) pushUndo();
+    state.room.entry = cell;
   } else if (tool === "exit") {
-    pushUndo();
     const index = state.room.exits.findIndex((item) => item.x === cell.x && item.y === cell.y);
+    if (recordUndo) pushUndo();
     if (index >= 0) state.room.exits.splice(index, 1);
     else state.room.exits.push({ ...cell, to: "exterior", spawn: "motel-door" });
   }
   drawRoom();
+  return true;
+}
+
+function gridLine(start, end) {
+  const cells = [];
+  let x = start.x;
+  let y = start.y;
+  const dx = Math.abs(end.x - start.x);
+  const sx = start.x < end.x ? 1 : -1;
+  const dy = -Math.abs(end.y - start.y);
+  const sy = start.y < end.y ? 1 : -1;
+  let error = dx + dy;
+  while (true) {
+    cells.push({ x, y });
+    if (x === end.x && y === end.y) break;
+    const twiceError = 2 * error;
+    if (twiceError >= dy) {
+      error += dy;
+      x += sx;
+    }
+    if (twiceError <= dx) {
+      error += dx;
+      y += sy;
+    }
+  }
+  return cells;
+}
+
+function stampUnitForCell(origin, cell, footprint) {
+  return {
+    x: Math.floor((cell.x - origin.x) / footprint.width),
+    y: Math.floor((cell.y - origin.y) / footprint.height),
+  };
+}
+
+function stampAnchorForUnit(origin, unit, footprint) {
+  return {
+    x: origin.x + unit.x * footprint.width,
+    y: origin.y + unit.y * footprint.height,
+  };
+}
+
+function beginRoomStroke(event) {
+  if (event.button !== 0) return;
+  const tool = state.tool;
+  const stampSpec = tool === "stamp" ? activeStampSpec() : null;
+  if (tool === "stamp" && !stampSpec) return;
+  const cell = tool === "stamp"
+    ? roomSnapCell(event, stampSpec.snapGrid)
+    : roomCell(event);
+  if (!cell) return;
+  const collisionIndex = tool === "collision"
+    ? state.room.collision.findIndex((item) => item.x === cell.x && item.y === cell.y)
+    : -1;
+  const collisionMode = collisionIndex >= 0 ? "remove" : "add";
+  pushUndo();
+  const changed = editRoom(cell, false, { recordUndo: false, collisionMode, stampSpec });
+  if (!changed) {
+    state.undo.pop();
+    return;
+  }
+  if (!["stamp", "erase", "collision"].includes(tool)) return;
+  const canvas = $("#room-canvas");
+  canvas.setPointerCapture(event.pointerId);
+  if (tool === "stamp") {
+    state.roomDrag = {
+      pointerId: event.pointerId,
+      kind: "stamp",
+      origin: cell,
+      footprint: stampSpec.strokeFootprint,
+      stampSpec,
+      lastUnit: { x: 0, y: 0 },
+      visited: new Set(["0,0"]),
+      count: 1,
+    };
+  } else {
+    state.roomDrag = {
+      pointerId: event.pointerId,
+      kind: tool,
+      collisionMode,
+      lastCell: cell,
+      visited: new Set([`${cell.x},${cell.y}`]),
+      count: 1,
+    };
+  }
+}
+
+function continueRoomStroke(event) {
+  const drag = state.roomDrag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  const cell = drag.kind === "stamp"
+    ? roomSnapCell(event, drag.stampSpec.snapGrid)
+    : roomCell(event);
+  if (!cell) return;
+  if (drag.kind === "stamp") {
+    const unit = stampUnitForCell(drag.origin, cell, drag.footprint);
+    for (const nextUnit of gridLine(drag.lastUnit, unit).slice(1)) {
+      const key = `${nextUnit.x},${nextUnit.y}`;
+      if (drag.visited.has(key)) continue;
+      drag.visited.add(key);
+      const anchor = stampAnchorForUnit(drag.origin, nextUnit, drag.footprint);
+      if (editRoom(anchor, false, { recordUndo: false, stampSpec: drag.stampSpec })) {
+        drag.count += 1;
+      }
+    }
+    drag.lastUnit = unit;
+    return;
+  }
+  for (const nextCell of gridLine(drag.lastCell, cell).slice(1)) {
+    const key = `${nextCell.x},${nextCell.y}`;
+    if (drag.visited.has(key)) continue;
+    drag.visited.add(key);
+    const changed = editRoom(nextCell, false, {
+      recordUndo: false,
+      collisionMode: drag.collisionMode,
+    });
+    if (changed) drag.count += 1;
+  }
+  drag.lastCell = cell;
+}
+
+function finishRoomStroke(event) {
+  const drag = state.roomDrag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  state.roomDrag = null;
+  const canvas = $("#room-canvas");
+  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  const label = drag.kind === "stamp" ? "stamps" : drag.kind === "collision" ? "collision cells" : "items";
+  setStatus(`Painted ${drag.count} ${label} in one undoable stroke.`);
 }
 
 function selectionSource() {
@@ -362,6 +583,211 @@ function updateStateSourceDetails() {
       ? `${source.path.split("/").at(-1)} · ${source.width * source.grid}×${source.height * source.grid}px`
       : "not captured";
   }
+}
+
+function repairPairMatches(pairId, pair, query) {
+  const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const sourcePaths = Object.values(pair.states || {})
+    .map((visual) => visual.source?.path || "")
+    .join(" ");
+  const haystack = `${pairId} ${pair.label} ${pair.kind} ${pair.layer} ${sourcePaths}`.toLowerCase();
+  return words.every((word) => haystack.includes(word));
+}
+
+function drawPairPreview(canvas, source) {
+  const context = canvas.getContext("2d");
+  context.imageSmoothingEnabled = false;
+  context.fillStyle = "#090807";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  if (!source) return;
+  const image = getImage(source.path);
+  const paint = () => paintPairPreview(canvas, image, source, state.stampTransform);
+  if (image.complete) paint();
+  else image.addEventListener("load", paint, { once: true });
+}
+
+function paintPairPreview(canvas, image, source, transform = {}) {
+  if (!image.naturalWidth) return false;
+  const context = canvas.getContext("2d");
+  context.imageSmoothingEnabled = false;
+  const width = source.width * source.grid;
+  const height = source.height * source.grid;
+  const scale = Math.min(canvas.width / width, canvas.height / height);
+  const drawWidth = Math.max(1, Math.floor(width * scale));
+  const drawHeight = Math.max(1, Math.floor(height * scale));
+  drawTransformedImage(
+    context,
+    image,
+    { x: source.x * source.grid, y: source.y * source.grid, width, height },
+    {
+      x: Math.floor((canvas.width - drawWidth) / 2),
+      y: Math.floor((canvas.height - drawHeight) / 2),
+      width: drawWidth,
+      height: drawHeight,
+    },
+    transform,
+  );
+  return true;
+}
+
+function renderRepairPairs() {
+  const list = $("#pair-list");
+  if (!list) return;
+  const query = $("#pair-search").value;
+  const pairs = Object.entries(state.repairPairs)
+    .filter(([pairId, pair]) => repairPairMatches(pairId, pair, query))
+    .sort((left, right) => left[1].label.localeCompare(right[1].label));
+  list.replaceChildren();
+  for (const [pairId, pair] of pairs) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = `pair-card${state.selectedRepairPair === pairId ? " active" : ""}`;
+    const previews = document.createElement("span");
+    previews.className = "pair-previews";
+    for (const stateName of ["damaged", "repaired"]) {
+      const canvas = document.createElement("canvas");
+      canvas.className = "pair-preview";
+      canvas.width = 38;
+      canvas.height = 38;
+      canvas.title = stateName;
+      previews.append(canvas);
+      drawPairPreview(canvas, pair.states[stateName]?.source);
+    }
+    const meta = document.createElement("span");
+    meta.className = "pair-meta";
+    const name = document.createElement("strong");
+    name.textContent = pair.label;
+    const details = document.createElement("small");
+    details.textContent = `${pairId} · ${pair.kind} · ${pair.layer}`;
+    meta.append(name, details);
+    card.append(previews, meta);
+    card.addEventListener("click", () => selectRepairPair(pairId));
+    list.append(card);
+  }
+  $("#pair-count").textContent = `${pairs.length} of ${Object.keys(state.repairPairs).length}`;
+}
+
+function selectRepairPair(pairId) {
+  const pair = state.repairPairs[pairId];
+  if (!pair) return;
+  state.selectedRepairPair = pairId;
+  state.stateSources = {
+    damaged: structuredClone(pair.states.damaged?.source || null),
+    repaired: structuredClone(pair.states.repaired?.source || null),
+  };
+  $("#pair-id").value = pairId;
+  $("#pair-id").readOnly = true;
+  $("#pair-label").value = pair.label;
+  $("#pair-kind").value = pair.kind;
+  $("#pair-layer").value = pair.layer;
+  $("#pair-mode-title").textContent = pair.label;
+  $("#duplicate-pair").disabled = false;
+  $("#delete-pair").disabled = false;
+  updateStateSourceDetails();
+  renderRepairPairs();
+  drawRoom();
+  setStatus(`Selected repair pair ${pairId}; choose a repairable behavior and stamp it.`);
+}
+
+function newRepairPair() {
+  state.selectedRepairPair = null;
+  state.stateSources = { damaged: null, repaired: null };
+  $("#pair-id").value = "";
+  $("#pair-id").readOnly = false;
+  $("#pair-label").value = "";
+  $("#pair-kind").value = "";
+  $("#pair-layer").value = state.layer;
+  $("#pair-mode-title").textContent = "New pair";
+  $("#duplicate-pair").disabled = true;
+  $("#delete-pair").disabled = true;
+  updateStateSourceDetails();
+  renderRepairPairs();
+  $("#pair-id").focus();
+  setStatus("Creating a new repair pair; capture damaged and repaired crops, then save.");
+}
+
+function duplicateRepairPair() {
+  if (!state.selectedRepairPair) return;
+  const sourceId = state.selectedRepairPair;
+  state.selectedRepairPair = null;
+  $("#pair-id").value = "";
+  $("#pair-id").readOnly = false;
+  $("#pair-mode-title").textContent = `Copy of ${sourceId}`;
+  $("#duplicate-pair").disabled = true;
+  $("#delete-pair").disabled = true;
+  renderRepairPairs();
+  $("#pair-id").focus();
+  setStatus(`Duplicated ${sourceId}; give this independent pair a new ID and replace either crop as needed.`);
+}
+
+async function saveRepairPair() {
+  const pairId = $("#pair-id").value.trim();
+  const label = $("#pair-label").value.trim();
+  const kind = slugify($("#pair-kind").value);
+  if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(pairId)) {
+    setStatus("Pair ID must use lowercase letters, numbers, hyphens, or underscores.");
+    return;
+  }
+  if (!state.selectedRepairPair && state.repairPairs[pairId]) {
+    setStatus(`Pair ${pairId} already exists; select it before editing.`);
+    return;
+  }
+  if (!label || !kind) {
+    setStatus("Repair pairs need both a label and a kind.");
+    return;
+  }
+  if (!state.stateSources.damaged || !state.stateSources.repaired) {
+    setStatus("Capture both damaged and repaired source rectangles first.");
+    return;
+  }
+  const pair = {
+    label,
+    kind,
+    layer: $("#pair-layer").value,
+    states: {
+      damaged: { source: structuredClone(state.stateSources.damaged) },
+      repaired: { source: structuredClone(state.stateSources.repaired) },
+    },
+  };
+  const response = await fetch(`/api/repair-pairs/${encodeURIComponent(pairId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pair),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    setStatus(result.errors?.join(" · ") || "Repair pair save failed.");
+    return;
+  }
+  state.repairPairs[pairId] = pair;
+  state.selectedRepairPair = pairId;
+  $("#pair-id").readOnly = true;
+  $("#duplicate-pair").disabled = false;
+  $("#delete-pair").disabled = false;
+  $("#pair-mode-title").textContent = pair.label;
+  renderRepairPairs();
+  drawRoom();
+  setStatus(`Saved repair pair ${pairId}; it is available to every room. Run “make assets” to rebuild runtime art.`);
+}
+
+async function deleteRepairPair() {
+  const pairId = state.selectedRepairPair;
+  if (!pairId) return;
+  const currentInstances = [...state.room.structures, ...state.room.fixtures];
+  if (currentInstances.some((element) => element.template === pairId)) {
+    setStatus(`Cannot delete ${pairId}; the current room uses it.`);
+    return;
+  }
+  if (!window.confirm(`Delete repair pair “${pairId}”?`)) return;
+  const response = await fetch(`/api/repair-pairs/${encodeURIComponent(pairId)}`, { method: "DELETE" });
+  const result = await response.json();
+  if (!response.ok) {
+    setStatus(result.errors?.join(" · ") || "Repair pair delete failed.");
+    return;
+  }
+  delete state.repairPairs[pairId];
+  newRepairPair();
+  setStatus(`Deleted repair pair ${pairId}.`);
 }
 
 function filterAssets() {
@@ -459,7 +885,11 @@ function updateSelectionDetails() {
   const pixelWidth = s.width * s.grid;
   const pixelHeight = s.height * s.grid;
   $("#selection-title").textContent = `${pixelWidth}×${pixelHeight}px from ${state.sheet.name}`;
-  $("#selection-details").textContent = `Source (${s.x}, ${s.y}) on a ${s.grid}px selection grid · rendered at its native pixel size on the ${state.layer} layer.`;
+  const orientation = [
+    state.stampTransform.flip_x ? "horizontal flip" : null,
+    state.stampTransform.flip_y ? "vertical flip" : null,
+  ].filter(Boolean).join(" + ") || "original orientation";
+  $("#selection-details").textContent = `Source (${s.x}, ${s.y}) on a ${s.grid}px selection grid · ${state.snapGrid}px destination snap · native pixels on the ${state.layer} layer · ${orientation}.`;
 }
 
 async function refreshLevels() {
@@ -471,7 +901,7 @@ async function refreshLevels() {
 }
 
 async function saveRoom() {
-  state.room.schema_version = 2;
+  state.room.schema_version = 4;
   state.room.id = $("#room-id").value.trim();
   state.room.name = $("#room-name").value.trim();
   if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(state.room.id)) { setStatus("Room ID must use lowercase letters, numbers, hyphens, or underscores."); return; }
@@ -514,15 +944,52 @@ function toggleCollisionVisibility() {
   setStatus(`Collision overlay ${state.collisionVisible ? "shown" : "hidden"}; collision data is unchanged.`);
 }
 
+function toggleStampFlip(axis) {
+  state.stampTransform[axis] = !state.stampTransform[axis];
+  const controls = {
+    flip_x: $("#flip-horizontal"),
+    flip_y: $("#flip-vertical"),
+  };
+  for (const [key, button] of Object.entries(controls)) {
+    button.classList.toggle("active", state.stampTransform[key]);
+    button.setAttribute("aria-pressed", String(state.stampTransform[key]));
+  }
+  renderRepairPairs();
+  updateSelectionDetails();
+  const enabled = [
+    state.stampTransform.flip_x ? "horizontal" : null,
+    state.stampTransform.flip_y ? "vertical" : null,
+  ].filter(Boolean).join(" and ") || "none";
+  setStatus(`Stamp flips: ${enabled}. Repair-pair states share the same orientation.`);
+}
+
 function bindEvents() {
   $("#asset-search").addEventListener("input", filterAssets);
   $("#pack-filter").addEventListener("change", filterAssets);
   $("#layer").addEventListener("change", (event) => { state.layer = event.target.value; updateSelectionDetails(); });
   $("#capture-damaged").addEventListener("click", () => captureStateSource("damaged"));
   $("#capture-repaired").addEventListener("click", () => captureStateSource("repaired"));
+  $("#pair-search").addEventListener("input", renderRepairPairs);
+  $("#new-pair").addEventListener("click", newRepairPair);
+  $("#duplicate-pair").addEventListener("click", duplicateRepairPair);
+  $("#save-pair").addEventListener("click", saveRepairPair);
+  $("#delete-pair").addEventListener("click", deleteRepairPair);
+  $("#focus-repair-pairs").addEventListener("click", () => {
+    $("#repair-pair-library").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("#pair-search").focus();
+  });
   $("#background").addEventListener("input", (event) => { state.room.background = event.target.value; drawRoom(); });
   $("#zoom").addEventListener("change", (event) => { state.zoom = Number(event.target.value); drawRoom(); });
+  $("#snap-grid").addEventListener("change", (event) => {
+    state.snapGrid = Math.max(1, Math.min(256, Number(event.target.value) || roomTileSize()));
+    event.target.value = state.snapGrid;
+    drawRoom();
+    updateSelectionDetails();
+    setStatus(`Stamp snap grid set to ${state.snapGrid}px; collision remains on the ${roomTileSize()}px room grid.`);
+  });
   $("#toggle-collision").addEventListener("click", toggleCollisionVisibility);
+  $("#flip-horizontal").addEventListener("click", () => toggleStampFlip("flip_x"));
+  $("#flip-vertical").addEventListener("click", () => toggleStampFlip("flip_y"));
   $("#source-grid").addEventListener("change", () => { state.selection = null; drawSheet(); updateSelectionDetails(); });
   $("#tool-group").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-tool]"); if (!button) return;
@@ -540,8 +1007,7 @@ function bindEvents() {
   $("#new-room").addEventListener("click", () => {
     state.room = freshRoom();
     state.undo = [];
-    state.stateSources = { damaged: null, repaired: null };
-    syncInputs(); updateStateSourceDetails(); drawRoom(); setStatus("Started a new room.");
+    syncInputs(); drawRoom(); setStatus("Started a new room.");
   });
   $("#save-room").addEventListener("click", saveRoom);
   $("#load-room").addEventListener("click", loadRoom);
@@ -550,7 +1016,10 @@ function bindEvents() {
 
   const roomCanvas = $("#room-canvas");
   roomCanvas.addEventListener("contextmenu", (event) => { event.preventDefault(); editRoom(roomCell(event), true); });
-  roomCanvas.addEventListener("pointerdown", (event) => { if (event.button === 0) editRoom(roomCell(event)); });
+  roomCanvas.addEventListener("pointerdown", beginRoomStroke);
+  roomCanvas.addEventListener("pointermove", continueRoomStroke);
+  roomCanvas.addEventListener("pointerup", finishRoomStroke);
+  roomCanvas.addEventListener("pointercancel", finishRoomStroke);
 
   const sheetCanvas = $("#sheet-canvas");
   sheetCanvas.addEventListener("pointerdown", (event) => { if (!state.sheetImage) return; state.sheetDrag = sheetCell(event); sheetCanvas.setPointerCapture(event.pointerId); });
@@ -567,12 +1036,21 @@ function bindEvents() {
 
 async function initialize() {
   state.room = freshRoom(); syncInputs(); bindEvents(); drawRoom();
-  const response = await fetch("/api/catalog");
-  state.catalog = await response.json();
+  const [catalogResponse, pairResponse] = await Promise.all([
+    fetch("/api/catalog"),
+    fetch("/api/repair-pairs"),
+  ]);
+  state.catalog = await catalogResponse.json();
+  const pairDocument = await pairResponse.json();
+  state.repairPairs = pairDocument.pairs || {};
   const packFilter = $("#pack-filter");
   for (const pack of state.catalog.packs) packFilter.append(new Option(pack, pack));
   $("#asset-search").value = "motel";
   filterAssets();
+  renderRepairPairs();
+  const firstPair = Object.keys(state.repairPairs).sort()[0];
+  if (firstPair) selectRepairPair(firstPair);
+  else newRepairPair();
   await refreshLevels();
   setStatus(`Ready · ${state.catalog.count.toLocaleString()} private images indexed.`);
 }
@@ -581,4 +1059,16 @@ if (typeof window !== "undefined") {
   initialize().catch((error) => { console.error(error); setStatus(`Editor failed to start: ${error.message}`); });
 }
 
-if (typeof module !== "undefined") module.exports = { collisionCellsForRendering };
+if (typeof module !== "undefined") {
+  module.exports = {
+    collisionCellsForRendering,
+    drawTransformedImage,
+    footprintForPixelSizes,
+    gridLine,
+    paintPairPreview,
+    placementPixelPosition,
+    repairPairMatches,
+    stampAnchorForUnit,
+    stampUnitForCell,
+  };
+}

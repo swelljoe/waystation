@@ -24,6 +24,7 @@ PALETTE = ["#f1dfad", "#c39a5b", "#77543b", "#34322a", "#78966b", "#9d5f55"]
 CARD_SIZE = (96, 64)
 TERRAIN_TILE_SIZE = 32
 INTERIOR_ROOT = ROOT / "content/interiors"
+REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
 INTERIOR_LAYER_ORDER = {"floor": 0, "wall": 1, "object": 2, "overlay": 3}
 INTERIOR_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
@@ -525,6 +526,25 @@ def load_interior_stamp(
     return fallback_interior_stamp(fallback_size, layer, stamp_seed)
 
 
+def transform_interior_stamp(
+    stamp: Image.Image, transform: dict[str, object] | None
+) -> Image.Image:
+    transformed = stamp
+    if transform and transform.get("flip_x") is True:
+        transformed = transformed.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    if transform and transform.get("flip_y") is True:
+        transformed = transformed.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+    return transformed
+
+
+def interior_pixel_position(item: dict[str, object], tile_size: int) -> tuple[int, int]:
+    position = item.get("position")
+    if isinstance(position, dict):
+        grid = int(position["grid"])
+        return (int(position["x"]) * grid, int(position["y"]) * grid)
+    return (int(item["x"]) * tile_size, int(item["y"]) * tile_size)
+
+
 def render_interior(level: dict[str, object], source: Path) -> Image.Image:
     grid = level["grid"]
     tile_size = int(grid["tile_size"])
@@ -546,12 +566,13 @@ def render_interior(level: dict[str, object], source: Path) -> Image.Image:
     for placement in placements:
         source_spec = placement["source"]
         stamp = load_interior_stamp(source_spec, source, placement["layer"])
+        stamp = transform_interior_stamp(stamp, placement.get("transform"))
 
         placement_size = (
             int(placement["width"]) * tile_size,
             int(placement["height"]) * tile_size,
         )
-        position = (int(placement["x"]) * tile_size, int(placement["y"]) * tile_size)
+        position = interior_pixel_position(placement, tile_size)
         if placement.get("repeat", False):
             repeated = Image.new("RGBA", placement_size, (0, 0, 0, 0))
             for y in range(0, placement_size[1], stamp.height):
@@ -563,7 +584,11 @@ def render_interior(level: dict[str, object], source: Path) -> Image.Image:
 
 
 def write_mutable_interior_art(
-    level: dict[str, object], source: Path, output: Path, interiors: Path
+    level: dict[str, object],
+    source: Path,
+    output: Path,
+    interiors: Path,
+    repair_pairs: dict[str, object] | None = None,
 ) -> list[dict[str, object]]:
     records = []
     room_id = str(level["id"])
@@ -571,9 +596,19 @@ def write_mutable_interior_art(
     if room_directory.exists():
         shutil.rmtree(room_directory)
     room_directory.mkdir(parents=True)
-    for template_id, template in level.get("templates", {}).items():
+    room_templates = level.get("templates", {})
+    shared_templates = repair_pairs or {}
+    instances = [*level.get("structures", []), *level.get("fixtures", [])]
+    template_ids = sorted({instance["template"] for instance in instances})
+    for template_id in template_ids:
         if INTERIOR_ID.fullmatch(template_id) is None:
             raise SystemExit(f"invalid mutable interior template: {template_id}")
+        if int(level.get("schema_version", 2)) >= 3:
+            template = shared_templates.get(template_id) or room_templates.get(template_id)
+        else:
+            template = room_templates.get(template_id) or shared_templates.get(template_id)
+        if template is None:
+            raise SystemExit(f"unknown mutable interior template: {template_id}")
         for state_name, visual in template["states"].items():
             if INTERIOR_ID.fullmatch(state_name) is None:
                 raise SystemExit(f"invalid mutable interior state: {state_name}")
@@ -587,7 +622,7 @@ def write_mutable_interior_art(
                     "path": str(destination.relative_to(output)),
                     "sha256": sha256(destination),
                     "size": list(stamp.size),
-                    "source": "authored mutable template state flattened from a private crop or public fallback",
+                    "source": "authored repair-pair state flattened from a private crop or public fallback",
                 }
             )
     return records
@@ -598,10 +633,14 @@ def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
     interiors.mkdir(parents=True, exist_ok=True)
     for stale in interiors.glob("*.png"):
         stale.unlink()
+    repair_pair_document = json.loads(REPAIR_PAIR_PATH.read_text(encoding="utf-8"))
+    if repair_pair_document.get("schema_version") != 1:
+        raise SystemExit(f"unsupported repair-pair library in {REPAIR_PAIR_PATH}")
+    repair_pairs = repair_pair_document.get("pairs", {})
     records = []
     for level_path in sorted(INTERIOR_ROOT.glob("*.json")):
         level = json.loads(level_path.read_text(encoding="utf-8"))
-        if level.get("schema_version") not in {1, 2} or level.get("id") != level_path.stem:
+        if level.get("schema_version") not in {1, 2, 3, 4} or level.get("id") != level_path.stem:
             raise SystemExit(f"invalid interior identity in {level_path}")
         image = render_interior(level, source)
         destination = interiors / f"{level['id']}.png"
@@ -614,7 +653,9 @@ def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
                 "source": "authored interior flattened from private stamps or public fallbacks",
             }
         )
-        records.extend(write_mutable_interior_art(level, source, output, interiors))
+        records.extend(
+            write_mutable_interior_art(level, source, output, interiors, repair_pairs)
+        )
     return records
 
 
