@@ -189,6 +189,384 @@
           }
         }
       }
+    },
+    "damaged--brick-wall-1": {
+      "label": "Damaged Brick Wall 1",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-2": {
+      "label": "Damaged Brick Wall 2",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 4,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-3": {
+      "label": "Damaged Brick Wall 3",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 8,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-4": {
+      "label": "Damaged Brick Wall 4",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 12,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-5": {
+      "label": "Damaged Brick Wall 5",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 0,
+            "y": 4,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-6": {
+      "label": "Damaged Brick Wall 6",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 4,
+            "y": 4,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-7": {
+      "label": "Damaged Brick Wall 7",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 8,
+            "y": 4,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-8": {
+      "label": "Damaged Brick Wall 8",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 12,
+            "y": 4,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-9": {
+      "label": "Damaged Brick Wall 9",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 0,
+            "y": 8,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-10": {
+      "label": "Damaged Brick Wall 10",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 4,
+            "y": 8,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-11": {
+      "label": "Damaged Brick Wall 11",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 8,
+            "y": 8,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-brick-wall-12": {
+      "label": "Damaged Brick Wall 12",
+      "kind": "wall",
+      "layer": "wall",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 12,
+            "y": 8,
+            "width": 4,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 4
+          }
+        }
+      }
+    },
+    "damaged-roof-gable-1": {
+      "label": "Damaged Roof Gable 1",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/scaled-damaged-TX Village House.png",
+            "grid": 1,
+            "x": 1,
+            "y": 1,
+            "width": 236,
+            "height": 126
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House.png",
+            "grid": 1,
+            "x": 1,
+            "y": 2,
+            "width": 238,
+            "height": 126
+          }
+        }
+      }
+    },
+    "damaged-roof-tile-48s-1": {
+      "label": "Damaged Roof Tiles 48 1",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/sheared-damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 0,
+            "y": 4,
+            "width": 128,
+            "height": 176
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile-48.png",
+            "grid": 8,
+            "x": 6,
+            "y": 3,
+            "width": 12,
+            "height": 18
+          }
+        }
+      }
     }
   }
 }

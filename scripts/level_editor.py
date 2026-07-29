@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve the private, local-only Waystation interior level editor."""
+"""Serve the private, local-only Waystation scene editor."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from asset_catalog import DEFAULT_ASSET_ROOT, catalog_assets
 ROOT = Path(__file__).resolve().parent.parent
 EDITOR_ROOT = ROOT / "tools/level-editor"
 LEVEL_ROOT = ROOT / "content/interiors"
+BUILDING_ROOT = ROOT / "content/buildings"
 REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
 LEVEL_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 MAX_REQUEST_BYTES = 5 * 1024 * 1024
@@ -61,6 +62,29 @@ def validate_pixel_position(position: Any, label: str) -> list[str]:
     for axis in ("x", "y"):
         if not isinstance(position.get(axis), int):
             errors.append(f"{label}.position.{axis} must be an integer")
+    return errors
+
+
+def validate_background_key(source: Any, label: str) -> list[str]:
+    if not isinstance(source, dict) or "background_key" not in source:
+        return []
+    key = source["background_key"]
+    if not isinstance(key, dict):
+        return [f"{label}.background_key must be an object"]
+    errors = []
+    color = key.get("color")
+    if (
+        not isinstance(color, list)
+        or len(color) != 3
+        or not all(isinstance(channel, int) and 0 <= channel <= 255 for channel in color)
+    ):
+        errors.append(f"{label}.background_key.color must contain three bytes")
+    tolerance = key.get("tolerance")
+    if not isinstance(tolerance, int) or not 0 <= tolerance <= 255:
+        errors.append(f"{label}.background_key.tolerance must be an integer from 0 to 255")
+    softness = key.get("softness")
+    if not isinstance(softness, int) or not 1 <= softness <= 255:
+        errors.append(f"{label}.background_key.softness must be an integer from 1 to 255")
     return errors
 
 
@@ -111,6 +135,7 @@ def validate_repair_pair(pair: Any, pair_id: str, asset_root: Path) -> list[str]
             or source["height"] < 1
         ):
             errors.append(f"{state_label} has an invalid source rectangle")
+        errors.extend(validate_background_key(source, state_label))
     return errors
 
 
@@ -119,6 +144,7 @@ def validate_level(
     level_id: str,
     asset_root: Path,
     repair_pairs: dict[str, Any] | None = None,
+    expected_scene_type: str = "interior",
 ) -> list[str]:
     errors = []
     if not isinstance(level, dict):
@@ -128,6 +154,9 @@ def validate_level(
         errors.append("schema_version must be 1, 2, 3, or 4")
     if level.get("id") != level_id:
         errors.append("level id must match the save name")
+    scene_type = level.get("scene_type", "interior")
+    if scene_type != expected_scene_type:
+        errors.append(f"scene_type must be {expected_scene_type!r}")
     grid = level.get("grid")
     if not isinstance(grid, dict):
         errors.append("grid is required")
@@ -177,6 +206,7 @@ def validate_level(
                 or source["height"] < 1
             ):
                 errors.append(f"placements[{index}] has an invalid source rectangle")
+            errors.extend(validate_background_key(source, f"placements[{index}].source"))
 
     templates = level.get("templates", {} if schema_version == 1 else None)
     if not isinstance(templates, dict):
@@ -231,6 +261,7 @@ def validate_level(
                 or source["height"] < 1
             ):
                 errors.append(f"{state_label} has an invalid source rectangle")
+            errors.extend(validate_background_key(source, state_label))
 
     mutable_ids: set[str] = set()
     for collection_name in ("structures", "fixtures"):
@@ -278,7 +309,8 @@ def validate_level(
             template_states = template.get("states", {}) if isinstance(template, dict) else {}
             if not isinstance(initial_state, str) or initial_state not in template_states:
                 errors.append(f"{label} initial_state must name one of its states")
-    for key in ("collision", "exits"):
+    required_cell_lists = ("collision", "exits") if expected_scene_type == "interior" else ("collision",)
+    for key in required_cell_lists:
         cells = level.get(key)
         if not isinstance(cells, list):
             errors.append(f"{key} must be an array")
@@ -291,20 +323,24 @@ def validate_level(
                     or not 0 <= cell["x"] < width
                     or not 0 <= cell["y"] < height
                 ):
-                    errors.append(f"{key}[{index}] lies outside the room")
-    entry = level.get("entry")
-    if not isinstance(entry, dict) or not all(isinstance(entry.get(axis), int) for axis in ("x", "y")):
-        errors.append("entry must contain integer x and y")
-    elif isinstance(width, int) and isinstance(height, int) and not (
-        0 <= entry["x"] < width and 0 <= entry["y"] < height
-    ):
-        errors.append("entry lies outside the room")
+                    errors.append(f"{key}[{index}] lies outside the scene")
+    if expected_scene_type == "interior":
+        entry = level.get("entry")
+        if not isinstance(entry, dict) or not all(
+            isinstance(entry.get(axis), int) for axis in ("x", "y")
+        ):
+            errors.append("entry must contain integer x and y")
+        elif isinstance(width, int) and isinstance(height, int) and not (
+            0 <= entry["x"] < width and 0 <= entry["y"] < height
+        ):
+            errors.append("entry lies outside the room")
     return errors
 
 
 class EditorServer(ThreadingHTTPServer):
     asset_root: Path
     level_root: Path
+    building_root: Path
     catalog: dict[str, Any]
     repair_pair_path: Path
     repair_pairs: dict[str, Any]
@@ -387,6 +423,17 @@ class EditorHandler(BaseHTTPRequestHandler):
                 return
             self.send_path(self.server.level_root / f"{level_id}.json")
             return
+        if request_path == "/api/buildings":
+            buildings = sorted(path.stem for path in self.server.building_root.glob("*.json"))
+            self.send_json({"buildings": buildings})
+            return
+        if request_path.startswith("/api/buildings/"):
+            building_id = request_path.removeprefix("/api/buildings/")
+            if not LEVEL_ID.fullmatch(building_id):
+                self.send_error(HTTPStatus.BAD_REQUEST, "invalid building id")
+                return
+            self.send_path(self.server.building_root / f"{building_id}.json")
+            return
         if request_path.startswith("/asset/"):
             path = safe_child(self.server.asset_root, request_path.removeprefix("/asset/"))
             if path is None:
@@ -426,27 +473,38 @@ class EditorHandler(BaseHTTPRequestHandler):
                 }
             )
             return
-        if not request_path.startswith("/api/levels/"):
+        if request_path.startswith("/api/levels/"):
+            scene_id = request_path.removeprefix("/api/levels/")
+            scene_type = "interior"
+            destination_root = self.server.level_root
+        elif request_path.startswith("/api/buildings/"):
+            scene_id = request_path.removeprefix("/api/buildings/")
+            scene_type = "building"
+            destination_root = self.server.building_root
+        else:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        level_id = request_path.removeprefix("/api/levels/")
-        if not LEVEL_ID.fullmatch(level_id):
-            self.send_error(HTTPStatus.BAD_REQUEST, "invalid level id")
+        if not LEVEL_ID.fullmatch(scene_id):
+            self.send_error(HTTPStatus.BAD_REQUEST, f"invalid {scene_type} id")
             return
         level = self.read_json_body()
         if level is None:
             return
         errors = validate_level(
-            level, level_id, self.server.asset_root, self.server.repair_pairs
+            level,
+            scene_id,
+            self.server.asset_root,
+            self.server.repair_pairs,
+            expected_scene_type=scene_type,
         )
         if errors:
             self.send_json({"saved": False, "errors": errors}, HTTPStatus.UNPROCESSABLE_ENTITY)
             return
-        self.server.level_root.mkdir(parents=True, exist_ok=True)
-        destination = self.server.level_root / f"{level_id}.json"
+        destination_root.mkdir(parents=True, exist_ok=True)
+        destination = destination_root / f"{scene_id}.json"
         serialized = json.dumps(level, indent=2) + "\n"
         with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=self.server.level_root, delete=False
+            "w", encoding="utf-8", dir=destination_root, delete=False
         ) as temporary:
             temporary.write(serialized)
             temporary_path = Path(temporary.name)
@@ -463,11 +521,15 @@ class EditorHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.BAD_REQUEST, "invalid repair pair id")
             return
         used_by = []
-        for level_path in sorted(self.server.level_root.glob("*.json")):
-            level = json.loads(level_path.read_text(encoding="utf-8"))
-            instances = [*level.get("structures", []), *level.get("fixtures", [])]
-            if any(instance.get("template") == pair_id for instance in instances):
-                used_by.append(level_path.stem)
+        for scene_type, root in (
+            ("interior", self.server.level_root),
+            ("building", self.server.building_root),
+        ):
+            for level_path in sorted(root.glob("*.json")):
+                level = json.loads(level_path.read_text(encoding="utf-8"))
+                instances = [*level.get("structures", []), *level.get("fixtures", [])]
+                if any(instance.get("template") == pair_id for instance in instances):
+                    used_by.append(f"{scene_type}/{level_path.stem}")
         if used_by:
             self.send_json(
                 {
@@ -498,6 +560,7 @@ def main() -> None:
     server = EditorServer((args.bind, args.port), EditorHandler)
     server.asset_root = args.assets.resolve()
     server.level_root = LEVEL_ROOT
+    server.building_root = BUILDING_ROOT
     server.catalog = catalog
     server.repair_pair_path = REPAIR_PAIR_PATH
     if REPAIR_PAIR_PATH.is_file():
@@ -507,7 +570,7 @@ def main() -> None:
         server.repair_pairs = {}
     server.repair_pair_lock = Lock()
     print(f"Indexed {catalog['count']} images.")
-    print(f"Level editor: http://{args.bind}:{args.port}")
+    print(f"Scene editor: http://{args.bind}:{args.port}")
     print("This server is local-only and serves licensed source art. Press Ctrl-C to stop.")
     try:
         server.serve_forever()

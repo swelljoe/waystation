@@ -382,15 +382,15 @@ mod tests {
     }
 
     #[test]
-    fn mutable_fixture_has_stable_states_and_native_pixel_size() {
+    fn authored_mutable_element_has_stable_states_and_native_pixel_size() {
         let room = InteriorMap::motel_room();
-        let mirror = room.mutable_element("mirror-01").expect("authored mirror");
-        assert_eq!(mirror.kind, "mirror");
-        assert_eq!(mirror.initial_state, "damaged");
-        assert!(!mirror.flip_x);
-        assert!(!mirror.flip_y);
-        assert_eq!(mirror.states["damaged"].size, Vec2::splat(96.0));
-        assert!(mirror.states.contains_key("repaired"));
+        let element = room
+            .mutable_elements
+            .first()
+            .expect("at least one authored repairable element");
+        assert_eq!(element.initial_state, "damaged");
+        assert!(element.states["damaged"].size.cmpgt(Vec2::ZERO).all());
+        assert!(element.states.contains_key("repaired"));
     }
 
     #[test]

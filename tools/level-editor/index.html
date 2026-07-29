@@ -3,16 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Waystation Interior Editor</title>
+    <title>Waystation Scene Editor</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div class="brand">
         <span class="eyebrow">THE WAYSTATION</span>
-        <strong>Interior Editor</strong>
+        <strong id="editor-title">Scene Editor</strong>
       </div>
-      <label>Room ID <input id="room-id" value="motel-room-01" spellcheck="false" /></label>
+      <label>Type
+        <select id="scene-type">
+          <option value="interior">Interior</option>
+          <option value="building">Building exterior</option>
+        </select>
+      </label>
+      <label>Scene ID <input id="room-id" value="motel-room-01" spellcheck="false" /></label>
       <label>Name <input id="room-name" value="Motel Room 01" /></label>
       <label>W <input id="room-width" type="number" min="4" max="128" value="18" /></label>
       <label>H <input id="room-height" type="number" min="4" max="128" value="11" /></label>
@@ -38,14 +44,22 @@
       <section class="stage panel">
         <div class="toolbar">
           <div class="tool-group" id="tool-group">
+            <button data-tool="select">Select</button>
             <button data-tool="stamp" class="active">Stamp</button>
             <button data-tool="erase">Erase</button>
             <button data-tool="collision">Collision</button>
-            <button data-tool="entry">Entry</button>
-            <button data-tool="exit">Exit</button>
+            <button data-tool="entry" data-interior-only>Entry</button>
+            <button data-tool="exit" data-interior-only>Exit</button>
           </div>
           <button id="toggle-collision" type="button" aria-pressed="true" title="Hide the collision overlay without changing collision data">Collision: shown</button>
           <button id="focus-repair-pairs" type="button">Repair-pair library</button>
+          <label>Repair view
+            <select id="repair-view" title="Preview repairable items without changing saved state">
+              <option value="authored" selected>Authored</option>
+              <option value="damaged">All damaged</option>
+              <option value="repaired">All repaired</option>
+            </select>
+          </label>
           <label>Layer
             <select id="layer">
               <option value="floor">Floor</option>
@@ -66,7 +80,7 @@
             <button id="flip-horizontal" type="button" aria-pressed="false" title="Flip the next stamp horizontally">Flip H</button>
             <button id="flip-vertical" type="button" aria-pressed="false" title="Flip the next stamp vertically">Flip V</button>
           </div>
-          <label>Floor <input id="background" type="color" value="#49382b" /></label>
+          <label data-interior-only>Floor <input id="background" type="color" value="#49382b" /></label>
           <label>Zoom
             <select id="zoom"><option>0.5</option><option selected>1</option><option>1.5</option><option>2</option></select>
           </label>
@@ -76,7 +90,7 @@
         <div class="canvas-wrap">
           <canvas id="room-canvas" aria-label="Room grid"></canvas>
         </div>
-        <div class="statusbar"><span id="status">Loading asset catalog…</span><span>Drag paints · Right-click erases · Ctrl/Cmd+Z undoes</span></div>
+        <div class="statusbar"><span id="status">Loading asset catalog…</span><span>Select then drag to move · Arrows nudge · Right-click erases · Ctrl/Cmd+Z undoes</span></div>
       </section>
 
       <aside class="palette panel">
@@ -85,14 +99,27 @@
         </div>
         <div class="sheet-controls">
           <label>Source grid <input id="source-grid" type="number" min="1" max="256" value="48" /></label>
+          <button id="smart-slice" type="button" disabled title="Detect separated sprites using transparent or solid-color gaps">Smart slice</button>
+          <button id="refresh-sheet" type="button" disabled title="Reload this source file after editing it on disk">Refresh sheet</button>
           <span id="sheet-dimensions" class="count"></span>
         </div>
-        <p class="hint">Drag across one or more cells to make a rectangular stamp. Source grid changes selection precision only; stamps always keep their native pixel size.</p>
+        <p class="hint">Drag across grid cells, or use Smart slice and click a detected component. Source selection never rescales pixels.</p>
         <div class="sheet-wrap"><canvas id="sheet-canvas"></canvas></div>
         <section class="selection-card">
           <span class="eyebrow">SELECTED STAMP</span>
           <strong id="selection-title">None</strong>
           <p id="selection-details">Pick a sheet, then drag over the object or tile you want.</p>
+        </section>
+        <section class="selection-card" id="placed-selection-card">
+          <span class="eyebrow">SELECTED PLACEMENT</span>
+          <strong id="placed-selection-title">None</strong>
+          <p id="placed-selection-details">Choose Select, then click an item in the scene.</p>
+          <div class="placed-state-actions" id="placed-state-actions">
+            <button type="button" data-placement-preview="scene" class="active" disabled>Scene view</button>
+            <button type="button" data-placement-preview="damaged" disabled>Damaged</button>
+            <button type="button" data-placement-preview="repaired" disabled>Repaired</button>
+          </div>
+          <button id="clear-placement-selection" type="button" disabled>Deselect</button>
         </section>
         <section class="mutable-card" id="repair-pair-library">
           <div class="pair-heading">
@@ -130,7 +157,7 @@
         </section>
         <details>
           <summary>Room format</summary>
-          <p class="hint">Rooms store source rectangles, per-placement pixel snap positions, layers, optional flips, collision cells, entry, and exits. The asset build flattens private pixels into a runtime room image.</p>
+          <p class="hint">Interiors and transparent building exteriors share source rectangles, repairable instances, per-placement snap positions, layers, flips, and collision. Private source pixels only enter generated runtime caches and sprites.</p>
         </details>
       </aside>
     </main>

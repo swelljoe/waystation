@@ -8,7 +8,7 @@ import fnmatch
 import hashlib
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from PIL import Image, UnidentifiedImageError
@@ -36,7 +36,22 @@ SYNONYMS = {
     "table": {"desk", "furniture"},
     "wall": {"walls", "structure", "interior tile"},
     "window": {"building", "glass"},
+    "brick": {"building", "masonry", "wall"},
+    "component": {"building", "construction", "exterior"},
+    "plank": {"building", "wood", "wall"},
+    "plaster": {"building", "wall", "finish"},
+    "shadow": {"building", "overlay"},
 }
+
+
+def should_catalog_image(relative_path: str) -> bool:
+    """Keep curated component art while ignoring engine import/cache trees."""
+    parts = PurePosixPath(relative_path).parts
+    if not parts or parts[0].lower() != "components":
+        return True
+    if len(parts) == 2:
+        return True
+    return len(parts) == 4 and parts[2].lower() == "texture"
 
 
 def load_tag_rules(path: Path = TAG_RULES) -> list[dict[str, Any]]:
@@ -91,12 +106,14 @@ def catalog_assets(
     for path in sorted(asset_root.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in IMAGE_EXTENSIONS:
             continue
+        relative = path.relative_to(asset_root).as_posix()
+        if not should_catalog_image(relative):
+            continue
         try:
             with Image.open(path) as image:
                 width, height = image.size
         except (OSError, UnidentifiedImageError):
             continue
-        relative = path.relative_to(asset_root).as_posix()
         tags = path_words(relative) | rule_tags(relative, rules)
         pack = relative.split("/", maxsplit=1)[0]
         records.append(

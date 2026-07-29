@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from asset_catalog import catalog_assets, path_words, suggested_grid
+from asset_catalog import catalog_assets, path_words, should_catalog_image, suggested_grid
 
 
 class AssetCatalogTests(unittest.TestCase):
@@ -17,6 +17,15 @@ class AssetCatalogTests(unittest.TestCase):
 
     def test_motel_sheets_default_to_48_pixel_grid(self) -> None:
         self.assertEqual(suggested_grid("motel/tile-B-03.png", 768, 768), 48)
+
+    def test_component_catalog_keeps_sources_and_ignores_engine_imports(self) -> None:
+        self.assertTrue(should_catalog_image("components/damaged-house.png"))
+        self.assertTrue(
+            should_catalog_image("components/Village House/Texture/TX Village House.png")
+        )
+        self.assertFalse(
+            should_catalog_image("components/Village House/UnityCache/hash/preview.png")
+        )
 
     def test_catalog_applies_sidecar_tags(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

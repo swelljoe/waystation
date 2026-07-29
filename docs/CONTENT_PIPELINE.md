@@ -17,6 +17,8 @@ Shared-crate tests enforce that invariant.
   runtime room images at their native pixel dimensions, with procedural
   stand-ins when private art is absent, applying authored horizontal/vertical
   flips and per-placement pixel snap offsets without resampling;
+- flattens transparent building caches and extracts their mutable repair states
+  through the same native-pixel path;
 - extracts reusable repair-pair states as separate native-size runtime
   sprites so repaired structures and fixtures are not baked into room caches;
 - verifies and copies bundled open fonts and their license files;
@@ -35,8 +37,14 @@ from paths; human-reviewed sheet-level tags such as `bed`, `front desk`, and
 `wall` live in `meta/asset-tags.json`. Run `make catalog` to inspect the generated
 catalog or `make editor` to browse it visually.
 
+Under `assets/components`, only direct images and a pack's immediate `Texture/`
+images enter the catalog. Engine packages and extracted Unity/Godot metadata can
+remain on disk without flooding search results. Smart-sliced opaque sources may
+carry background-key metadata; the build converts only matching crop pixels to
+alpha and never rewrites the source sheet.
+
 Reusable damaged/repaired transitions live in `content/repair-pairs.json`.
-Rooms refer to stable pair IDs; source-crop equality has no semantic meaning, so
+Rooms and buildings refer to stable pair IDs; source-crop equality has no semantic meaning, so
 many pairs may intentionally share either side. The local editor manages this
 library, while the build extracts only pairs actually referenced by each room.
 

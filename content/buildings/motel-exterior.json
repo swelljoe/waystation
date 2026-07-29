@@ -1,0 +1,188 @@
+{
+  "schema_version": 4,
+  "collision": [],
+  "placements": [
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 32,
+        "x": 1,
+        "y": 17
+      },
+      "width": 2,
+      "height": 3,
+      "source": {
+        "path": "custom/scribe.png",
+        "grid": 16,
+        "x": 24,
+        "y": 8,
+        "width": 4,
+        "height": 5
+      }
+    }
+  ],
+  "templates": {},
+  "structures": [
+    {
+      "id": "damaged-brick-wall-4-01",
+      "template": "damaged-brick-wall-4",
+      "position": {
+        "grid": 32,
+        "x": 2,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-brick-wall-4-02",
+      "template": "damaged-brick-wall-4",
+      "position": {
+        "grid": 32,
+        "x": 38,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": true,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "damaged-brick-wall-3-01",
+      "template": "damaged-brick-wall-3",
+      "position": {
+        "grid": 32,
+        "x": 6,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": true,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "damaged-brick-wall-3-02",
+      "template": "damaged-brick-wall-3",
+      "position": {
+        "grid": 32,
+        "x": 34,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
+    },
+    {
+      "id": "damaged-brick-wall-4-03",
+      "template": "damaged-brick-wall-4",
+      "position": {
+        "grid": 32,
+        "x": 10,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
+    },
+    {
+      "id": "damaged-brick-wall-5-01",
+      "template": "damaged-brick-wall-5",
+      "position": {
+        "grid": 32,
+        "x": 14,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-brick-wall-5-02",
+      "template": "damaged-brick-wall-5",
+      "position": {
+        "grid": 32,
+        "x": 30,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-brick-wall-8-01",
+      "template": "damaged-brick-wall-8",
+      "position": {
+        "grid": 32,
+        "x": 18,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-brick-wall-6-01",
+      "template": "damaged-brick-wall-6",
+      "position": {
+        "grid": 32,
+        "x": 22,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-brick-wall-7-01",
+      "template": "damaged-brick-wall-7",
+      "position": {
+        "grid": 32,
+        "x": 26,
+        "y": 13
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": true,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "damaged-roof-gable-1-01",
+      "template": "damaged-roof-gable-1",
+      "position": {
+        "grid": 16,
+        "x": 3,
+        "y": 18
+      },
+      "width": 8,
+      "height": 4,
+      "initial_state": "damaged"
+    }
+  ],
+  "fixtures": [],
+  "scene_type": "building",
+  "id": "motel-exterior",
+  "name": "Abandoned Motel Exterior",
+  "grid": {
+    "width": 44,
+    "height": 20,
+    "tile_size": 32
+  }
+}

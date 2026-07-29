@@ -44,9 +44,9 @@ To start directly in the authored motel room while iterating on interiors, run:
 WAYSTATION_START_INTERIOR=1 cargo run -p waystation-game
 ```
 
-## Author interiors
+## Author interiors and buildings
 
-The local level editor searches the private art library, selects single- or
+The local scene editor searches the private art library, selects single- or
 multi-cell rectangles from sprite sheets, and paints floor, wall, object, and
 overlay layers with the mouse. It also edits collision, entry, and exit cells.
 Hold the mouse button to paint continuously. Stamp strokes advance by the full
@@ -54,11 +54,47 @@ native-art footprint rounded up to the current snap interval, preventing
 differently sized stamps from overlapping one another; collision strokes advance
 one gameplay cell at a time. One undo reverts the complete stroke.
 
+While the stamp tool is active, the exact native-pixel crop follows the pointer
+at its snapped destination before placement. The ghost uses the chosen layer,
+horizontal/vertical flips, smart-slice transparency, and the damaged state of a
+repair pair; its dashed bounds and top-left marker make sparse shapes easier to
+align.
+
+Use **Select** to target the topmost placed item. The editor outlines the
+selection; drag it to reposition it on the grid it was originally stamped with,
+use the arrow keys for one-grid nudges, or use **Flip H** and **Flip V** to edit
+its stored orientation. These placement changes are undoable and save normally.
+
+**Repair view** can render the complete scene in its authored state, with every
+repairable item damaged, or with every item repaired. A selected repairable item
+can instead follow the scene view or preview only its damaged/repaired state from
+the **Selected placement** card. Repair views are inspection-only and never
+rewrite the scene's saved `initial_state` values.
+
 **Snap grid** controls destination placement independently of **Source grid**.
 Set it to `16` for half-cell art offsets, or any 1–256 pixel interval needed by a
 pack. Each placement remembers the grid used when it was stamped, so changing the
 control never moves existing art. Collision, entry, and exit editing remains on
 the room's logical gameplay grid.
+
+Choose **Building exterior** to author a transparent building canvas with the
+same native-pixel stamps, layers, repair pairs, transforms, collision, and undo
+behavior. Building documents save under `content/buildings`; generated caches
+and state sprites go under `runtime-assets/buildings`. The browser initially
+filters to `assets/components`, but **All packs** remains available.
+
+For sheets whose pieces are separated by empty space, choose **Smart slice** and
+click a detected outline. Transparent sheets use their alpha channel. Opaque
+sheets with a dominant solid background, including the damaged village-house
+sheet, store a nondestructive background key so the gaps remain transparent in
+editor previews and generated art. Smart selections are exact pixel rectangles;
+manual source-grid selection remains available.
+
+If a source PNG is edited while the editor is running, select it and choose
+**Refresh sheet**. The editor cache-busts only that file and refreshes the source
+canvas, asset thumbnail, room/building canvas, and repair-pair previews. Existing
+crop coordinates are retained if they still fit; Smart slice must be run again
+because the foreground regions may have changed.
 
 ```bash
 make editor
@@ -71,7 +107,7 @@ private source stamps into gitignored runtime art. For repairable content:
    stable ID, label, kind, and render layer.
 2. Select the damaged crop and choose **Use selection as damaged**, then select
    the repaired crop and choose **Use selection as repaired**.
-3. Save the pair. It is now searchable and reusable in every room.
+3. Save the pair. It is now searchable and reusable in every room and building.
 4. Select a saved pair, choose **Repairable structure** or **Repairable
    fixture**, then stamp automatically identified instances.
 

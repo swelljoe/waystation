@@ -24,6 +24,7 @@ PALETTE = ["#f1dfad", "#c39a5b", "#77543b", "#34322a", "#78966b", "#9d5f55"]
 CARD_SIZE = (96, 64)
 TERRAIN_TILE_SIZE = 32
 INTERIOR_ROOT = ROOT / "content/interiors"
+BUILDING_ROOT = ROOT / "content/buildings"
 REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
 INTERIOR_LAYER_ORDER = {"floor": 0, "wall": 1, "object": 2, "overlay": 3}
 INTERIOR_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
@@ -516,7 +517,23 @@ def load_interior_stamp(
         with Image.open(private_path) as source_image:
             if source_box[2] > source_image.width or source_box[3] > source_image.height:
                 raise SystemExit(f"interior crop exceeds {private_path}: {source_box}")
-            return source_image.convert("RGBA").crop(source_box)
+            stamp = source_image.convert("RGBA").crop(source_box)
+        background_key = source_spec.get("background_key")
+        if isinstance(background_key, dict):
+            color = tuple(int(channel) for channel in background_key["color"])
+            tolerance = int(background_key["tolerance"])
+            softness = int(background_key["softness"])
+            pixels = []
+            for red, green, blue, alpha in stamp.get_flattened_data():
+                distance = max(
+                    abs(red - color[0]),
+                    abs(green - color[1]),
+                    abs(blue - color[2]),
+                )
+                coverage = max(0.0, min(1.0, (distance - tolerance) / softness))
+                pixels.append((red, green, blue, round(alpha * coverage)))
+            stamp.putdata(pixels)
+        return stamp
 
     fallback_size = (
         int(source_spec["width"]) * source_grid,
@@ -545,21 +562,12 @@ def interior_pixel_position(item: dict[str, object], tile_size: int) -> tuple[in
     return (int(item["x"]) * tile_size, int(item["y"]) * tile_size)
 
 
-def render_interior(level: dict[str, object], source: Path) -> Image.Image:
-    grid = level["grid"]
-    tile_size = int(grid["tile_size"])
-    room_size = (int(grid["width"]) * tile_size, int(grid["height"]) * tile_size)
-    image = Image.new("RGBA", room_size, str(level.get("background", "#100c09")))
-    floor_draw = ImageDraw.Draw(image)
-    floor_line = str(level.get("floor_line", "#2d2119"))
-    for y in range(tile_size, room_size[1], tile_size):
-        floor_draw.line((0, y, room_size[0], y), fill=floor_line, width=1)
-    for row, y in enumerate(range(0, room_size[1], tile_size)):
-        offset = tile_size if row % 2 == 0 else tile_size * 2
-        for x in range(offset, room_size[0], tile_size * 2):
-            floor_draw.line(
-                (x, y, x, min(y + tile_size, room_size[1])), fill=floor_line, width=1
-            )
+def composite_scene_placements(
+    image: Image.Image,
+    level: dict[str, object],
+    source: Path,
+    tile_size: int,
+) -> Image.Image:
     placements = sorted(
         level["placements"], key=lambda item: INTERIOR_LAYER_ORDER[item["layer"]]
     )
@@ -581,6 +589,32 @@ def render_interior(level: dict[str, object], source: Path) -> Image.Image:
             stamp = repeated
         image.alpha_composite(stamp, position)
     return image
+
+
+def render_interior(level: dict[str, object], source: Path) -> Image.Image:
+    grid = level["grid"]
+    tile_size = int(grid["tile_size"])
+    room_size = (int(grid["width"]) * tile_size, int(grid["height"]) * tile_size)
+    image = Image.new("RGBA", room_size, str(level.get("background", "#100c09")))
+    floor_draw = ImageDraw.Draw(image)
+    floor_line = str(level.get("floor_line", "#2d2119"))
+    for y in range(tile_size, room_size[1], tile_size):
+        floor_draw.line((0, y, room_size[0], y), fill=floor_line, width=1)
+    for row, y in enumerate(range(0, room_size[1], tile_size)):
+        offset = tile_size if row % 2 == 0 else tile_size * 2
+        for x in range(offset, room_size[0], tile_size * 2):
+            floor_draw.line(
+                (x, y, x, min(y + tile_size, room_size[1])), fill=floor_line, width=1
+            )
+    return composite_scene_placements(image, level, source, tile_size)
+
+
+def render_building(level: dict[str, object], source: Path) -> Image.Image:
+    grid = level["grid"]
+    tile_size = int(grid["tile_size"])
+    size = (int(grid["width"]) * tile_size, int(grid["height"]) * tile_size)
+    image = Image.new("RGBA", size, (0, 0, 0, 0))
+    return composite_scene_placements(image, level, source, tile_size)
 
 
 def write_mutable_interior_art(
@@ -659,6 +693,41 @@ def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
     return records
 
 
+def write_building_art(source: Path, output: Path) -> list[dict[str, object]]:
+    buildings = output / "buildings"
+    buildings.mkdir(parents=True, exist_ok=True)
+    for stale in buildings.glob("*.png"):
+        stale.unlink()
+    repair_pair_document = json.loads(REPAIR_PAIR_PATH.read_text(encoding="utf-8"))
+    if repair_pair_document.get("schema_version") != 1:
+        raise SystemExit(f"unsupported repair-pair library in {REPAIR_PAIR_PATH}")
+    repair_pairs = repair_pair_document.get("pairs", {})
+    records = []
+    for level_path in sorted(BUILDING_ROOT.glob("*.json")):
+        level = json.loads(level_path.read_text(encoding="utf-8"))
+        if (
+            level.get("schema_version") != 4
+            or level.get("scene_type") != "building"
+            or level.get("id") != level_path.stem
+        ):
+            raise SystemExit(f"invalid building identity in {level_path}")
+        image = render_building(level, source)
+        destination = buildings / f"{level['id']}.png"
+        image.save(destination, optimize=False)
+        records.append(
+            {
+                "path": str(destination.relative_to(output)),
+                "sha256": sha256(destination),
+                "size": list(image.size),
+                "source": "authored building cache flattened from private stamps or public fallbacks",
+            }
+        )
+        records.extend(
+            write_mutable_interior_art(level, source, output, buildings, repair_pairs)
+        )
+    return records
+
+
 def verify_private_sources(source: Path, manifest: dict[str, object], strict: bool) -> list[dict[str, object]]:
     checks = []
     for pack in manifest["packs"]:
@@ -725,6 +794,7 @@ def main() -> None:
     generated = write_card_art(args.output)
     generated.extend(write_world_art(args.source, args.output))
     generated.extend(write_interior_art(args.source, args.output))
+    generated.extend(write_building_art(args.source, args.output))
     fonts = write_bundled_fonts(manifest, args.output)
     report = {
         "schema_version": 1,

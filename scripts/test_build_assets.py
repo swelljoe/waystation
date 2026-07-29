@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -146,6 +147,112 @@ class InteriorRenderingTests(unittest.TestCase):
 
         self.assertEqual(rendered.getpixel((16, 32)), (255, 0, 0, 255))
         self.assertEqual(rendered.getpixel((15, 32)), (0, 0, 0, 255))
+
+    def test_building_cache_has_a_transparent_background(self) -> None:
+        Image.new("RGBA", (2, 2), "#ff0000").save(self.assets / "sheet.png")
+        level = self.level_with(
+            {
+                "layer": "object",
+                "position": {"grid": 1, "x": 3, "y": 4},
+                "width": 1,
+                "height": 1,
+                "source": {
+                    "path": "sheet.png",
+                    "grid": 1,
+                    "x": 0,
+                    "y": 0,
+                    "width": 2,
+                    "height": 2,
+                },
+            }
+        )
+
+        rendered = BUILD_ASSETS.render_building(level, self.assets)
+
+        self.assertEqual(rendered.getpixel((0, 0)), (0, 0, 0, 0))
+        self.assertEqual(rendered.getpixel((3, 4)), (255, 0, 0, 255))
+
+    def test_background_key_makes_opaque_sheet_whitespace_transparent(self) -> None:
+        source_image = Image.new("RGB", (3, 1), (253, 253, 253))
+        source_image.putpixel((1, 0), (40, 30, 20))
+        source_image.save(self.assets / "sheet.png")
+        source = {
+            "path": "sheet.png",
+            "grid": 1,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 1,
+            "background_key": {
+                "color": [253, 253, 253],
+                "tolerance": 8,
+                "softness": 8,
+            },
+        }
+
+        stamp = BUILD_ASSETS.load_interior_stamp(source, self.assets, "object")
+
+        self.assertEqual(stamp.getpixel((0, 0))[3], 0)
+        self.assertEqual(stamp.getpixel((1, 0))[3], 255)
+
+    def test_building_writer_emits_cache_and_repair_state_sprites(self) -> None:
+        Image.new("RGBA", (2, 1), "#884422").save(self.assets / "sheet.png")
+        source = {"path": "sheet.png", "grid": 1, "x": 0, "y": 0, "width": 1, "height": 1}
+        building_root = self.assets / "buildings-source"
+        building_root.mkdir()
+        (building_root / "test-building.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 4,
+                    "scene_type": "building",
+                    "id": "test-building",
+                    "grid": {"width": 2, "height": 2, "tile_size": 16},
+                    "placements": [],
+                    "templates": {},
+                    "structures": [
+                        {"id": "wall-01", "template": "wall", "initial_state": "damaged"}
+                    ],
+                    "fixtures": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        repair_path = self.assets / "repair-pairs.json"
+        repair_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "pairs": {
+                        "wall": {
+                            "label": "Wall",
+                            "kind": "wall",
+                            "layer": "wall",
+                            "states": {
+                                "damaged": {"source": source},
+                                "repaired": {"source": {**source, "x": 1}},
+                            },
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        original_building_root = BUILD_ASSETS.BUILDING_ROOT
+        original_repair_path = BUILD_ASSETS.REPAIR_PAIR_PATH
+        BUILD_ASSETS.BUILDING_ROOT = building_root
+        BUILD_ASSETS.REPAIR_PAIR_PATH = repair_path
+        try:
+            output = self.assets / "runtime"
+            records = BUILD_ASSETS.write_building_art(self.assets, output)
+        finally:
+            BUILD_ASSETS.BUILDING_ROOT = original_building_root
+            BUILD_ASSETS.REPAIR_PAIR_PATH = original_repair_path
+
+        self.assertEqual(len(records), 3)
+        with Image.open(output / "buildings/test-building.png") as cache:
+            self.assertEqual(cache.getpixel((0, 0)), (0, 0, 0, 0))
+        self.assertTrue((output / "buildings/test-building/wall--damaged.png").is_file())
+        self.assertTrue((output / "buildings/test-building/wall--repaired.png").is_file())
 
     def test_mutable_states_are_extracted_instead_of_baked(self) -> None:
         Image.new("RGBA", (8, 4), "#ff0000").save(self.assets / "sheet.png")

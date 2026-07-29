@@ -76,7 +76,7 @@ camera projection renders half the former world extent, and Bevy's `UiScale`
 doubles fixed UI measurements. Camera edge clamping uses the scaled viewport.
 This constant is intentionally centralized pending dynamic display scaling.
 
-## Authored interiors
+## Authored interiors and buildings
 
 Interior source data lives in `content/interiors`. Schema v4 combines globally
 reusable repair pairs, automatically identified structural/fixture instances,
@@ -89,6 +89,13 @@ pairs. Source pixels are always composited at native size, and the source
 selection grid never changes scale. Collisions, entry cells, and exits remain
 independent of pixels. Schema-v2 room-local templates remain readable for
 backward compatibility.
+
+Building source data lives in `content/buildings` and uses the same schema-v4
+placement and mutable-instance model with `scene_type: "building"`. Unlike a
+room, a building cache has a transparent canvas and no entry/exit requirement.
+The asset pipeline writes its baked cache and referenced repair-state sprites to
+`runtime-assets/buildings`. This makes the static and mutable split identical on
+both sides of a motel door.
 
 New placements store `position: {grid, x, y}`. Multiplying the signed integer
 coordinates by that placement's grid yields its exact native-pixel offset from
@@ -118,13 +125,28 @@ undo, direct JSON save/load, a searchable repair-pair library with create/edit/
 duplicate/delete controls and side-by-side previews, and repairable structure or
 fixture stamping. Duplication preserves both source crops but requires a new ID,
 making convergent or divergent repair transitions quick to author. Pair deletion
-is rejected while a saved room references it.
+is rejected while a saved room or building references it.
+
+The catalog deliberately exposes direct images under `assets/components` and
+pack `Texture/` folders while ignoring Unity/Godot import caches and previews.
+Smart slicing finds connected foreground regions separated by transparency. For
+opaque sheets dominated by a flat background, the selected source rectangle
+also stores a color key, tolerance, and edge softness; preview and build apply
+that metadata without altering or resampling the licensed source.
+
+Source images are normally cached in both the browser and editor. Per-sheet
+refresh increments an in-memory URL revision, evicts the raw and background-keyed
+copies, and redraws every dependent preview while preserving valid crop geometry.
 
 Room pointer drags are authored as single undoable paint strokes. Baked stamps
 stride by their native crop's room-cell footprint; repairable stamps stride by
 the maximum width and height across all visible pair states. Collision painting
 uses a one-cell stride. Bresenham interpolation fills pointer positions skipped
 by fast movement without allowing stamps within one stroke to overlap.
+
+The room/building canvas derives its pointer ghost from the same source metadata,
+snap coordinate, layer, transform, and initial repair state used to construct the
+eventual placement. It is render-only editor state and never enters authored JSON.
 
 The Bevy client places interior maps in a separate world-space island. Door
 interaction moves the player between exterior and interior spawn cells; camera

@@ -93,6 +93,35 @@ class LevelEditorValidationTests(unittest.TestCase):
             validate_level(self.level, "test-room", self.assets),
         )
 
+    def test_building_scene_does_not_require_interior_entry_or_exits(self) -> None:
+        self.level["scene_type"] = "building"
+        del self.level["entry"]
+        del self.level["exits"]
+
+        self.assertEqual(
+            validate_level(
+                self.level,
+                "test-room",
+                self.assets,
+                expected_scene_type="building",
+            ),
+            [],
+        )
+
+    def test_smart_slice_background_key_is_validated(self) -> None:
+        self.level["placements"][0]["source"]["background_key"] = {
+            "color": [253, 253, 253],
+            "tolerance": 24,
+            "softness": 16,
+        }
+        self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
+
+        self.level["placements"][0]["source"]["background_key"]["color"] = [300]
+        self.assertIn(
+            "placements[0].source.background_key.color must contain three bytes",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
     def test_asset_path_cannot_escape_private_root(self) -> None:
         self.assertIsNone(safe_child(self.assets, "../secret.png"))
 
