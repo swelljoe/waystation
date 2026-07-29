@@ -567,6 +567,168 @@
           }
         }
       }
+    },
+    "damaged-roof-gable-48-1": {
+      "label": "Damaged Roof Gable 48 1",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/scaled-damaged-TX Village House.png",
+            "grid": 1,
+            "x": 8,
+            "y": 332,
+            "width": 235,
+            "height": 72
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House.png",
+            "grid": 1,
+            "x": 8,
+            "y": 405,
+            "width": 236,
+            "height": 72
+          }
+        }
+      }
+    },
+    "damaged-root-tiles-1": {
+      "label": "Damaged Roof Tiles 1",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 13,
+            "y": 13,
+            "width": 98,
+            "height": 96
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-2": {
+      "label": "Damaged Roof Tiles 2",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 170,
+            "y": 17,
+            "width": 131,
+            "height": 129
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-3": {
+      "label": "Damaged Roof Tiles 3",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 322,
+            "y": 17,
+            "width": 131,
+            "height": 129
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-4": {
+      "label": "Damaged Roof Tiles 4",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 475,
+            "y": 17,
+            "width": 131,
+            "height": 129
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-5": {
+      "label": "Damaged Roof Tiles 5",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 17,
+            "y": 169,
+            "width": 131,
+            "height": 127
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
     }
   }
 }
