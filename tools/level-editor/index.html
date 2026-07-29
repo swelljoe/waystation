@@ -61,11 +61,11 @@
             </select>
           </label>
           <label>Layer
-            <select id="layer">
-              <option value="floor">Floor</option>
+            <select id="layer" title="Bottom to top: Floor, Wall, Object, Overlay">
+              <option value="floor">Floor (bottom)</option>
               <option value="wall">Wall</option>
               <option value="object">Object</option>
-              <option value="overlay">Overlay</option>
+              <option value="overlay">Overlay (top)</option>
             </select>
           </label>
           <label>Behavior
@@ -138,10 +138,10 @@
           <label>Kind <input id="pair-kind" placeholder="mirror" spellcheck="false" /></label>
           <label>Layer
             <select id="pair-layer">
-              <option value="floor">Floor</option>
+              <option value="floor">Floor (bottom)</option>
               <option value="wall">Wall</option>
               <option value="object" selected>Object</option>
-              <option value="overlay">Overlay</option>
+              <option value="overlay">Overlay (top)</option>
             </select>
           </label>
           <div class="capture-row">

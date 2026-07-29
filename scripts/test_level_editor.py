@@ -147,6 +147,15 @@ class LevelEditorValidationTests(unittest.TestCase):
         )
         self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
 
+        self.level["fixtures"][0]["layer"] = "overlay"
+        self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
+
+        self.level["fixtures"][0]["layer"] = "ceiling"
+        self.assertIn(
+            "fixtures[0] has an invalid layer override",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
     def test_mutable_ids_are_unique_across_structures_and_fixtures(self) -> None:
         self.level["schema_version"] = 2
         source = {"path": "sheet.png", "grid": 48, "x": 0, "y": 0, "width": 1, "height": 1}

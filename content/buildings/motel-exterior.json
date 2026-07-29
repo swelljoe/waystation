@@ -19,6 +19,906 @@
         "width": 4,
         "height": 5
       }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 9,
+        "y": 32
+      },
+      "width": 3,
+      "height": 5,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile-48.png",
+        "grid": 8,
+        "x": 6,
+        "y": 3,
+        "width": 12,
+        "height": 18
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 4,
+        "x": 41,
+        "y": 64
+      },
+      "width": 3,
+      "height": 5,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile-48.png",
+        "grid": 8,
+        "x": 6,
+        "y": 3,
+        "width": 12,
+        "height": 18
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 47,
+        "y": 67
+      },
+      "width": 3,
+      "height": 5,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile-48.png",
+        "grid": 8,
+        "x": 6,
+        "y": 3,
+        "width": 12,
+        "height": 18
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 2,
+        "x": 24,
+        "y": 134
+      },
+      "width": 3,
+      "height": 5,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile-48.png",
+        "grid": 1,
+        "x": 48,
+        "y": 24,
+        "width": 96,
+        "height": 144
+      }
+    },
+    {
+      "layer": "wall",
+      "position": {
+        "grid": 16,
+        "x": 17,
+        "y": 24
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "wall",
+      "position": {
+        "grid": 16,
+        "x": 17,
+        "y": 25
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "wall",
+      "position": {
+        "grid": 16,
+        "x": 17,
+        "y": 25
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "wall",
+      "position": {
+        "grid": 16,
+        "x": 17,
+        "y": 25
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 16,
+        "x": 17,
+        "y": 25
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 43,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 52,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 61,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 70,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 79,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 88,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 97,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 106,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 115,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 124,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 133,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 142,
+        "y": 50
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 151,
+        "y": 50
+      },
+      "width": 1,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 32,
+        "x": 4,
+        "y": 6,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 71,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 83,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 94,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 106,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 119,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 135,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 149,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 161,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 172,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 183,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 191,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 208,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 219,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 234,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 250,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 269,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 286,
+        "y": 103
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 65,
+        "y": 161,
+        "width": 66,
+        "height": 8
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 4,
+        "x": 300,
+        "y": 103
+      },
+      "width": 1,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 32,
+        "x": 3,
+        "y": 5,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 4,
+        "x": 16,
+        "y": 99
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 4,
+        "x": 34,
+        "y": 99
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 4,
+        "x": 48,
+        "y": 99
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 4,
+        "x": 50,
+        "y": 99
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 4,
+        "x": 17,
+        "y": 99
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 4,
+        "x": 29,
+        "y": 99
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 4,
+        "x": 33,
+        "y": 99
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 1,
+        "x": 73,
+        "y": 194,
+        "width": 77,
+        "height": 27
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 4,
+        "x": 32,
+        "y": 116
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "green/1-1.png",
+        "grid": 8,
+        "x": 68,
+        "y": 81,
+        "width": 9,
+        "height": 11
+      }
     }
   ],
   "templates": {},
@@ -34,22 +934,6 @@
       "width": 4,
       "height": 4,
       "initial_state": "damaged"
-    },
-    {
-      "id": "damaged-brick-wall-4-02",
-      "template": "damaged-brick-wall-4",
-      "position": {
-        "grid": 32,
-        "x": 38,
-        "y": 13
-      },
-      "width": 4,
-      "height": 4,
-      "initial_state": "damaged",
-      "transform": {
-        "flip_x": true,
-        "flip_y": true
-      }
     },
     {
       "id": "damaged-brick-wall-3-01",
@@ -164,14 +1048,134 @@
       }
     },
     {
-      "id": "damaged-roof-gable-1-01",
-      "template": "damaged-roof-gable-1",
+      "id": "damaged-roof-gable-48-1-01",
+      "template": "damaged-roof-gable-48-1",
       "position": {
-        "grid": 16,
-        "x": 3,
-        "y": 18
+        "grid": 8,
+        "x": 6,
+        "y": 43
       },
       "width": 8,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-root-tiles-1-01",
+      "template": "damaged-root-tiles-1",
+      "position": {
+        "grid": 8,
+        "x": 34,
+        "y": 40
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-2-01",
+      "template": "damaged-roof-tiles-2",
+      "position": {
+        "grid": 16,
+        "x": 23,
+        "y": 20
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-3-01",
+      "template": "damaged-roof-tiles-3",
+      "position": {
+        "grid": 16,
+        "x": 29,
+        "y": 20
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-4-01",
+      "template": "damaged-roof-tiles-4",
+      "position": {
+        "grid": 16,
+        "x": 35,
+        "y": 20
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-6-01",
+      "template": "damaged-roof-tiles-6",
+      "position": {
+        "grid": 16,
+        "x": 41,
+        "y": 20
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-5-01",
+      "template": "damaged-roof-tiles-5",
+      "position": {
+        "grid": 16,
+        "x": 47,
+        "y": 20
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-7-01",
+      "template": "damaged-roof-tiles-7",
+      "position": {
+        "grid": 16,
+        "x": 53,
+        "y": 20
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-8-01",
+      "template": "damaged-roof-tiles-8",
+      "position": {
+        "grid": 16,
+        "x": 59,
+        "y": 20
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-9-01",
+      "template": "damaged-roof-tiles-9",
+      "position": {
+        "grid": 16,
+        "x": 65,
+        "y": 20
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-roof-tiles-10-01",
+      "template": "damaged-roof-tiles-10",
+      "position": {
+        "grid": 16,
+        "x": 71,
+        "y": 20
+      },
+      "width": 4,
       "height": 4,
       "initial_state": "damaged"
     }

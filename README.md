@@ -63,7 +63,24 @@ align.
 Use **Select** to target the topmost placed item. The editor outlines the
 selection; drag it to reposition it on the grid it was originally stamped with,
 use the arrow keys for one-grid nudges, or use **Flip H** and **Flip V** to edit
-its stored orientation. These placement changes are undoable and save normally.
+its stored orientation. While an item is selected, the existing **Layer** menu
+shows its current layer and moves it to a different layer. These placement
+changes are undoable and save normally. Outside Select mode, the menu continues
+to set the layer for new stamps.
+
+### Layer order
+
+Layers render in this fixed bottom-to-top order:
+
+| Order | Layer | Intended use |
+|---:|---|---|
+| 1 (bottom) | **Floor** | Flooring, ground, and marks beneath the room |
+| 2 | **Wall** | Walls, roofs, windows, and structural surfaces |
+| 3 | **Object** | Furniture, fixtures, doors, and most interactable items |
+| 4 (top) | **Overlay** | Foreground trim, shadows, cracks, vines, and effects that must cover other art |
+
+Changing one repairable instance's layer creates an override on that placement;
+it does not alter the repair pair or move every other instance that uses it.
 
 **Repair view** can render the complete scene in its authored state, with every
 repairable item damaged, or with every item repaired. A selected repairable item

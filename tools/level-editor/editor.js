@@ -280,6 +280,7 @@ async function switchSceneType(sceneType) {
   document.querySelectorAll("[data-tool]").forEach((item) => item.classList.toggle("active", item.dataset.tool === "stamp"));
   $("#room-canvas").dataset.tool = state.tool;
   updateOrientationControls();
+  updateLayerControl();
   syncInputs();
   if (state.catalog) {
     if (sceneType === "building") {
@@ -405,6 +406,16 @@ function repairStateForElement(element, scenePreview, selectedPreview, isSelecte
   return element.initial_state;
 }
 
+function effectivePlacementLayer(element, template = null) {
+  return element.layer || template?.layer;
+}
+
+function setPlacementLayer(element, template, layer) {
+  if (template?.layer === layer) delete element.layer;
+  else element.layer = layer;
+  return element;
+}
+
 function selectedElement() {
   if (!state.selectedPlaced) return null;
   return state.room[state.selectedPlaced.collection]?.[state.selectedPlaced.index] || null;
@@ -442,7 +453,7 @@ function roomRenderables() {
       const visual = template?.states[visualState];
       if (!visual || visual.visible === false || !visual.source) return;
       renderables.push({
-        placement: { ...element, layer: template.layer, source: visual.source },
+        placement: { ...element, layer: effectivePlacementLayer(element, template), source: visual.source },
         collection,
         index,
       });
@@ -1571,6 +1582,23 @@ function updateOrientationControls() {
   }
 }
 
+function updateLayerControl() {
+  const control = $("#layer");
+  const editingSelection = state.tool === "select";
+  const element = editingSelection ? selectedElement() : null;
+  control.disabled = editingSelection && !element;
+  if (element) {
+    const template = state.selectedPlaced.collection === "placements"
+      ? null
+      : templateForRoom(element.template);
+    control.value = effectivePlacementLayer(element, template);
+    control.title = "Change the selected placement's layer · bottom to top: Floor, Wall, Object, Overlay";
+  } else {
+    control.value = state.layer;
+    control.title = "Layer for the next stamp · bottom to top: Floor, Wall, Object, Overlay";
+  }
+}
+
 function toggleStampFlip(axis) {
   if (state.tool === "select") {
     const element = selectedElement();
@@ -1615,12 +1643,14 @@ function updatePlacedSelectionInspector() {
       button.disabled = true;
       button.classList.toggle("active", button.dataset.placementPreview === "scene");
     }
+    updateLayerControl();
     return;
   }
 
   const { collection } = state.selectedPlaced;
   const repairable = collection === "structures" || collection === "fixtures";
   const template = repairable ? templateForRoom(element.template) : null;
+  const layer = effectivePlacementLayer(element, template);
   const position = placementPixelPosition(element);
   const grid = element.position?.grid || roomTileSize();
   const flips = [
@@ -1630,12 +1660,13 @@ function updatePlacedSelectionInspector() {
   title.textContent = repairable
     ? `${template?.label || element.template} · ${element.id}`
     : `Baked scenery #${state.selectedPlaced.index + 1}`;
-  details.textContent = `${repairable ? "Repairable" : "Baked"} ${collection.slice(0, -1)} at (${position.x}, ${position.y})px · ${grid}px movement grid · ${flips}. Drag it or use arrow keys to reposition it.`;
+  details.textContent = `${repairable ? "Repairable" : "Baked"} ${collection.slice(0, -1)} on the ${layer} layer at (${position.x}, ${position.y})px · ${grid}px movement grid · ${flips}. Drag it or use arrow keys to reposition it.`;
   clearButton.disabled = false;
   for (const button of previewButtons) {
     button.disabled = !repairable;
     button.classList.toggle("active", button.dataset.placementPreview === state.selectedRepairPreview);
   }
+  updateLayerControl();
 }
 
 function nudgeSelectedPlacement(deltaX, deltaY) {
@@ -1662,6 +1693,20 @@ function bindEvents() {
   $("#asset-search").addEventListener("input", filterAssets);
   $("#pack-filter").addEventListener("change", filterAssets);
   $("#layer").addEventListener("change", (event) => {
+    if (state.tool === "select") {
+      const element = selectedElement();
+      if (!element) return;
+      const nextLayer = event.target.value;
+      const repairable = state.selectedPlaced.collection !== "placements";
+      const template = repairable ? templateForRoom(element.template) : null;
+      if (effectivePlacementLayer(element, template) === nextLayer) return;
+      pushUndo();
+      setPlacementLayer(element, repairable ? template : null, nextLayer);
+      updatePlacedSelectionInspector();
+      drawRoom();
+      setStatus(`Moved the selected placement to the ${nextLayer} layer.`);
+      return;
+    }
     state.layer = event.target.value;
     updateSelectionDetails();
     drawRoom();
@@ -1711,6 +1756,7 @@ function bindEvents() {
     document.querySelectorAll("[data-tool]").forEach((item) => item.classList.toggle("active", item === button));
     $("#room-canvas").dataset.tool = state.tool;
     updateOrientationControls();
+    updateLayerControl();
     drawRoom();
   });
   for (const selector of ["#room-width", "#room-height"]) $(selector).addEventListener("change", () => {
@@ -1788,7 +1834,7 @@ function bindEvents() {
 }
 
 async function initialize() {
-  state.room = freshRoom(state.sceneType); syncInputs(); bindEvents(); updatePlacedSelectionInspector(); updateOrientationControls(); drawRoom();
+  state.room = freshRoom(state.sceneType); syncInputs(); bindEvents(); updatePlacedSelectionInspector(); updateOrientationControls(); updateLayerControl(); drawRoom();
   const [catalogResponse, pairResponse] = await Promise.all([
     fetch("/api/catalog"),
     fetch("/api/repair-pairs"),
@@ -1830,8 +1876,10 @@ if (typeof module !== "undefined") {
     invalidateAssetImage,
     paintPairPreview,
     findPlacedItemAtPixel,
+    effectivePlacementLayer,
     placementPixelPosition,
     repairStateForElement,
+    setPlacementLayer,
     repairPairMatches,
     snapCellForPixel,
     stampAnchorForUnit,

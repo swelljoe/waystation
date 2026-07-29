@@ -47,6 +47,9 @@ Reusable damaged/repaired transitions live in `content/repair-pairs.json`.
 Rooms and buildings refer to stable pair IDs; source-crop equality has no semantic meaning, so
 many pairs may intentionally share either side. The local editor manages this
 library, while the build extracts only pairs actually referenced by each room.
+Repairable placements may store a `layer` override when one use needs different
+stacking; otherwise they inherit the pair's default layer. The shared order from
+bottom to top is `floor`, `wall`, `object`, `overlay`.
 
 The byte-identical Modern Farm terrain sheet can reuse the wang-set metadata and
 autotile generator proven in the sibling Ducks project when the placeholder valley

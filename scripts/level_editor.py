@@ -300,6 +300,13 @@ def validate_level(
             else:
                 errors.extend(validate_pixel_position(position, label))
             errors.extend(validate_transform(element.get("transform"), label))
+            if "layer" in element and element.get("layer") not in {
+                "floor",
+                "wall",
+                "object",
+                "overlay",
+            }:
+                errors.append(f"{label} has an invalid layer override")
 
             initial_state = element.get("initial_state")
             if isinstance(schema_version, int) and schema_version >= 3:

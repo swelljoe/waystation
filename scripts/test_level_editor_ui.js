@@ -12,6 +12,7 @@ const {
   collisionCellsForRendering,
   detectSmartRegions,
   draggedPlacementPosition,
+  effectivePlacementLayer,
   drawTransformedImage,
   footprintForPixelSizes,
   findPlacedItemAtPixel,
@@ -20,6 +21,7 @@ const {
   paintPairPreview,
   placementPixelPosition,
   repairStateForElement,
+  setPlacementLayer,
   repairPairMatches,
   snapCellForPixel,
   stampAnchorForUnit,
@@ -91,6 +93,16 @@ assert.deepEqual(
 assert.equal(repairStateForElement({ initial_state: "damaged" }, "authored", "scene", false), "damaged");
 assert.equal(repairStateForElement({ initial_state: "damaged" }, "repaired", "scene", false), "repaired");
 assert.equal(repairStateForElement({ initial_state: "damaged" }, "repaired", "damaged", true), "damaged");
+assert.equal(effectivePlacementLayer({ layer: "overlay" }, { layer: "wall" }), "overlay");
+assert.equal(effectivePlacementLayer({}, { layer: "wall" }), "wall");
+const repairableLayer = {};
+setPlacementLayer(repairableLayer, { layer: "wall" }, "overlay");
+assert.deepEqual(repairableLayer, { layer: "overlay" });
+setPlacementLayer(repairableLayer, { layer: "wall" }, "wall");
+assert.deepEqual(repairableLayer, {}, "returning to the pair default should remove the override");
+const bakedLayer = { layer: "floor" };
+setPlacementLayer(bakedLayer, null, "object");
+assert.deepEqual(bakedLayer, { layer: "object" });
 const overlappingRenderables = [
   {
     placement: { position: { grid: 16, x: 1, y: 1 }, source: { grid: 1, width: 32, height: 32 } },
@@ -239,5 +251,6 @@ assert.match(index, /data-tool="select"/);
 assert.match(index, /id="repair-view"/);
 assert.match(index, /id="placed-selection-card"/);
 assert.match(index, /data-placement-preview="repaired"/);
+assert.match(index, /Floor \(bottom\)[\s\S]*Wall[\s\S]*Object[\s\S]*Overlay \(top\)/);
 
 console.log("level editor UI tests passed");

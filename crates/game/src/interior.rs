@@ -58,6 +58,8 @@ struct MutableInstanceDefinition {
     id: String,
     template: String,
     #[serde(default)]
+    layer: Option<String>,
+    #[serde(default)]
     x: Option<i16>,
     #[serde(default)]
     y: Option<i16>,
@@ -92,6 +94,10 @@ impl MutableInstanceDefinition {
                 )
             },
         )
+    }
+
+    fn resolved_layer<'a>(&'a self, template_layer: &'a str) -> &'a str {
+        self.layer.as_deref().unwrap_or(template_layer)
     }
 }
 
@@ -187,11 +193,12 @@ impl InteriorMap {
                 }
                 .unwrap_or_else(|| panic!("unknown repair pair: {}", instance.template));
                 let pixel_position = instance.pixel_position(tile_size);
+                let layer = instance.resolved_layer(&template.layer).to_owned();
                 MutableElement {
                     id: instance.id,
                     label: template.label.clone(),
                     kind: template.kind.clone(),
-                    layer: template.layer.clone(),
+                    layer,
                     pixel_x: pixel_position.x,
                     pixel_y: pixel_position.y,
                     initial_state: instance.initial_state,
@@ -400,6 +407,7 @@ mod tests {
                 "id": "chair-01",
                 "template": "chair",
                 "position": {"grid": 16, "x": 3, "y": 5},
+                "layer": "overlay",
                 "initial_state": "damaged",
                 "transform": {"flip_x": true, "flip_y": true}
             }"#,
@@ -408,6 +416,8 @@ mod tests {
 
         assert!(instance.transform.flip_x);
         assert!(instance.transform.flip_y);
+        assert_eq!(instance.layer.as_deref(), Some("overlay"));
+        assert_eq!(instance.resolved_layer("object"), "overlay");
         assert_eq!(instance.pixel_position(32.0), Vec2::new(48.0, 80.0));
     }
 }

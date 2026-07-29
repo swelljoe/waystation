@@ -631,10 +631,10 @@
           "source": {
             "path": "components/damaged-roof-tiles.png",
             "grid": 1,
-            "x": 170,
-            "y": 17,
-            "width": 131,
-            "height": 129
+            "x": 127,
+            "y": 13,
+            "width": 99,
+            "height": 96
           }
         },
         "repaired": {
@@ -658,10 +658,10 @@
           "source": {
             "path": "components/damaged-roof-tiles.png",
             "grid": 1,
-            "x": 322,
-            "y": 17,
-            "width": 131,
-            "height": 129
+            "x": 241,
+            "y": 13,
+            "width": 99,
+            "height": 96
           }
         },
         "repaired": {
@@ -685,10 +685,10 @@
           "source": {
             "path": "components/damaged-roof-tiles.png",
             "grid": 1,
-            "x": 475,
-            "y": 17,
-            "width": 131,
-            "height": 129
+            "x": 356,
+            "y": 13,
+            "width": 98,
+            "height": 96
           }
         },
         "repaired": {
@@ -712,10 +712,199 @@
           "source": {
             "path": "components/damaged-roof-tiles.png",
             "grid": 1,
-            "x": 17,
-            "y": 169,
-            "width": 131,
-            "height": 127
+            "x": 13,
+            "y": 127,
+            "width": 98,
+            "height": 95
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-6": {
+      "label": "Damaged Roof Tiles 6",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 127,
+            "y": 127,
+            "width": 98,
+            "height": 95
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-7": {
+      "label": "Damaged Roof Tiles 7",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 241,
+            "y": 127,
+            "width": 99,
+            "height": 95
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-8": {
+      "label": "Damaged Roof Tiles 8",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 356,
+            "y": 127,
+            "width": 98,
+            "height": 95
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-9": {
+      "label": "Damaged Roof Tiles 9",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 13,
+            "y": 239,
+            "width": 98,
+            "height": 98
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-10": {
+      "label": "Damaged Roof Tiles 10",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 127,
+            "y": 239,
+            "width": 99,
+            "height": 98
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-11": {
+      "label": "Damaged Roof Tiles 11",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 241,
+            "y": 239,
+            "width": 99,
+            "height": 98
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Roof Tile.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        }
+      }
+    },
+    "damaged-roof-tiles-12": {
+      "label": "Damaged Roof Tiles 12",
+      "kind": "roof",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-roof-tiles.png",
+            "grid": 1,
+            "x": 356,
+            "y": 239,
+            "width": 98,
+            "height": 98
           }
         },
         "repaired": {

@@ -84,7 +84,8 @@ legacy baked placements, and per-placement pixel snap positions.
 `content/repair-pairs.json` owns every pair's stable
 identity, semantics, render layer, and damaged/repaired private source crops;
 room instances reference the pair ID and own room-cell anchors plus initial
-state. Either crop may be shared by any number of independently identified
+state. An instance may override its pair's default render layer without changing
+other uses of the pair. Either crop may be shared by any number of independently identified
 pairs. Source pixels are always composited at native size, and the source
 selection grid never changes scale. Collisions, entry cells, and exits remain
 independent of pixels. Schema-v2 room-local templates remain readable for
@@ -110,6 +111,8 @@ booleans. The editor previews those transforms without interpolation. The asset
 build applies them once while flattening baked scenery; Bevy applies instance
 flips through the sprite renderer. One instance transform covers every repair-
 pair state, preserving alignment across state changes without duplicated art.
+The fixed layer order is floor, wall, object, then overlay; mutable instances use
+their optional layer override before falling back to the repair pair's layer.
 
 `scripts/build-assets.py` turns baked placements into a cached room background
 and extracts each repair-pair state referenced by that room as a separate runtime
