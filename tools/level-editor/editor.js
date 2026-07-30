@@ -1077,6 +1077,7 @@ function captureStateSource(stateName) {
     return;
   }
   state.stateSources[stateName] = selectionSource();
+  if (stateName === "repaired") $("#repaired-invisible").checked = false;
   updateStateSourceDetails();
   setStatus(`Captured ${stateName} crop at ${state.selection.width * state.selection.grid}×${state.selection.height * state.selection.grid}px.`);
 }
@@ -1084,7 +1085,10 @@ function captureStateSource(stateName) {
 function updateStateSourceDetails() {
   for (const stateName of ["damaged", "repaired"]) {
     const source = state.stateSources[stateName];
-    $(`#${stateName}-source`).textContent = source
+    const invisible = stateName === "repaired" && $("#repaired-invisible")?.checked;
+    $(`#${stateName}-source`).textContent = invisible
+      ? "invisible when completed"
+      : source
       ? `${source.path.split("/").at(-1)} · ${source.width * source.grid}×${source.height * source.grid}px`
       : "not captured";
   }
@@ -1095,8 +1099,50 @@ function repairPairMatches(pairId, pair, query) {
   const sourcePaths = Object.values(pair.states || {})
     .map((visual) => visual.source?.path || "")
     .join(" ");
-  const haystack = `${pairId} ${pair.label} ${pair.kind} ${pair.layer} ${sourcePaths}`.toLowerCase();
+  const taskText = JSON.stringify(pair.task || {});
+  const haystack = `${pairId} ${pair.label} ${pair.kind} ${pair.layer} ${sourcePaths} ${taskText}`.toLowerCase();
   return words.every((word) => haystack.includes(word));
+}
+
+function defaultTaskForKind(kind) {
+  if (kind === "debris") return { action: "clean", skill: "upkeep", level: 0, tools: [], supplies: [], xp: 1 };
+  if (kind === "floor") return { action: "repair", skill: "carpentry", level: 0, tools: ["hammer"], supplies: [{ item: "plank", amount: 1 }], xp: 1 };
+  if (["furniture", "furnitute", "bed", "nightstand"].includes(kind)) return { action: "repair", skill: "carpentry", level: 1, tools: ["hammer"], supplies: [{ item: "plank", amount: 1 }], xp: 1 };
+  if (["wall", "fireplace"].includes(kind)) return { action: "repair", skill: "masonry", level: 0, tools: ["trowel"], supplies: [{ item: "stone", amount: 1 }], xp: 1 };
+  if (kind === "chimney") return { action: "clear", skill: "upkeep", level: 1, tools: ["ladder"], supplies: [], xp: 1 };
+  if (kind === "roof") return { action: "repair", skill: "roofing", level: 0, tools: ["hammer", "ladder"], supplies: [{ item: "plank", amount: 1 }], xp: 1 };
+  if (["door", "window", "mirror", "lamp"].includes(kind)) return { action: "repair", skill: "upkeep", level: 1, tools: ["hammer"], supplies: [{ item: "nails", amount: 1 }], xp: 1 };
+  return { action: "repair", skill: "upkeep", level: 1, tools: [], supplies: [], xp: 1 };
+}
+
+function populateTaskControls(task) {
+  const resolved = task || defaultTaskForKind(slugify($("#pair-kind").value));
+  $("#pair-action").value = resolved.action || "repair";
+  $("#pair-skill").value = resolved.skill || "upkeep";
+  $("#pair-level").value = resolved.level ?? 0;
+  $("#pair-xp").value = resolved.xp ?? 1;
+  for (const input of document.querySelectorAll("#pair-tools input")) {
+    input.checked = (resolved.tools || []).includes(input.value);
+  }
+  const costs = new Map((resolved.supplies || []).map((cost) => [cost.item, cost.amount]));
+  for (const input of document.querySelectorAll("#pair-supplies input")) {
+    input.value = costs.get(input.dataset.supply) || 0;
+  }
+}
+
+function taskFromControls() {
+  const tools = [...document.querySelectorAll("#pair-tools input:checked")].map((input) => input.value);
+  const supplies = [...document.querySelectorAll("#pair-supplies input")]
+    .map((input) => ({ item: input.dataset.supply, amount: Number.parseInt(input.value, 10) || 0 }))
+    .filter((cost) => cost.amount > 0);
+  return {
+    action: $("#pair-action").value,
+    skill: $("#pair-skill").value,
+    level: Number.parseInt($("#pair-level").value, 10) || 0,
+    tools,
+    supplies,
+    xp: Number.parseInt($("#pair-xp").value, 10) || 0,
+  };
 }
 
 function drawPairPreview(canvas, source) {
@@ -1164,7 +1210,8 @@ function renderRepairPairs() {
     const name = document.createElement("strong");
     name.textContent = pair.label;
     const details = document.createElement("small");
-    details.textContent = `${pairId} · ${pair.kind} · ${pair.layer}`;
+    const task = pair.task || defaultTaskForKind(pair.kind);
+    details.textContent = `${pairId} · ${task.action} · ${task.skill} ${task.level}`;
     meta.append(name, details);
     card.append(previews, meta);
     card.addEventListener("click", () => selectRepairPair(pairId));
@@ -1186,6 +1233,8 @@ function selectRepairPair(pairId) {
   $("#pair-label").value = pair.label;
   $("#pair-kind").value = pair.kind;
   $("#pair-layer").value = pair.layer;
+  $("#repaired-invisible").checked = pair.states.repaired?.visible === false;
+  populateTaskControls(pair.task || defaultTaskForKind(pair.kind));
   $("#pair-mode-title").textContent = pair.label;
   $("#duplicate-pair").disabled = false;
   $("#delete-pair").disabled = false;
@@ -1203,6 +1252,8 @@ function newRepairPair() {
   $("#pair-label").value = "";
   $("#pair-kind").value = "";
   $("#pair-layer").value = state.layer;
+  $("#repaired-invisible").checked = false;
+  populateTaskControls(defaultTaskForKind(""));
   $("#pair-mode-title").textContent = "New pair";
   $("#duplicate-pair").disabled = true;
   $("#delete-pair").disabled = true;
@@ -1244,17 +1295,20 @@ async function saveRepairPair() {
     setStatus("Repair pairs need both a label and a kind.");
     return;
   }
-  if (!state.stateSources.damaged || !state.stateSources.repaired) {
-    setStatus("Capture both damaged and repaired source rectangles first.");
+  if (!state.stateSources.damaged || (!state.stateSources.repaired && !$("#repaired-invisible").checked)) {
+    setStatus("Capture a damaged source and either capture repaired art or mark the completed state invisible.");
     return;
   }
   const pair = {
     label,
     kind,
     layer: $("#pair-layer").value,
+    task: taskFromControls(),
     states: {
       damaged: { source: structuredClone(state.stateSources.damaged) },
-      repaired: { source: structuredClone(state.stateSources.repaired) },
+      repaired: $("#repaired-invisible").checked
+        ? { visible: false }
+        : { source: structuredClone(state.stateSources.repaired) },
     },
   };
   const response = await fetch(`/api/repair-pairs/${encodeURIComponent(pairId)}`, {
@@ -1820,6 +1874,8 @@ function bindEvents() {
   });
   $("#capture-damaged").addEventListener("click", () => captureStateSource("damaged"));
   $("#capture-repaired").addEventListener("click", () => captureStateSource("repaired"));
+  $("#repaired-invisible").addEventListener("change", updateStateSourceDetails);
+  $("#pair-kind").addEventListener("change", (event) => populateTaskControls(defaultTaskForKind(slugify(event.target.value))));
   $("#pair-search").addEventListener("input", renderRepairPairs);
   $("#new-pair").addEventListener("click", newRepairPair);
   $("#duplicate-pair").addEventListener("click", duplicateRepairPair);
@@ -1969,6 +2025,7 @@ if (typeof module !== "undefined") {
     applyBackgroundKey,
     assetUrl,
     collisionCellsForRendering,
+    defaultTaskForKind,
     detectSmartRegions,
     draggedPlacementPosition,
     drawTransformedImage,

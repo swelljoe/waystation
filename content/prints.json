@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "translation": {
+    "id": "kjv",
+    "name": "King James Version",
+    "public_domain_note": "Public domain in the United States."
+  },
+  "image_generation": {
+    "reference": "assets/prints/sower-pixel.png",
+    "common_prompt": "Create a vertical collectible print-card illustration for a cozy post-apocalyptic pixel-art game. Use the attached image only as a visual style and format reference, never as an edit target. Render a primitive hand-cut woodblock or linocut as deliberately chunky pixel art, strictly one-color black ink on warm fibrous birch-bark-colored paper, with uneven handmade ink coverage, bold simple silhouettes, sparse hatching, limited detail, and a heavy imperfect rectangular border. Confine the illustration to the upper 67 percent and leave the lower 27 percent inside the border as nearly empty warm paper for exact verse type added later. The subject must read clearly at small size. Include no words, letters, numbers, writing-like symbols, watermark, modern logo, photorealism, polished vector smoothness, ornate religious iconography, pulpit, or church."
+  },
+  "prints": [
+    {
+      "id": "early-hospitality",
+      "title": "The Stranger",
+      "theme": "hospitality",
+      "reference": "Hebrews 13:2",
+      "verse": "Be not forgetful to entertain strangers: for thereby some have entertained angels unawares.",
+      "art": "assets/prints/early-hospitality-art.png",
+      "card": "assets/prints/early-hospitality-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "An exhausted cloaked traveler stands in cold rain at night while an ordinary keeper opens a small weathered inn doorway and raises an oil lamp, inviting the stranger into shelter. The scene is humble and tender, not grand or preachy; avoid halo, weapons, menace, and despair."
+    },
+    {
+      "id": "early-burdens",
+      "title": "One Another's Burdens",
+      "theme": "mutual_aid",
+      "reference": "Galatians 6:2",
+      "verse": "Bear ye one another's burdens, and so fulfil the law of Christ.",
+      "art": "assets/prints/early-burdens-art.png",
+      "card": "assets/prints/early-burdens-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "Two ordinary travelers on a steep ruined road lift and carry one heavy bundled load together on a wooden pole between them; one is tired and the other steadies them with a kind hand. The action must communicate sharing a burden, not forced labor; avoid weapons, chains, overseer, menace, and despair."
+    },
+    {
+      "id": "early-bruised-reed",
+      "title": "The Bruised Reed",
+      "theme": "gentleness",
+      "reference": "Matthew 12:20a",
+      "verse": "A bruised reed shall he not break, and smoking flax shall he not quench.",
+      "art": "assets/prints/early-bruised-reed-art.png",
+      "card": "assets/prints/early-bruised-reed-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "Two work-worn hands carefully bind and support a bent, bruised reed beside a tiny clay lamp whose weak smoking wick is sheltered and remains alight. Show no faces or full people. Both fragile things remain alive; avoid an extinguished flame, snapped-off reed, violence, and despair.",
+      "note": "Short opening excerpt, identified with the conventional 'a' suffix."
+    },
+    {
+      "id": "early-rest",
+      "title": "Rest for the Weary",
+      "theme": "rest",
+      "reference": "Matthew 11:28",
+      "verse": "Come unto me, all ye that labour and are heavy laden, and I will give you rest.",
+      "art": "assets/prints/early-rest-art.png",
+      "card": "assets/prints/early-rest-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "An exhausted traveler has safely set down a heavy pack and sleeps peacefully beneath the broad sheltering branches of an old tree. A simple cup and loaf sit nearby, and the distant road continues beyond. The traveler is safe and fully at rest; avoid a deathlike pose, grave, weapons, danger, and despair."
+    },
+    {
+      "id": "early-light",
+      "title": "The Light Shineth",
+      "theme": "hope",
+      "reference": "John 1:5",
+      "verse": "And the light shineth in darkness; and the darkness comprehended it not.",
+      "art": "assets/prints/early-light-art.png",
+      "card": "assets/prints/early-light-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "A single bright oil lamp burns in the repaired window of a small battered roadside inn at night. Across a bleak, scarred but living valley, a few tiny distant windows answer with lights of their own while dawn faintly begins at the horizon. Avoid electric lights, a modern skyline, neon, weapons, monsters, and total despair."
+    }
+  ]
+}

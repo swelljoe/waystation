@@ -249,6 +249,36 @@ class LevelEditorValidationTests(unittest.TestCase):
         self.assertEqual(validate_repair_pair(first, "wall-a", self.assets), [])
         self.assertEqual(validate_repair_pair(second, "wall-b", self.assets), [])
 
+    def test_repair_pair_accepts_task_requirements_and_invisible_cleanup(self) -> None:
+        pair = {
+            "label": "trash pile",
+            "kind": "debris",
+            "layer": "object",
+            "task": {
+                "action": "clean",
+                "skill": "upkeep",
+                "level": 0,
+                "tools": [],
+                "supplies": [],
+                "xp": 1,
+            },
+            "states": {
+                "damaged": {
+                    "source": {
+                        "path": "sheet.png",
+                        "grid": 48,
+                        "x": 0,
+                        "y": 0,
+                        "width": 1,
+                        "height": 1,
+                    }
+                },
+                "repaired": {"visible": False},
+            },
+        }
+
+        self.assertEqual(validate_repair_pair(pair, "trash-pile", self.assets), [])
+
 
 if __name__ == "__main__":
     unittest.main()

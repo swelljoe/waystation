@@ -1,0 +1,7 @@
+[build]
+target = "web/index.html"
+dist = "dist"
+# Relative URLs work at localhost and beneath a GitHub Pages repository path.
+public_url = "./"
+locked = true
+

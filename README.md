@@ -51,6 +51,15 @@ doors route left-to-right to the office and numbered rooms. The office and room
 remaining rooms. Every room returns the Scribe to the same exterior doorstep it
 was entered from.
 
+The valley is now a 144×96-cell exploration area with persistent kindling,
+fallen-log, plank, and tool pickups. The upper-right restoration ledger shows
+skills, durable tools, and consumable supplies. Clean debris to develop Upkeep;
+that unlocks Carpentry and Masonry, while Carpentry eventually unlocks Roofing.
+The office desk supplies a starter hammer and nails, and the office hearth now
+requires three kindling plus a cleared chimney reached with the discoverable
+ladder. See [docs/RESTORATION_GAMEPLAY.md](docs/RESTORATION_GAMEPLAY.md) for the
+tree and task schema.
+
 The Scribe uses the complete 13×54 LPC action sheet from
 `assets/custom/scribe.png`. Movement currently animates the four nine-frame walk
 rows at native pixel scale; the remaining action rows stay in the runtime atlas
@@ -150,8 +159,10 @@ private source stamps into gitignored runtime art. For repairable content:
 1. In the **Repair-pair library**, choose **New pair** and give the transition a
    stable ID, label, kind, and render layer.
 2. Select the damaged crop and choose **Use selection as damaged**, then select
-   the repaired crop and choose **Use selection as repaired**.
-3. Save the pair. It is now searchable and reusable in every room and building.
+   the repaired crop and choose **Use selection as repaired**. For removed junk,
+   choose **Completed state is invisible** instead of capturing a blank tile.
+3. Set the task action, skill level, durable tools, consumed supplies, and XP.
+   Save the pair; it is now searchable and reusable in every room and building.
 4. Select a saved pair, choose **Repairable structure** or **Repairable
    fixture**, then stamp automatically identified instances.
 
@@ -166,8 +177,8 @@ apply one stored orientation to both damaged and repaired states.
 
 Baked scenery goes into the cached room background. Repair-pair states are
 extracted as separate native-size sprites and are never baked into that image.
-In the current slice, approach the cracked motel-room mirror and press `E` to
-repair it. Browser saves persist the state under `room-id/instance-id`.
+Approach an authored item and press `E`; the game reports missing skills, tools,
+or supplies before changing the sprite and persisting `room-id/instance-id`.
 
 Asset tags live in `meta/asset-tags.json`; expand that sidecar as packs are
 reviewed. The editor binds only to localhost because it serves licensed source
@@ -203,6 +214,18 @@ Never place credentials in the browser build, source tree, or container image.
 4. YouVersion returns the authoritative passage text for the selected ID.
 5. The player creates a card from the passage and project-authored pixel motifs.
 
+The first five wordless block-print illustrations and exact KJV card overlays
+are cataloged in `content/prints.json`. Run `make prints` after changing a verse
+or its source art. The deterministic compositor renders EB Garamond at low
+resolution with intentionally large type, giving exact Roman serif text an
+appropriately crude apprentice-print scale without enlarging the card. See
+[`docs/PRINT_CARDS.md`](docs/PRINT_CARDS.md) for the collection and prompt set.
+New catalog entries can be generated sequentially with `make print-art`. The
+resumable Codex batch skips existing illustrations and composes the finished
+cards after verifying each new portrait PNG.
+Use `make add-print` to append a reviewed verse and its wordless illustration
+brief without editing JSON by hand.
+
 If a live dependency is unavailable, the server uses a disclosed cache or reviewed
 fixture. The UI always reports provenance; it never presents fixture text as a live
 API response.
@@ -229,8 +252,21 @@ reproducible boundary. The checked-in pipeline generates a complete open fallbac
 ```bash
 make test
 make analyze
-make web       # requires Trunk and wasm32-unknown-unknown
+make web       # requires Trunk, wasm32-unknown-unknown, and Python Pillow
 ```
+
+`make web` writes a self-contained browser build to `dist/`. CI uploads that
+directory as the downloadable `waystation-web` artifact on every run and deploys
+default-branch builds to the repository's configured GitHub Pages site at
+<https://swelljoe.github.io/waystation/>. Trunk uses relative URLs, so the same
+build works at a Pages repository path and from a local static server.
+
+Because `assets/` is intentionally gitignored, pull-request runners build the
+distributable procedural fallback art. Default-branch builds overlay the
+flattened, runtime-only bundle held by the private `demo-runtime-assets` Release;
+they never receive the purchased source sheets. After changing licensed art, run
+`make publish-demo-assets` from the authoring machine to rebuild and replace that
+bundle. Delete the private Release before ever making the repository public.
 
 The code is public for competition review but remains all rights reserved unless
 the project wins. If selected, the submitted source will be relicensed under MIT

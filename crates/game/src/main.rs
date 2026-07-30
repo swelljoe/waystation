@@ -3,14 +3,18 @@
 #![allow(clippy::needless_pass_by_value)]
 
 mod interior;
+mod progression;
 mod terrain;
 
 use std::{
     collections::HashMap,
+    fmt::Write as _,
     sync::{Arc, Mutex},
 };
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use progression::{Progression, SupplyId, TaskAction, ToolId};
 use serde::{Deserialize, Serialize};
 use terrain::{MAP_HALF_HEIGHT, MAP_HALF_WIDTH};
 use waystation_shared::{
@@ -39,6 +43,7 @@ fn main() {
         .insert_resource(InterpretInbox::default())
         .insert_resource(initial_world_location())
         .insert_resource(MotelAccess::default())
+        .insert_resource(Progression::default())
         .insert_resource(ExteriorReturn::default())
         .init_resource::<terrain::TerrainDebugOverlay>()
         .init_resource::<InteriorState>()
@@ -148,14 +153,34 @@ struct Traveler;
 enum InteractableKind {
     Sign,
     Kindling,
+    Log,
     Hearth,
     Plank,
+    Tool,
     Desk,
     Traveler,
     MotelDoor,
     InteriorExit,
     InteriorRepairable,
     ExteriorRepairable,
+}
+
+#[derive(Component)]
+struct WorldPickup {
+    id: String,
+    reward: PickupReward,
+}
+
+#[derive(Clone, Copy)]
+enum PickupReward {
+    Supply(SupplyId, u16),
+    Tool(ToolId),
+}
+
+#[derive(Component, Clone)]
+struct TaskTarget {
+    action: TaskAction,
+    requirements: String,
 }
 
 #[derive(Component)]
@@ -195,6 +220,14 @@ impl Default for ExteriorReturn {
 #[derive(Resource, Default)]
 struct InteriorState(HashMap<String, String>);
 
+#[derive(SystemParam)]
+struct InteractionResources<'w> {
+    interior_state: ResMut<'w, InteriorState>,
+    motel_access: ResMut<'w, MotelAccess>,
+    progression: ResMut<'w, Progression>,
+    exterior_return: ResMut<'w, ExteriorReturn>,
+}
+
 #[derive(Component)]
 struct StatusText;
 
@@ -212,6 +245,9 @@ struct OverlayBody;
 
 #[derive(Component)]
 struct ProvenanceText;
+
+#[derive(Component)]
+struct ProgressText;
 
 #[derive(Component)]
 struct CardArt;
@@ -293,13 +329,20 @@ struct SaveData {
     interior_states: HashMap<String, String>,
     #[serde(default)]
     motel_keys_found: bool,
+    #[serde(default)]
+    progression: Progression,
 }
 
 impl SaveData {
     #[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
-    fn capture(story: &Story, interior_state: &InteriorState, motel_access: &MotelAccess) -> Self {
+    fn capture(
+        story: &Story,
+        interior_state: &InteriorState,
+        motel_access: &MotelAccess,
+        progression: &Progression,
+    ) -> Self {
         Self {
-            version: 3,
+            version: 4,
             stage: story.stage,
             kindling: story.kindling,
             vignette_index: story.vignette_index,
@@ -308,6 +351,7 @@ impl SaveData {
             card: story.card.clone(),
             interior_states: interior_state.0.clone(),
             motel_keys_found: motel_access.keys_found,
+            progression: progression.clone(),
         }
     }
 }
@@ -365,6 +409,7 @@ fn setup_world(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     location: Res<WorldLocation>,
     interior_state: Res<InteriorState>,
+    progression: Res<Progression>,
 ) {
     commands.spawn((
         Camera2d,
@@ -406,6 +451,12 @@ fn setup_world(
                 state: state.to_owned(),
             },
         ));
+        if kind != InteractableKind::MotelDoor {
+            commands.entity(entity).insert(TaskTarget {
+                action: element.task.action,
+                requirements: element.task.requirements_text(),
+            });
+        }
         if let Some(&interior_id) = door_routes.get(&element.id) {
             let visual = element
                 .states
@@ -429,9 +480,12 @@ fn setup_world(
         spawn_interior_scene(&mut commands, &asset_server, &interior_map, &interior_state);
     }
 
-    // Protected valley: tree-shadow slopes and the stone motel court sit over
-    // the generated grass, dirt, old road, ponds, and river terrain.
+    // The motel court is only one clearing in a much larger, forageable valley.
     for (x, y, size) in [
+        (-1_980.0, 1_160.0, 190.0),
+        (-1_650.0, 780.0, 150.0),
+        (-1_420.0, -980.0, 180.0),
+        (-1_050.0, 1_220.0, 200.0),
         (-710.0, 420.0, 160.0),
         (-300.0, 430.0, 180.0),
         (100.0, 455.0, 150.0),
@@ -439,6 +493,10 @@ fn setup_world(
         (735.0, 190.0, 150.0),
         (700.0, -50.0, 180.0),
         (-725.0, -120.0, 150.0),
+        (1_050.0, 920.0, 190.0),
+        (1_380.0, -760.0, 170.0),
+        (1_720.0, 1_100.0, 210.0),
+        (1_960.0, -1_080.0, 180.0),
     ] {
         commands.spawn((
             Sprite {
@@ -457,25 +515,78 @@ fn setup_world(
         Vec2::new(72.0, 96.0),
         Color::srgb(0.37, 0.24, 0.14),
     );
-    // Fallen wood drying under the old growth, from sound logs to loose tinder.
-    for (position, art) in [
+    // Loose tinder is easy to gather. Fallen logs and sound boards become the
+    // first useful stockpile once the Scribe begins restoring the motel.
+    for (index, (position, art)) in [
         (Vec2::new(-390.0, -80.0), "world/kindling_logs.png"),
         (Vec2::new(-285.0, 170.0), "world/kindling_branches.png"),
         (Vec2::new(-80.0, 355.0), "world/kindling_tinder.png"),
-    ] {
-        spawn_interactable_sprite(
+        (Vec2::new(-980.0, 610.0), "world/kindling_branches.png"),
+        (Vec2::new(-1_380.0, -420.0), "world/kindling_tinder.png"),
+        (Vec2::new(1_030.0, 690.0), "world/kindling_logs.png"),
+        (Vec2::new(1_510.0, -720.0), "world/kindling_branches.png"),
+        (Vec2::new(1_920.0, 880.0), "world/kindling_tinder.png"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        spawn_world_pickup(
             &mut commands,
+            &progression,
+            format!("kindling-{index:02}"),
             InteractableKind::Kindling,
             position,
             Sprite::from_image(asset_server.load(art)),
+            PickupReward::Supply(SupplyId::Kindling, 1),
         );
     }
-    spawn_interactable(
-        &mut commands,
-        InteractableKind::Plank,
+    for (index, position) in [
+        Vec2::new(-1_720.0, 930.0),
+        Vec2::new(-1_180.0, -920.0),
+        Vec2::new(-820.0, 820.0),
+        Vec2::new(920.0, -890.0),
+        Vec2::new(1_340.0, 1_070.0),
+        Vec2::new(1_840.0, -350.0),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        spawn_world_pickup(
+            &mut commands,
+            &progression,
+            format!("fallen-log-{index:02}"),
+            InteractableKind::Log,
+            position,
+            Sprite::from_image(asset_server.load("world/fallen_log.png")),
+            PickupReward::Supply(SupplyId::Log, 1),
+        );
+    }
+    for (index, position) in [
         Vec2::new(625.0, -175.0),
-        Vec2::new(88.0, 24.0),
-        Color::srgb(0.48, 0.31, 0.16),
+        Vec2::new(-1_260.0, 360.0),
+        Vec2::new(1_640.0, 520.0),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        spawn_world_pickup(
+            &mut commands,
+            &progression,
+            format!("sound-plank-{index:02}"),
+            InteractableKind::Plank,
+            position,
+            Sprite::from_image(asset_server.load("world/plank.png")),
+            PickupReward::Supply(SupplyId::Plank, 1),
+        );
+    }
+    spawn_world_pickup(
+        &mut commands,
+        &progression,
+        "fallen-ladder-01".to_owned(),
+        InteractableKind::Tool,
+        Vec2::new(-1_080.0, 1_010.0),
+        Sprite::from_image(asset_server.load("world/ladder.png")),
+        PickupReward::Tool(ToolId::Ladder),
     );
     let traveler = spawn_interactable(
         &mut commands,
@@ -558,6 +669,12 @@ fn spawn_interior_scene(
                 state: state.to_owned(),
             },
         ));
+        if !matches!(kind, InteractableKind::Hearth | InteractableKind::Desk) {
+            commands.entity(entity).insert(TaskTarget {
+                action: element.task.action,
+                requirements: element.task.requirements_text(),
+            });
+        }
     }
     let exit = spawn_interactable(
         commands,
@@ -601,6 +718,7 @@ fn load_story(
     mut story: ResMut<Story>,
     mut interior_state: ResMut<InteriorState>,
     mut motel_access: ResMut<MotelAccess>,
+    mut progression: ResMut<Progression>,
 ) {
     let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     else {
@@ -612,7 +730,7 @@ fn load_story(
     let Ok(save) = serde_json::from_str::<SaveData>(&raw) else {
         return;
     };
-    if !matches!(save.version, 1..=3) || save.vignette_index >= vignettes().len() {
+    if !matches!(save.version, 1..=4) || save.vignette_index >= vignettes().len() {
         return;
     }
     story.stage = save.stage;
@@ -623,6 +741,7 @@ fn load_story(
     story.card = save.card;
     interior_state.0 = save.interior_states;
     motel_access.keys_found = save.motel_keys_found;
+    *progression = save.progression;
     story.notice = Some("The old trail returns to memory.".to_owned());
 }
 
@@ -634,17 +753,25 @@ fn save_story(
     story: Res<Story>,
     interior_state: Res<InteriorState>,
     motel_access: Res<MotelAccess>,
+    progression: Res<Progression>,
 ) {
-    if !story.is_changed() && !interior_state.is_changed() && !motel_access.is_changed() {
+    if !story.is_changed()
+        && !interior_state.is_changed()
+        && !motel_access.is_changed()
+        && !progression.is_changed()
+    {
         return;
     }
     let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     else {
         return;
     };
-    if let Ok(raw) =
-        serde_json::to_string(&SaveData::capture(&story, &interior_state, &motel_access))
-    {
+    if let Ok(raw) = serde_json::to_string(&SaveData::capture(
+        &story,
+        &interior_state,
+        &motel_access,
+        &progression,
+    )) {
         let _ = storage.set_item("waystation-save-v1", &raw);
     }
 }
@@ -680,6 +807,34 @@ fn spawn_interactable_sprite(
         .id()
 }
 
+fn spawn_world_pickup(
+    commands: &mut Commands,
+    progression: &Progression,
+    id: String,
+    kind: InteractableKind,
+    position: Vec2,
+    sprite: Sprite,
+    reward: PickupReward,
+) -> Entity {
+    let collected = progression.pickup_collected(&id);
+    let entity = spawn_interactable_sprite(commands, kind, position, sprite);
+    commands.entity(entity).insert((
+        WorldPickup { id, reward },
+        if collected {
+            Visibility::Hidden
+        } else {
+            Visibility::Visible
+        },
+    ));
+    if collected {
+        commands.entity(entity).insert(Interactable {
+            kind,
+            consumed: true,
+        });
+    }
+    entity
+}
+
 fn load_ui_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(UiFonts {
         roman: asset_server.load(ROMAN_FONT_PATH),
@@ -687,6 +842,7 @@ fn load_ui_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 }
 
+#[allow(clippy::too_many_lines)]
 fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<UiFonts>) {
     terrain::spawn_debug_legend(&mut commands);
     let status_color = Color::srgb(0.92, 0.86, 0.67);
@@ -709,6 +865,20 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
             TextColor(status_color),
             StatusText,
         ));
+    commands.spawn((
+        Text::new(""),
+        fonts.roman(15.0),
+        TextColor(Color::srgb(0.86, 0.80, 0.64)),
+        TextLayout::new_with_justify(Justify::Right),
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(18.0),
+            top: Val::Px(16.0),
+            max_width: Val::Px(285.0),
+            ..default()
+        },
+        ProgressText,
+    ));
     commands
         .spawn((
             Text::new("☞  "),
@@ -958,12 +1128,11 @@ fn handle_interaction(
     interior: Res<interior::InteriorMap>,
     motel: Res<interior::MotelExteriorMap>,
     asset_server: Res<AssetServer>,
-    mut interior_state: ResMut<InteriorState>,
-    mut motel_access: ResMut<MotelAccess>,
-    mut exterior_return: ResMut<ExteriorReturn>,
+    mut resources: InteractionResources,
     mut player: Query<&mut Transform, With<Player>>,
     mut interactables: Query<&mut Interactable>,
     door_destinations: Query<&MotelDoorDestination>,
+    pickups: Query<&WorldPickup>,
     interior_entities: Query<Entity, With<interior::InteriorSceneEntity>>,
     mut mutable_elements: Query<
         (
@@ -984,6 +1153,59 @@ fn handle_interaction(
     let Ok(mut target) = interactables.get_mut(entity) else {
         return;
     };
+    if let Ok(pickup) = pickups.get(entity) {
+        match pickup.reward {
+            PickupReward::Supply(item, amount) => resources.progression.add_supply(item, amount),
+            PickupReward::Tool(tool) => {
+                resources.progression.add_tool(tool);
+            }
+        }
+        resources.progression.collect_pickup(&pickup.id);
+        target.consumed = true;
+        commands.entity(entity).insert(Visibility::Hidden);
+        match target.kind {
+            InteractableKind::Kindling => {
+                story.kindling = story.kindling.saturating_add(1);
+                if matches!(
+                    story.stage,
+                    StoryStage::Arrival | StoryStage::GatherKindling
+                ) {
+                    story.stage = if story.kindling >= 3 {
+                        StoryStage::LightHearth
+                    } else {
+                        StoryStage::GatherKindling
+                    };
+                }
+                story.notice = Some(format!(
+                    "Dry wood, sheltered beneath the old growth. Kindling: {}.",
+                    resources.progression.supply(SupplyId::Kindling)
+                ));
+            }
+            InteractableKind::Log => {
+                story.notice = Some(format!(
+                    "A fallen log, weathered but sound. Logs: {}.",
+                    resources.progression.supply(SupplyId::Log)
+                ));
+            }
+            InteractableKind::Plank => {
+                if story.stage == StoryStage::FindPlank {
+                    story.stage = StoryStage::RestoreDesk;
+                }
+                story.notice = Some(format!(
+                    "Old cedar, still sound. Planks: {}.",
+                    resources.progression.supply(SupplyId::Plank)
+                ));
+            }
+            InteractableKind::Tool => {
+                story.notice = Some(
+                    "An old ladder, silvered by weather but still sturdy. It can reach the motel roof."
+                        .to_owned(),
+                );
+            }
+            _ => {}
+        }
+        return;
+    }
     match target.kind {
         InteractableKind::Sign => {
             story.notice = Some(
@@ -994,25 +1216,26 @@ fn handle_interaction(
                 story.stage = StoryStage::GatherKindling;
             }
         }
-        InteractableKind::Kindling
-            if matches!(
-                story.stage,
-                StoryStage::Arrival | StoryStage::GatherKindling
-            ) =>
-        {
-            target.consumed = true;
-            story.kindling += 1;
-            story.stage = if story.kindling >= 3 {
-                StoryStage::LightHearth
-            } else {
-                StoryStage::GatherKindling
-            };
-            story.notice = Some(format!(
-                "Dry wood, sheltered beneath the old growth. Kindling: {}/3.",
-                story.kindling
-            ));
-        }
         InteractableKind::Hearth if story.stage == StoryStage::LightHearth => {
+            if resources
+                .interior_state
+                .0
+                .get("motel-exterior/tall-chimney-01")
+                .is_none_or(|state| state != "repaired")
+            {
+                story.notice = Some(
+                    "Soot and old nests choke the flue. Clear the office chimney from the roof before lighting a fire."
+                        .to_owned(),
+                );
+                return;
+            }
+            if !resources.progression.spend_supply(SupplyId::Kindling, 3) {
+                story.notice = Some(format!(
+                    "The hearth needs 3 kindling; you have {}.",
+                    resources.progression.supply(SupplyId::Kindling)
+                ));
+                return;
+            }
             if let (Ok((mut instance, mut sprite, mut transform, mut visibility)), Some(element)) = (
                 mutable_elements.get_mut(entity),
                 interior.mutable_element("stone-fireplace-1-01"),
@@ -1023,7 +1246,7 @@ fn handle_interaction(
                 );
                 repair_scene_element(
                     &asset_server,
-                    &mut interior_state,
+                    &mut resources.interior_state,
                     element,
                     center,
                     &mut instance,
@@ -1038,17 +1261,14 @@ fn handle_interaction(
                 "Flame takes. Warm light reaches into a room untouched for centuries.".to_owned(),
             );
         }
-        InteractableKind::Plank if story.stage == StoryStage::FindPlank => {
-            target.consumed = true;
-            story.stage = StoryStage::RestoreDesk;
-            story.notice = Some("Old cedar, still sound beneath the fallen awning.".to_owned());
-        }
         InteractableKind::Desk => {
             let mut discoveries = Vec::new();
-            if !motel_access.keys_found {
-                motel_access.keys_found = true;
+            if !resources.motel_access.keys_found {
+                resources.motel_access.keys_found = true;
+                resources.progression.add_tool(ToolId::Hammer);
+                resources.progression.add_supply(SupplyId::Nails, 12);
                 discoveries.push(
-                    "A ring of numbered brass keys waits in the desk's shallow drawer. The other motel doors can now be opened."
+                    "A ring of numbered brass keys, a tack hammer, and twelve usable nails wait in the desk's shallow drawer. The other motel doors can now be opened."
                         .to_owned(),
                 );
             }
@@ -1066,13 +1286,25 @@ fn handle_interaction(
                     mutable_elements.get_mut(entity),
                     interior.mutable_element("old-desk-01"),
                 ) {
+                    let _outcome = match resources.progression.attempt(&element.task) {
+                        Ok(outcome) => outcome,
+                        Err(reason) => {
+                            story.notice = Some(format!(
+                                "You cannot {} the {} yet. {}",
+                                element.task.action.infinitive(),
+                                element.label,
+                                reason
+                            ));
+                            return;
+                        }
+                    };
                     let center = element.states.get("repaired").map_or_else(
                         || transform.translation.truncate(),
                         |visual| interior.element_center(element, visual.size),
                     );
                     repair_scene_element(
                         &asset_server,
-                        &mut interior_state,
+                        &mut resources.interior_state,
                         element,
                         center,
                         &mut instance,
@@ -1082,7 +1314,10 @@ fn handle_interaction(
                     );
                 }
                 story.stage = StoryStage::Night;
-                story.notice = None;
+                story.notice = Some(
+                    "The desk stands square again; the first careful carpentry lesson is learned."
+                        .to_owned(),
+                );
                 target.consumed = true;
                 return;
             }
@@ -1101,7 +1336,7 @@ fn handle_interaction(
             let Ok(destination) = door_destinations.get(entity) else {
                 return;
             };
-            if !motel_door_is_unlocked(*destination, &motel_access) {
+            if !motel_door_is_unlocked(*destination, &resources.motel_access) {
                 story.notice = Some(format!(
                     "The door to {} is locked. The office may still hold its key.",
                     destination.interior_id.door_label()
@@ -1117,12 +1352,12 @@ fn handle_interaction(
                     &mut commands,
                     &asset_server,
                     &next_interior,
-                    &interior_state,
+                    &resources.interior_state,
                 );
                 let position = next_interior.cell_center(next_interior.entry);
                 transform.translation.x = position.x;
                 transform.translation.y = position.y;
-                exterior_return.0 = destination.doorstep;
+                resources.exterior_return.0 = destination.doorstep;
                 *location = WorldLocation::Interior;
                 story.notice = Some(format!(
                     "Inside {}, the valley light falls away behind you.",
@@ -1133,8 +1368,8 @@ fn handle_interaction(
         }
         InteractableKind::InteriorExit => {
             if let Ok(mut transform) = player.single_mut() {
-                transform.translation.x = exterior_return.0.x;
-                transform.translation.y = exterior_return.0.y;
+                transform.translation.x = resources.exterior_return.0.x;
+                transform.translation.y = resources.exterior_return.0.y;
                 *location = WorldLocation::Exterior;
                 for entity in &interior_entities {
                     commands.entity(entity).despawn();
@@ -1155,9 +1390,22 @@ fn handle_interaction(
                 || transform.translation.truncate(),
                 |visual| interior.element_center(element, visual.size),
             );
+            let outcome = match resources.progression.attempt(&element.task) {
+                Ok(outcome) => outcome,
+                Err(reason) => {
+                    story.notice = Some(format!(
+                        "You cannot {} the {} yet. {}\nRequires: {}.",
+                        element.task.action.infinitive(),
+                        element.label,
+                        reason,
+                        element.task.requirements_text()
+                    ));
+                    return;
+                }
+            };
             if !repair_scene_element(
                 &asset_server,
-                &mut interior_state,
+                &mut resources.interior_state,
                 element,
                 center,
                 &mut instance,
@@ -1169,10 +1417,7 @@ fn handle_interaction(
                 return;
             }
             target.consumed = true;
-            story.notice = Some(format!(
-                "You restore the {}. The {} is sound again.",
-                element.label, element.kind
-            ));
+            story.notice = Some(task_success_notice(element, &outcome));
         }
         InteractableKind::ExteriorRepairable => {
             let Ok((mut instance, mut sprite, mut transform, mut visibility)) =
@@ -1187,9 +1432,22 @@ fn handle_interaction(
                 || transform.translation.truncate(),
                 |visual| motel.element_center(element, visual.size),
             );
+            let outcome = match resources.progression.attempt(&element.task) {
+                Ok(outcome) => outcome,
+                Err(reason) => {
+                    story.notice = Some(format!(
+                        "You cannot {} the {} yet. {}\nRequires: {}.",
+                        element.task.action.infinitive(),
+                        element.label,
+                        reason,
+                        element.task.requirements_text()
+                    ));
+                    return;
+                }
+            };
             if !repair_scene_element(
                 &asset_server,
-                &mut interior_state,
+                &mut resources.interior_state,
                 element,
                 center,
                 &mut instance,
@@ -1201,15 +1459,34 @@ fn handle_interaction(
                 return;
             }
             target.consumed = true;
-            story.notice = Some(format!(
-                "You restore the {}. The {} is sound again.",
-                element.label, element.kind
-            ));
+            story.notice = Some(task_success_notice(element, &outcome));
         }
         _ => {
             story.notice = Some("There may be a use for this later.".to_owned());
         }
     }
+}
+
+fn task_success_notice(
+    element: &interior::MutableElement,
+    outcome: &progression::TaskOutcome,
+) -> String {
+    let mut notice = format!(
+        "You {} the {}. +{} {} experience.",
+        element.task.action.past_tense(),
+        element.label,
+        element.task.xp,
+        element.task.skill.label()
+    );
+    if outcome.new_level > outcome.old_level {
+        let _ = write!(
+            notice,
+            "\n{} rises to level {}!",
+            element.task.skill.label(),
+            outcome.new_level
+        );
+    }
+    notice
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1373,7 +1650,6 @@ fn poll_interpretation(mut story: ResMut<Story>, inbox: Res<InterpretInbox>) {
 fn sync_world_state(
     story: Res<Story>,
     mut traveler: Query<(&mut Visibility, &mut Transform), With<Traveler>>,
-    mut sprites: Query<(&mut Interactable, &mut Sprite), Without<Traveler>>,
 ) {
     if !story.is_changed() {
         return;
@@ -1395,43 +1671,18 @@ fn sync_world_state(
         };
         transform.translation.x = -70.0;
     }
-    for (mut interactable, mut sprite) in &mut sprites {
-        if interactable.kind == InteractableKind::Kindling {
-            if story.stage == StoryStage::Arrival {
-                interactable.consumed = false;
-            }
-            // Gathered wood leaves the ground; a replay puts every pile back.
-            sprite.color = if interactable.consumed {
-                Color::srgba(0.0, 0.0, 0.0, 0.0)
-            } else {
-                Color::WHITE
-            };
-        }
-        if interactable.kind == InteractableKind::Plank {
-            interactable.consumed = !matches!(
-                story.stage,
-                StoryStage::Arrival
-                    | StoryStage::GatherKindling
-                    | StoryStage::LightHearth
-                    | StoryStage::FindBible
-                    | StoryStage::FindPlank
-            );
-            sprite.color = if interactable.consumed {
-                Color::srgba(0.0, 0.0, 0.0, 0.0)
-            } else {
-                Color::srgb(0.48, 0.31, 0.16)
-            };
-        }
-    }
 }
 
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn sync_ui(
     story: Res<Story>,
+    progression: Res<Progression>,
     nearby: Res<Nearby>,
     asset_server: Res<AssetServer>,
     interactables: Query<&Interactable>,
+    task_targets: Query<&TaskTarget>,
+    mut progress_text: Query<&mut Text, With<ProgressText>>,
     mut status: Query<
         &mut TextSpan,
         (
@@ -1461,6 +1712,7 @@ fn sync_ui(
             Without<StatusText>,
             Without<PromptText>,
             Without<ProvenanceText>,
+            Without<ProgressText>,
         ),
     >,
     mut body: Query<
@@ -1471,6 +1723,7 @@ fn sync_ui(
             Without<StatusText>,
             Without<PromptText>,
             Without<ProvenanceText>,
+            Without<ProgressText>,
         ),
     >,
     mut provenance: Query<
@@ -1481,6 +1734,7 @@ fn sync_ui(
             Without<OverlayBody>,
             Without<StatusText>,
             Without<PromptText>,
+            Without<ProgressText>,
         ),
     >,
     mut card_art: Query<(&mut ImageNode, &mut Visibility), (With<CardArt>, Without<OverlayRoot>)>,
@@ -1488,9 +1742,11 @@ fn sync_ui(
     let objective = match story.stage {
         StoryStage::Arrival => "Explore the standing stones. Find out what this place was.",
         StoryStage::GatherKindling => "Gather dry kindling for the motel hearth.",
-        StoryStage::LightHearth => "Bring the kindling to the hearth in the eastern room.",
+        StoryStage::LightHearth => {
+            "Clear three pieces of debris, find the old ladder, clear the office chimney, then light the hearth."
+        }
         StoryStage::FindBible => "Search the room now that you have light.",
-        StoryStage::FindPlank => "Find sound wood beneath the motel awning.",
+        StoryStage::FindPlank => "Find a sound plank in the valley for the office desk.",
         StoryStage::RestoreDesk => "Repair the writing desk.",
         StoryStage::MeetTraveler => "Welcome the traveler who followed your smoke.",
         StoryStage::Dialogue => "Listen.",
@@ -1508,26 +1764,52 @@ fn sync_ui(
         );
     }
 
+    if let Ok(mut text) = progress_text.single_mut() {
+        let supplies = progression.supplies_summary();
+        **text = format!(
+            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}",
+            progression.skill_tree_summary(),
+            progression.tools_summary(),
+            if supplies.is_empty() {
+                "none yet"
+            } else {
+                &supplies
+            }
+        );
+    }
+
     let nearby_prompt = nearby
         .0
-        .and_then(|entity| interactables.get(entity).ok())
-        .map_or(
-            "WASD / arrows — move     E — interact",
-            |item| match item.kind {
-                InteractableKind::Sign => "E — inspect the old sign",
-                InteractableKind::Kindling => "E — gather kindling",
-                InteractableKind::Hearth => "E — tend the hearth",
-                InteractableKind::Plank => "E — take the cedar plank",
-                InteractableKind::Desk => "E — search or repair the old desk",
-                InteractableKind::Traveler => "E — welcome the traveler",
-                InteractableKind::MotelDoor => "E — try the motel door",
-                InteractableKind::InteriorExit => "E — step back outside",
-                InteractableKind::InteriorRepairable => "E — repair this part of the room",
-                InteractableKind::ExteriorRepairable => "E — repair this part of the motel",
+        .and_then(|entity| interactables.get(entity).ok().map(|item| (entity, item)))
+        .map_or_else(
+            || "WASD / arrows — move     E — interact".to_owned(),
+            |(entity, item)| {
+                if let Ok(task) = task_targets.get(entity) {
+                    return format!(
+                        "E — {} this item     [{}]",
+                        task.action.infinitive(),
+                        task.requirements
+                    );
+                }
+                match item.kind {
+                    InteractableKind::Sign => "E — inspect the old sign",
+                    InteractableKind::Kindling => "E — gather kindling",
+                    InteractableKind::Log => "E — gather a fallen log",
+                    InteractableKind::Hearth => "E — tend the hearth",
+                    InteractableKind::Plank => "E — take the sound plank",
+                    InteractableKind::Tool => "E — take the old ladder",
+                    InteractableKind::Desk => "E — search or repair the old desk",
+                    InteractableKind::Traveler => "E — welcome the traveler",
+                    InteractableKind::MotelDoor => "E — try the motel door",
+                    InteractableKind::InteriorExit => "E — step back outside",
+                    InteractableKind::InteriorRepairable => "E — work on this part of the room",
+                    InteractableKind::ExteriorRepairable => "E — work on this part of the motel",
+                }
+                .to_owned()
             },
         );
     if let Ok(mut text) = prompt.single_mut() {
-        nearby_prompt.clone_into(&mut *text);
+        **text = nearby_prompt;
     }
 
     let overlay_content: Option<(String, String, String)> = match story.stage {
@@ -1679,11 +1961,16 @@ mod tests {
             .insert("motel-room-01/mirror-01".to_owned(), "repaired".to_owned());
 
         let motel_access = MotelAccess { keys_found: true };
-        let save = SaveData::capture(&story, &interior_state, &motel_access);
+        let mut progression = Progression::default();
+        progression.add_tool(ToolId::Hammer);
+        progression.add_supply(SupplyId::Plank, 2);
+        let save = SaveData::capture(&story, &interior_state, &motel_access, &progression);
 
-        assert_eq!(save.version, 3);
+        assert_eq!(save.version, 4);
         assert_eq!(save.interior_states["motel-room-01/mirror-01"], "repaired");
         assert!(save.motel_keys_found);
+        assert!(save.progression.has_tool(ToolId::Hammer));
+        assert_eq!(save.progression.supply(SupplyId::Plank), 2);
     }
 
     #[test]

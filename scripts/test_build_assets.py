@@ -189,6 +189,14 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertEqual(sheet.getpixel((7, 11)), (12, 34, 56, 255))
         self.assertIn("LPC", provenance)
 
+    def test_restoration_world_props_have_native_pixel_canvases(self) -> None:
+        props = BUILD_ASSETS.draw_forage_and_tool_props()
+
+        self.assertEqual(props["fallen_log.png"].size, (64, 32))
+        self.assertEqual(props["plank.png"].size, (80, 24))
+        self.assertEqual(props["ladder.png"].size, (44, 112))
+        self.assertIsNotNone(props["ladder.png"].getbbox())
+
     def test_background_key_makes_opaque_sheet_whitespace_transparent(self) -> None:
         source_image = Image.new("RGB", (3, 1), (253, 253, 253))
         source_image.putpixel((1, 0), (40, 30, 20))

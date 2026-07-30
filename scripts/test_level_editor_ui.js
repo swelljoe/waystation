@@ -11,6 +11,7 @@ const {
   applyBackgroundKey,
   assetUrl,
   collisionCellsForRendering,
+  defaultTaskForKind,
   detectSmartRegions,
   draggedPlacementPosition,
   effectivePlacementLayer,
@@ -257,6 +258,11 @@ assert.match(index, /aria-pressed="true"/);
 assert.match(index, /id="repair-pair-library"/);
 assert.match(index, /id="pair-list"/);
 assert.match(index, /id="duplicate-pair"/);
+assert.match(index, /id="pair-action"/);
+assert.match(index, /id="pair-skill"/);
+assert.match(index, /id="pair-tools"/);
+assert.match(index, /id="pair-supplies"/);
+assert.match(index, /id="repaired-invisible"/);
 assert.match(index, /id="flip-horizontal"/);
 assert.match(index, /id="flip-vertical"/);
 assert.match(index, /id="snap-grid"/);
@@ -278,5 +284,10 @@ assert.ok(toolbarStart < placementInspector && placementInspector < toolbarEnd, 
 assert.ok(placementInspector < paletteStart, "selected placement inspector must not crowd the source palette");
 assert.match(styles, /grid-template-columns:\s*310px minmax\(460px, 1fr\) 585px/);
 assert.match(styles, /\.sheet-wrap\s*\{[^}]*min-height:\s*270px;[^}]*max-height:\s*70vh;/);
+
+assert.deepEqual(defaultTaskForKind("debris"), {
+  action: "clean", skill: "upkeep", level: 0, tools: [], supplies: [], xp: 1,
+});
+assert.deepEqual(defaultTaskForKind("chimney").tools, ["ladder"]);
 
 console.log("level editor UI tests passed");

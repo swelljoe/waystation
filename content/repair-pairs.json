@@ -26,6 +26,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "old-room-wall-1": {
@@ -53,6 +68,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "old-room-wall-2": {
@@ -80,6 +110,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "old-room-wall-3": {
@@ -107,6 +152,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "old-room-wall-4": {
@@ -134,6 +194,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "broken-floorboards-1": {
@@ -161,6 +236,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "carpentry",
+        "level": 0,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "broken-floorboards-2": {
@@ -188,6 +278,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "carpentry",
+        "level": 0,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged--brick-wall-1": {
@@ -215,6 +320,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-2": {
@@ -242,6 +362,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-3": {
@@ -269,6 +404,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-4": {
@@ -296,6 +446,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-5": {
@@ -323,6 +488,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-6": {
@@ -350,6 +530,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-7": {
@@ -377,6 +572,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-8": {
@@ -404,6 +614,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-9": {
@@ -431,6 +656,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-10": {
@@ -458,6 +698,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-11": {
@@ -485,6 +740,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-brick-wall-12": {
@@ -512,6 +782,21 @@
             "height": 4
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-gable-1": {
@@ -539,6 +824,22 @@
             "height": 126
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tile-48s-1": {
@@ -566,6 +867,22 @@
             "height": 18
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-gable-48-1": {
@@ -593,6 +910,22 @@
             "height": 72
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-root-tiles-1": {
@@ -620,6 +953,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-2": {
@@ -647,6 +996,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-3": {
@@ -674,6 +1039,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-4": {
@@ -701,6 +1082,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-5": {
@@ -728,6 +1125,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-6": {
@@ -755,6 +1168,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-7": {
@@ -782,6 +1211,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-8": {
@@ -809,6 +1254,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-9": {
@@ -836,6 +1297,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-10": {
@@ -863,6 +1340,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-11": {
@@ -890,6 +1383,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-roof-tiles-12": {
@@ -917,6 +1426,22 @@
             "height": 3
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "roofing",
+        "level": 0,
+        "tools": [
+          "hammer",
+          "ladder"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "broken-window-1": {
@@ -944,6 +1469,21 @@
             "height": 52
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "tall-chimney": {
@@ -971,6 +1511,16 @@
             "height": 248
           }
         }
+      },
+      "task": {
+        "action": "clear",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "ladder"
+        ],
+        "supplies": [],
+        "xp": 1
       }
     },
     "short-chimney": {
@@ -998,6 +1548,16 @@
             "height": 96
           }
         }
+      },
+      "task": {
+        "action": "clear",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "ladder"
+        ],
+        "supplies": [],
+        "xp": 1
       }
     },
     "broken-window-2": {
@@ -1025,6 +1585,21 @@
             "height": 52
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-door-1": {
@@ -1052,6 +1627,21 @@
             "height": 77
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-door-2": {
@@ -1079,6 +1669,21 @@
             "height": 77
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-door-3": {
@@ -1106,6 +1711,21 @@
             "height": 77
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "damaged-door-4": {
@@ -1133,6 +1753,21 @@
             "height": 77
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "broken-window-3": {
@@ -1160,6 +1795,21 @@
             "height": 52
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "old-room-wall-short-1": {
@@ -1187,6 +1837,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "big-old-bed-1": {
@@ -1214,6 +1879,21 @@
             "height": 90
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "carpentry",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "night-stand-1": {
@@ -1241,6 +1921,21 @@
             "height": 40
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "carpentry",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "tiny-trash-1": {
@@ -1259,15 +1954,16 @@
           }
         },
         "repaired": {
-          "source": {
-            "path": "horror hotel/tile-B-05.png",
-            "grid": 48,
-            "x": 4,
-            "y": 15,
-            "width": 1,
-            "height": 1
-          }
+          "visible": false
         }
+      },
+      "task": {
+        "action": "clean",
+        "skill": "upkeep",
+        "level": 0,
+        "tools": [],
+        "supplies": [],
+        "xp": 1
       }
     },
     "tiny-trash-2": {
@@ -1286,15 +1982,16 @@
           }
         },
         "repaired": {
-          "source": {
-            "path": "horror hotel/tile-B-05.png",
-            "grid": 48,
-            "x": 4,
-            "y": 15,
-            "width": 1,
-            "height": 1
-          }
+          "visible": false
         }
+      },
+      "task": {
+        "action": "clean",
+        "skill": "upkeep",
+        "level": 0,
+        "tools": [],
+        "supplies": [],
+        "xp": 1
       }
     },
     "tiny-trash-3": {
@@ -1313,15 +2010,16 @@
           }
         },
         "repaired": {
-          "source": {
-            "path": "horror hotel/tile-B-05.png",
-            "grid": 48,
-            "x": 4,
-            "y": 15,
-            "width": 1,
-            "height": 1
-          }
+          "visible": false
         }
+      },
+      "task": {
+        "action": "clean",
+        "skill": "upkeep",
+        "level": 0,
+        "tools": [],
+        "supplies": [],
+        "xp": 1
       }
     },
     "tiny-trash-4": {
@@ -1340,15 +2038,16 @@
           }
         },
         "repaired": {
-          "source": {
-            "path": "horror hotel/tile-B-05.png",
-            "grid": 48,
-            "x": 4,
-            "y": 15,
-            "width": 1,
-            "height": 1
-          }
+          "visible": false
         }
+      },
+      "task": {
+        "action": "clean",
+        "skill": "upkeep",
+        "level": 0,
+        "tools": [],
+        "supplies": [],
+        "xp": 1
       }
     },
     "tiny-trash-5": {
@@ -1367,15 +2066,16 @@
           }
         },
         "repaired": {
-          "source": {
-            "path": "horror hotel/tile-B-05.png",
-            "grid": 48,
-            "x": 4,
-            "y": 15,
-            "width": 1,
-            "height": 1
-          }
+          "visible": false
         }
+      },
+      "task": {
+        "action": "clean",
+        "skill": "upkeep",
+        "level": 0,
+        "tools": [],
+        "supplies": [],
+        "xp": 1
       }
     },
     "broken-lamp-1": {
@@ -1403,6 +2103,21 @@
             "height": 77
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "upkeep",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "broken-love-seat": {
@@ -1430,6 +2145,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "carpentry",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "broken-comfy-chair": {
@@ -1457,6 +2187,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "carpentry",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "broken-coffee-table": {
@@ -1484,6 +2229,21 @@
             "height": 1
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "carpentry",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "old-room-wall-shortest": {
@@ -1511,6 +2271,21 @@
             "height": 6
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "stone-fireplace-1": {
@@ -1538,6 +2313,21 @@
             "height": 75
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "stone-fireplace-chimney-extension": {
@@ -1565,6 +2355,21 @@
             "height": 6
           }
         }
+      },
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
       }
     },
     "trash-pile-1": {
@@ -1583,15 +2388,16 @@
           }
         },
         "repaired": {
-          "source": {
-            "path": "horror hotel/tile-B-02.png",
-            "grid": 48,
-            "x": 2,
-            "y": 14,
-            "width": 2,
-            "height": 2
-          }
+          "visible": false
         }
+      },
+      "task": {
+        "action": "clean",
+        "skill": "upkeep",
+        "level": 0,
+        "tools": [],
+        "supplies": [],
+        "xp": 1
       }
     },
     "old-desk": {
@@ -1619,6 +2425,21 @@
             "height": 2
           }
         }
+      },
+      "task": {
+        "action": "restore",
+        "skill": "carpentry",
+        "level": 0,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 3
       }
     }
   }

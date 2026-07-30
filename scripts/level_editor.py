@@ -102,6 +102,7 @@ def validate_repair_pair(pair: Any, pair_id: str, asset_root: Path) -> list[str]
         errors.append(f"{label} has an invalid kind")
     if pair.get("layer") not in {"floor", "wall", "object", "overlay"}:
         errors.append(f"{label} has an invalid layer")
+    errors.extend(validate_task(pair.get("task"), label))
     states = pair.get("states")
     if not isinstance(states, dict):
         return [*errors, f"{label} needs damaged and repaired visual states"]
@@ -136,6 +137,45 @@ def validate_repair_pair(pair: Any, pair_id: str, asset_root: Path) -> list[str]
         ):
             errors.append(f"{state_label} has an invalid source rectangle")
         errors.extend(validate_background_key(source, state_label))
+    return errors
+
+
+def validate_task(task: Any, label: str) -> list[str]:
+    """Validate optional gameplay requirements while legacy pairs remain usable."""
+    if task is None:
+        return []
+    task_label = f"{label}.task"
+    if not isinstance(task, dict):
+        return [f"{task_label} must be an object"]
+    errors = []
+    if task.get("action") not in {"clean", "repair", "clear", "restore", "light"}:
+        errors.append(f"{task_label} has an invalid action")
+    if task.get("skill") not in {"upkeep", "carpentry", "masonry", "roofing"}:
+        errors.append(f"{task_label} has an invalid skill")
+    level = task.get("level", 0)
+    if not isinstance(level, int) or not 0 <= level <= 3:
+        errors.append(f"{task_label}.level must be an integer from 0 to 3")
+    xp = task.get("xp", 1)
+    if not isinstance(xp, int) or not 0 <= xp <= 20:
+        errors.append(f"{task_label}.xp must be an integer from 0 to 20")
+    tools = task.get("tools", [])
+    if not isinstance(tools, list) or any(
+        tool not in {"hammer", "hatchet", "trowel", "ladder"} for tool in tools
+    ):
+        errors.append(f"{task_label}.tools contains an unknown tool")
+    supplies = task.get("supplies", [])
+    if not isinstance(supplies, list):
+        errors.append(f"{task_label}.supplies must be an array")
+    else:
+        for index, cost in enumerate(supplies):
+            if (
+                not isinstance(cost, dict)
+                or cost.get("item")
+                not in {"kindling", "log", "plank", "nails", "stone", "cloth"}
+                or not isinstance(cost.get("amount"), int)
+                or not 1 <= cost["amount"] <= 99
+            ):
+                errors.append(f"{task_label}.supplies[{index}] is invalid")
     return errors
 
 
@@ -226,6 +266,7 @@ def validate_level(
             errors.append(f"{label} has an invalid kind")
         if template.get("layer") not in {"floor", "wall", "object", "overlay"}:
             errors.append(f"{label} has an invalid layer")
+        errors.extend(validate_task(template.get("task"), label))
         states = template.get("states")
         if not isinstance(states, dict) or not states:
             errors.append(f"{label} needs visual states")

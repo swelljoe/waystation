@@ -32,6 +32,19 @@ Both fonts are distributed under the SIL Open Font License 1.1. Their license
 texts are stored beside the canonical font files in `open-assets/fonts`; the
 asset build verifies and copies them into `runtime-assets/fonts`.
 
+For the hosted demo, `make publish-demo-assets` performs a strict private build
+and uploads only `runtime-assets/` to the `demo-runtime-assets` Release. The
+repository is private, and default-branch CI overlays this archive after its open
+fallback build. This keeps purchased source sheets and catalogs out of git while
+allowing the licensed game build to be served. Delete that Release before making
+the source repository public; recreate an equivalent private delivery boundary
+if the project is later open-sourced.
+
+The web shell links to the complete, revision-pinned Universal LPC Generator
+credits and license catalog for the Scribe sheet. The deliberately comprehensive
+catalog is used because the original per-export selection file was not retained.
+Regenerate the Scribe with its selection-specific credits before a final release.
+
 Scripture text is fetched at runtime from YouVersion. The default development
 fixtures use short passages from the public-domain Berean Standard Bible and are
 identified as fixtures in the UI.

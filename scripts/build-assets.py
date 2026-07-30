@@ -455,6 +455,37 @@ def build_kindling_piles(props_path: Path) -> dict[str, Image.Image]:
     return piles
 
 
+def draw_forage_and_tool_props() -> dict[str, Image.Image]:
+    """Small world props used by the first restoration-gathering loop."""
+    fallen_log = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
+    log_draw = ImageDraw.Draw(fallen_log)
+    draw_fallback_log(log_draw, (3, 9, 58, 27))
+    px(log_draw, (14, 5, 18, 12), "#77543b")
+    px(log_draw, (38, 3, 42, 11), "#77543b")
+
+    plank = Image.new("RGBA", (80, 24), (0, 0, 0, 0))
+    plank_draw = ImageDraw.Draw(plank)
+    plank_draw.polygon([(2, 8), (74, 3), (78, 15), (5, 21)], fill="#9d7748")
+    plank_draw.line([(6, 11), (72, 6)], fill="#c39a5b", width=2)
+    plank_draw.line([(8, 18), (74, 12)], fill="#77543b", width=1)
+
+    ladder = Image.new("RGBA", (44, 112), (0, 0, 0, 0))
+    ladder_draw = ImageDraw.Draw(ladder)
+    px(ladder_draw, (7, 3, 12, 108), "#77543b")
+    px(ladder_draw, (31, 3, 36, 108), "#77543b")
+    px(ladder_draw, (9, 3, 10, 108), "#c39a5b")
+    px(ladder_draw, (33, 3, 34, 108), "#c39a5b")
+    for y in range(13, 103, 15):
+        px(ladder_draw, (9, y, 34, y + 4), "#9d7748")
+        px(ladder_draw, (11, y, 32, y + 1), "#c39a5b")
+
+    return {
+        "fallen_log.png": fallen_log,
+        "plank.png": plank,
+        "ladder.png": ladder,
+    }
+
+
 def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     world = output / "world"
     world.mkdir(parents=True, exist_ok=True)
@@ -487,6 +518,9 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     for name, image in build_kindling_piles(props_path).items():
         image.save(world / name, optimize=False)
         sources[name] = kindling_source
+    for name, image in draw_forage_and_tool_props().items():
+        image.save(world / name, optimize=False)
+        sources[name] = fallback
 
     private_tree = source / "THE NATURAL/Props/Tree 08.png"
     tree = Image.open(private_tree).convert("RGBA") if private_tree.is_file() else draw_tree()

@@ -72,6 +72,46 @@
               <option value="overlay">Overlay (top)</option>
             </select>
           </label>
+          <fieldset class="task-editor">
+            <legend>Player task</legend>
+            <div class="task-grid">
+              <label>Action
+                <select id="pair-action">
+                  <option value="clean">Clean</option>
+                  <option value="repair" selected>Repair</option>
+                  <option value="clear">Clear</option>
+                  <option value="restore">Restore</option>
+                  <option value="light">Light</option>
+                </select>
+              </label>
+              <label>Skill
+                <select id="pair-skill">
+                  <option value="upkeep">Upkeep</option>
+                  <option value="carpentry">Carpentry</option>
+                  <option value="masonry">Masonry</option>
+                  <option value="roofing">Roofing</option>
+                </select>
+              </label>
+              <label>Level <input id="pair-level" type="number" min="0" max="3" value="0" /></label>
+              <label>XP <input id="pair-xp" type="number" min="0" max="20" value="1" /></label>
+            </div>
+            <span class="field-label">Durable tools</span>
+            <div class="check-grid" id="pair-tools">
+              <label><input type="checkbox" value="hammer" /> Hammer</label>
+              <label><input type="checkbox" value="hatchet" /> Hatchet</label>
+              <label><input type="checkbox" value="trowel" /> Trowel</label>
+              <label><input type="checkbox" value="ladder" /> Ladder</label>
+            </div>
+            <span class="field-label">Consumed supplies</span>
+            <div class="supply-grid" id="pair-supplies">
+              <label>Kindling <input type="number" min="0" max="99" value="0" data-supply="kindling" /></label>
+              <label>Logs <input type="number" min="0" max="99" value="0" data-supply="log" /></label>
+              <label>Planks <input type="number" min="0" max="99" value="0" data-supply="plank" /></label>
+              <label>Nails <input type="number" min="0" max="99" value="0" data-supply="nails" /></label>
+              <label>Stone <input type="number" min="0" max="99" value="0" data-supply="stone" /></label>
+              <label>Cloth <input type="number" min="0" max="99" value="0" data-supply="cloth" /></label>
+            </div>
+          </fieldset>
           <label>Behavior
             <select id="behavior">
               <option value="baked">Baked scenery</option>
@@ -158,8 +198,9 @@
             <button id="capture-repaired">Use selection as repaired</button>
             <small id="repaired-source">not captured</small>
           </div>
+          <label class="inline-check"><input id="repaired-invisible" type="checkbox" /> Completed state is invisible (debris is removed)</label>
           <button id="save-pair" class="primary" type="button">Save pair</button>
-          <p class="hint">Each pair has its own stable ID. Either crop may be reused by any number of other pairs. Select a saved pair, choose repairable structure or fixture above, then stamp it into the room.</p>
+          <p class="hint">Task requirements belong to the reusable pair, so every placement asks for the same skill, durable tools, and consumed supplies. Use an invisible completed state for debris that simply disappears.</p>
         </section>
         <details>
           <summary>Room format</summary>

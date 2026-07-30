@@ -1,7 +1,16 @@
-.PHONY: assets catalog editor check test analyze build server game web container run-container
+.PHONY: assets prints add-print print-art catalog editor check test analyze build server game web publish-demo-assets container run-container
 
 assets:
 	python3 scripts/build-assets.py
+
+prints:
+	python3 scripts/build-print-cards.py
+
+add-print:
+	python3 scripts/add-print.py
+
+print-art:
+	python3 scripts/generate-print-art.py
 
 catalog:
 	python3 scripts/asset_catalog.py --output assets/.catalog.json
@@ -15,6 +24,10 @@ check:
 test:
 	python3 scripts/test_asset_catalog.py
 	python3 scripts/test_build_assets.py
+	python3 scripts/test_build_print_cards.py
+	python3 scripts/test_add_print.py
+	python3 scripts/test_generate_print_art.py
+	python3 scripts/test_publish_demo_assets.py
 	python3 scripts/test_level_editor.py
 	node scripts/test_level_editor_ui.js
 	cargo test --workspace
@@ -33,7 +46,10 @@ game:
 	cargo run -p waystation-game
 
 web: assets
-	trunk build web/index.html --release --dist dist
+	NO_COLOR=true trunk build --release
+
+publish-demo-assets:
+	python3 scripts/publish-demo-assets.py
 
 container: assets
 	podman build -t waystation:latest -f Containerfile .

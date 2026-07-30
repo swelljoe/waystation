@@ -12,8 +12,8 @@
 use bevy::{prelude::*, sprite::Text2dShadow};
 
 pub const TILE_SIZE: f32 = 32.0;
-pub const MAP_WIDTH: usize = 96;
-pub const MAP_HEIGHT: usize = 64;
+pub const MAP_WIDTH: usize = 144;
+pub const MAP_HEIGHT: usize = 96;
 pub const MAP_HALF_WIDTH: f32 = MAP_WIDTH as f32 * TILE_SIZE / 2.0;
 pub const MAP_HALF_HEIGHT: f32 = MAP_HEIGHT as f32 * TILE_SIZE / 2.0;
 pub const WORLD_SEED: u64 = 0x5741_5953_5441_5449;
@@ -875,37 +875,25 @@ mod tests {
     }
 
     #[test]
-    fn reported_road_corner_is_composed_at_the_shared_intersection() {
-        let grid = WorldGrid::generate(WORLD_SEED);
-        let masks = [
-            DualGridMask::at_intersection(&grid, 29, 24),
-            DualGridMask::at_intersection(&grid, 29, 25),
-            DualGridMask::at_intersection(&grid, 30, 24),
-            DualGridMask::at_intersection(&grid, 30, 25),
-        ];
+    fn three_dirt_cells_at_a_shared_corner_use_the_matching_transition() {
+        let mut grid = WorldGrid {
+            cells: vec![Terrain::Grass; MAP_WIDTH * MAP_HEIGHT],
+        };
+        let (x, y) = (MAP_WIDTH / 2, MAP_HEIGHT / 2);
+        grid.set(x - 1, y, Terrain::Dirt);
+        grid.set(x, y - 1, Terrain::Dirt);
+        grid.set(x - 1, y - 1, Terrain::Dirt);
 
-        assert_eq!(grid.get(28, 24), Terrain::Dirt);
-        assert_eq!(grid.get(29, 24), Terrain::Grass);
-        assert_eq!(grid.get(28, 23), Terrain::Dirt);
-        assert_eq!(grid.get(29, 23), Terrain::Dirt);
-        assert_eq!(masks, [15, 15, 15, 13].map(DualGridMask));
-        assert_eq!(dual_grid_index(masks[3], 0), DIRT_EXCEPT_NE);
+        let mask = DualGridMask::at_intersection(&grid, x + 1, y + 1);
+        assert_eq!(mask, DualGridMask(13));
+        assert_eq!(dual_grid_index(mask, 0), DIRT_EXCEPT_NE);
     }
 
     #[test]
-    fn reported_diagonal_staircase_renders_convex_corners_as_grass() {
-        let grid = WorldGrid::generate(WORLD_SEED);
-        for (x, y, mask, index, source) in [
-            (23, 24, 2, GRASS_PLAIN, (0, 0)),
-            (24, 23, 2, GRASS_PLAIN, (0, 0)),
-            (25, 22, 2, GRASS_PLAIN, (0, 0)),
-            (24, 24, 7, DIRT_EXCEPT_SW, (5, 2)),
-            (25, 23, 7, DIRT_EXCEPT_SW, (5, 2)),
-        ] {
-            let actual_mask = DualGridMask::at_intersection(&grid, x, y);
-            let actual_index = dual_grid_index(actual_mask, 0);
+    fn diagonal_staircase_masks_keep_convex_corners_grassy() {
+        for (mask, index, source) in [(2, GRASS_PLAIN, (0, 0)), (7, DIRT_EXCEPT_SW, (5, 2))] {
+            let actual_index = dual_grid_index(DualGridMask(mask), 0);
             let info = TILE_DEBUG_INFO[actual_index];
-            assert_eq!(actual_mask, DualGridMask(mask));
             assert_eq!(actual_index, index);
             assert_eq!((info.source_column, info.source_row), source);
         }

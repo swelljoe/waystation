@@ -3,6 +3,10 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   native:
@@ -29,6 +33,45 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: trunk
-      - run: python3 scripts/build-assets.py
-      - run: trunk build web/index.html --release --dist dist
+      - name: Asset build dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3-pil
+      - name: Build browser game
+        run: make web
+      - name: Add licensed demo runtime art
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/waystation-demo-assets"
+          gh release download demo-runtime-assets \
+            --pattern waystation-runtime-assets.tar.gz \
+            --dir "$RUNNER_TEMP/waystation-demo-assets"
+          tar -xzf "$RUNNER_TEMP/waystation-demo-assets/waystation-runtime-assets.tar.gz" \
+            -C dist
+      - name: Upload downloadable browser build
+        uses: actions/upload-artifact@v4
+        with:
+          name: waystation-web
+          path: dist
+          if-no-files-found: error
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
 
+  deploy-web:
+    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+    needs: web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy browser game to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

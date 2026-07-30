@@ -57,11 +57,30 @@
         color: #a99a77;
         pointer-events: none;
       }
+      .credits-link {
+        position: fixed;
+        right: 0.7rem;
+        bottom: 0.35rem;
+        z-index: 2;
+        color: #a99a77;
+        font-size: 0.85rem;
+        text-decoration-color: #6f603f;
+      }
+      .credits-link:hover,
+      .credits-link:focus-visible {
+        color: #eadcb9;
+      }
     </style>
   </head>
   <body>
     <noscript>This game requires WebAssembly and JavaScript.</noscript>
     <div class="loading">Lighting the hearth…</div>
+    <a
+      class="credits-link"
+      href="https://raw.githubusercontent.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator/0f898bb675a1abe16ce430e82e3bf9daed278690/CREDITS.csv"
+      target="_blank"
+      rel="noopener noreferrer"
+    >LPC sprite credits &amp; licenses</a>
     <script>
       const observer = new MutationObserver(() => {
         if (document.querySelector("canvas")) {

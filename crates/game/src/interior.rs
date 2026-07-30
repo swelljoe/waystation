@@ -5,6 +5,8 @@ use std::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 use serde::Deserialize;
 
+use crate::progression::TaskSpec;
+
 pub const INTERIOR_ORIGIN: Vec2 = Vec2::new(8_192.0, 0.0);
 pub const MOTEL_EXTERIOR_ORIGIN: Vec2 = Vec2::new(0.0, 100.0);
 
@@ -126,6 +128,8 @@ struct ElementTemplateDefinition {
     label: String,
     kind: String,
     layer: String,
+    #[serde(default)]
+    task: Option<TaskSpec>,
     states: HashMap<String, VisualDefinition>,
 }
 
@@ -215,6 +219,7 @@ pub struct MutableElement {
     pub id: String,
     pub label: String,
     pub kind: String,
+    pub task: TaskSpec,
     pub layer: String,
     pub pixel_x: f32,
     pub pixel_y: f32,
@@ -280,6 +285,10 @@ impl SceneMap {
                     id: instance.id,
                     label: template.label.clone(),
                     kind: template.kind.clone(),
+                    task: template
+                        .task
+                        .clone()
+                        .unwrap_or_else(|| TaskSpec::for_kind(&template.kind)),
                     layer,
                     pixel_x: pixel_position.x,
                     pixel_y: pixel_position.y,
@@ -657,5 +666,19 @@ mod tests {
         assert_eq!(instance.layer.as_deref(), Some("overlay"));
         assert_eq!(instance.resolved_layer("object"), "overlay");
         assert_eq!(instance.pixel_position(32.0), Vec2::new(48.0, 80.0));
+    }
+
+    #[test]
+    fn debris_uses_a_no_tool_cleaning_task_by_default() {
+        let room = InteriorMap::load(InteriorId::Office);
+        let debris = room
+            .mutable_elements()
+            .iter()
+            .find(|element| element.kind == "debris")
+            .expect("office has authored debris");
+
+        assert_eq!(debris.task.action, crate::progression::TaskAction::Clean);
+        assert!(debris.task.tools.is_empty());
+        assert!(debris.task.supplies.is_empty());
     }
 }
