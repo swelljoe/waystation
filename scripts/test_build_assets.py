@@ -172,6 +172,23 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertEqual(rendered.getpixel((0, 0)), (0, 0, 0, 0))
         self.assertEqual(rendered.getpixel((3, 4)), (255, 0, 0, 255))
 
+    def test_scribe_sheet_keeps_the_complete_lpc_action_grid(self) -> None:
+        custom = self.assets / "custom"
+        custom.mkdir()
+        expected_size = (
+            BUILD_ASSETS.SCRIBE_COLUMNS * BUILD_ASSETS.SCRIBE_FRAME_SIZE,
+            BUILD_ASSETS.SCRIBE_ROWS * BUILD_ASSETS.SCRIBE_FRAME_SIZE,
+        )
+        source = Image.new("RGBA", expected_size, (0, 0, 0, 0))
+        source.putpixel((7, 11), (12, 34, 56, 255))
+        source.save(custom / "scribe.png")
+
+        sheet, provenance = BUILD_ASSETS.build_scribe_sheet(self.assets)
+
+        self.assertEqual(sheet.size, expected_size)
+        self.assertEqual(sheet.getpixel((7, 11)), (12, 34, 56, 255))
+        self.assertIn("LPC", provenance)
+
     def test_background_key_makes_opaque_sheet_whitespace_transparent(self) -> None:
         source_image = Image.new("RGB", (3, 1), (253, 253, 253))
         source_image.putpixel((1, 0), (40, 30, 20))

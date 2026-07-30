@@ -1027,7 +1027,7 @@
         }
       }
     },
-    "dmaaged-door-1": {
+    "damaged-door-1": {
       "label": "Damaged Door 1",
       "kind": "door",
       "layer": "object",
@@ -1054,7 +1054,7 @@
         }
       }
     },
-    "damagd-door-2": {
+    "damaged-door-2": {
       "label": "Damaged Door 2",
       "kind": "door",
       "layer": "object",

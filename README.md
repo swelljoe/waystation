@@ -38,11 +38,23 @@ The fixture server listens on `http://127.0.0.1:7777`. Controls are:
 The development client currently uses a fixed 2× presentation scale for both
 world rendering and UI. This is temporary until dynamic display scaling is added.
 
-To start directly in the authored motel room while iterating on interiors, run:
+To start directly in the authored motel office while iterating on interiors, run:
 
 ```bash
 WAYSTATION_START_INTERIOR=1 cargo run -p waystation-game
 ```
+
+The valley motel now uses `content/buildings/motel-exterior.json` and the office
+plus rooms 1–6 use their matching documents under `content/interiors`. Exterior
+doors route left-to-right to the office and numbered rooms. The office and room
+5 begin unlocked; searching the authored office desk finds the keys for the
+remaining rooms. Every room returns the Scribe to the same exterior doorstep it
+was entered from.
+
+The Scribe uses the complete 13×54 LPC action sheet from
+`assets/custom/scribe.png`. Movement currently animates the four nine-frame walk
+rows at native pixel scale; the remaining action rows stay in the runtime atlas
+for future tool, farming, sitting, climbing, expression, and combat systems.
 
 ## Author interiors and buildings
 

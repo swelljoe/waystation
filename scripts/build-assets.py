@@ -23,6 +23,9 @@ MANIFEST = ROOT / "assets-manifest.json"
 PALETTE = ["#f1dfad", "#c39a5b", "#77543b", "#34322a", "#78966b", "#9d5f55"]
 CARD_SIZE = (96, 64)
 TERRAIN_TILE_SIZE = 32
+SCRIBE_FRAME_SIZE = 64
+SCRIBE_COLUMNS = 13
+SCRIBE_ROWS = 54
 INTERIOR_ROOT = ROOT / "content/interiors"
 BUILDING_ROOT = ROOT / "content/buildings"
 REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
@@ -353,6 +356,40 @@ def draw_scribe() -> Image.Image:
     return image
 
 
+def build_scribe_sheet(source: Path) -> tuple[Image.Image, str]:
+    """Preserve the complete LPC action sheet, with a compatible open fallback."""
+    private_scribe = source / "custom/scribe.png"
+    expected_size = (
+        SCRIBE_COLUMNS * SCRIBE_FRAME_SIZE,
+        SCRIBE_ROWS * SCRIBE_FRAME_SIZE,
+    )
+    if private_scribe.is_file():
+        sheet = Image.open(private_scribe).convert("RGBA")
+        if sheet.size != expected_size:
+            raise SystemExit(
+                f"scribe sheet must be {expected_size[0]}x{expected_size[1]}: "
+                f"{private_scribe} is {sheet.width}x{sheet.height}"
+            )
+        return sheet, "custom LPC-based character action sheet"
+
+    frame = draw_scribe()
+    sheet = Image.new("RGBA", expected_size, (0, 0, 0, 0))
+    frame_offset = (
+        (SCRIBE_FRAME_SIZE - frame.width) // 2,
+        SCRIBE_FRAME_SIZE - frame.height,
+    )
+    for row in range(SCRIBE_ROWS):
+        for column in range(SCRIBE_COLUMNS):
+            sheet.alpha_composite(
+                frame,
+                (
+                    column * SCRIBE_FRAME_SIZE + frame_offset[0],
+                    row * SCRIBE_FRAME_SIZE + frame_offset[1],
+                ),
+            )
+    return sheet, "project-authored procedural fallback"
+
+
 def draw_tree() -> Image.Image:
     image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
@@ -421,6 +458,8 @@ def build_kindling_piles(props_path: Path) -> dict[str, Image.Image]:
 def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     world = output / "world"
     world.mkdir(parents=True, exist_ok=True)
+    for stale in world.glob("*.png"):
+        stale.unlink()
     fallback = "project-authored procedural fallback"
     sources: dict[str, str] = {}
     terrain_path = source / "Modern_Farm_v1.2/32x32/1_Terrains_32x32.png"
@@ -439,11 +478,9 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
             "water.png": patterned_tile("#2f6670", "#4a8490", 11),
         }
         tile_source = fallback
-    tiles["stone.png"] = patterned_tile("#59594f", "#77766a", 13)
-    tiles["floor.png"] = patterned_tile("#3f3428", "#594634", 17)
     for name, image in tiles.items():
         image.save(world / name, optimize=False)
-        sources[name] = tile_source if name in {"grass.png", "road.png", "water.png"} else fallback
+        sources[name] = tile_source
 
     props_path = source / PROPS_SHEET
     kindling_source = "licensed Modern Farm runtime extraction" if props_path.is_file() else fallback
@@ -458,8 +495,9 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     terrain_atlas, terrain_atlas_source = build_terrain_atlas(source)
     terrain_atlas.save(world / "terrain.png", optimize=False)
     sources["terrain.png"] = terrain_atlas_source
-    draw_scribe().save(world / "scribe.png", optimize=False)
-    sources["scribe.png"] = fallback
+    scribe, scribe_source = build_scribe_sheet(source)
+    scribe.save(world / "scribe.png", optimize=False)
+    sources["scribe.png"] = scribe_source
     records = []
     for path in sorted(world.glob("*.png")):
         records.append(

@@ -25,8 +25,11 @@ const CAMERA_HALF_WIDTH: f32 = 480.0 / DEVELOPMENT_PRESENTATION_SCALE;
 const CAMERA_HALF_HEIGHT: f32 = 270.0 / DEVELOPMENT_PRESENTATION_SCALE;
 const ROMAN_FONT_PATH: &str = "fonts/EBGaramond-Variable.ttf";
 const EMOJI_FONT_PATH: &str = "fonts/NotoEmoji-Variable.ttf";
-const MOTEL_DOOR_POSITION: Vec2 = Vec2::new(120.0, -68.0);
-const EXTERIOR_DOORSTEP_POSITION: Vec2 = Vec2::new(120.0, -112.0);
+const SCRIBE_ATLAS_COLUMNS: u32 = 13;
+const SCRIBE_ATLAS_ROWS: u32 = 54;
+const SCRIBE_FRAME_SIZE: u32 = 64;
+const SCRIBE_WALK_FRAMES: usize = 9;
+const SCRIBE_WALK_SECONDS_PER_FRAME: f32 = 0.11;
 
 fn main() {
     App::new()
@@ -35,6 +38,8 @@ fn main() {
         .insert_resource(Story::default())
         .insert_resource(InterpretInbox::default())
         .insert_resource(initial_world_location())
+        .insert_resource(MotelAccess::default())
+        .insert_resource(ExteriorReturn::default())
         .init_resource::<terrain::TerrainDebugOverlay>()
         .init_resource::<InteriorState>()
         .add_plugins(
@@ -63,6 +68,7 @@ fn main() {
             Update,
             (
                 move_player,
+                animate_player,
                 follow_player,
                 terrain::update_debug_overlay,
                 update_nearby_interaction,
@@ -105,6 +111,33 @@ const fn asset_root() -> &'static str {
 #[derive(Component)]
 struct Player;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Facing {
+    Up,
+    Left,
+    Down,
+    Right,
+}
+
+impl Facing {
+    const fn walk_row(self) -> usize {
+        match self {
+            Self::Up => 8,
+            Self::Left => 9,
+            Self::Down => 10,
+            Self::Right => 11,
+        }
+    }
+}
+
+#[derive(Component)]
+struct PlayerAnimation {
+    timer: Timer,
+    facing: Facing,
+    frame: usize,
+    last_position: Vec2,
+}
+
 #[derive(Component)]
 struct MainCamera;
 
@@ -116,13 +149,13 @@ enum InteractableKind {
     Sign,
     Kindling,
     Hearth,
-    Bible,
     Plank,
     Desk,
     Traveler,
     MotelDoor,
     InteriorExit,
     InteriorRepairable,
+    ExteriorRepairable,
 }
 
 #[derive(Component)]
@@ -132,9 +165,31 @@ struct Interactable {
 }
 
 #[derive(Component)]
-struct MutableInteriorElement {
+struct MutableSceneElement {
+    scene_id: String,
     id: String,
     state: String,
+}
+
+#[derive(Component, Clone, Copy)]
+struct MotelDoorDestination {
+    interior_id: interior::InteriorId,
+    initially_unlocked: bool,
+    doorstep: Vec2,
+}
+
+#[derive(Resource, Default)]
+struct MotelAccess {
+    keys_found: bool,
+}
+
+#[derive(Resource)]
+struct ExteriorReturn(Vec2);
+
+impl Default for ExteriorReturn {
+    fn default() -> Self {
+        Self(Vec2::new(-570.5, -134.5))
+    }
 }
 
 #[derive(Resource, Default)]
@@ -236,13 +291,15 @@ struct SaveData {
     card: CardRecipe,
     #[serde(default)]
     interior_states: HashMap<String, String>,
+    #[serde(default)]
+    motel_keys_found: bool,
 }
 
 impl SaveData {
     #[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
-    fn capture(story: &Story, interior_state: &InteriorState) -> Self {
+    fn capture(story: &Story, interior_state: &InteriorState, motel_access: &MotelAccess) -> Self {
         Self {
-            version: 2,
+            version: 3,
             stage: story.stage,
             kindling: story.kindling,
             vignette_index: story.vignette_index,
@@ -250,6 +307,7 @@ impl SaveData {
             result: story.result.clone(),
             card: story.card.clone(),
             interior_states: interior_state.0.clone(),
+            motel_keys_found: motel_access.keys_found,
         }
     }
 }
@@ -319,30 +377,56 @@ fn setup_world(
     let world_grid =
         terrain::spawn_terrain(&mut commands, &asset_server, &mut texture_atlas_layouts);
     commands.insert_resource(world_grid);
-    let stone = asset_server.load("world/stone.png");
-    let floor = asset_server.load("world/floor.png");
     let tree = asset_server.load("world/tree.png");
     let scribe = asset_server.load("world/scribe.png");
-    let interior_map = interior::InteriorMap::motel_room();
-    interior::spawn(&mut commands, &asset_server, &interior_map);
-    for element in interior_map.mutable_elements() {
-        let state_key = format!("{}/{}", interior_map.id, element.id);
+    let motel = interior::MotelExteriorMap::load();
+    interior::spawn_building(&mut commands, &asset_server, &motel);
+    let door_routes = motel_door_routes(&motel);
+    for element in motel.mutable_elements() {
+        let state_key = format!("{}/{}", motel.id(), element.id);
         let state = interior_state
             .0
             .get(&state_key)
             .map_or(element.initial_state.as_str(), String::as_str);
         let entity =
-            interior::spawn_mutable(&mut commands, &asset_server, &interior_map, element, state);
+            interior::spawn_building_mutable(&mut commands, &asset_server, &motel, element, state);
+        let kind = if door_routes.contains_key(&element.id) {
+            InteractableKind::MotelDoor
+        } else {
+            InteractableKind::ExteriorRepairable
+        };
         commands.entity(entity).insert((
             Interactable {
-                kind: InteractableKind::InteriorRepairable,
-                consumed: state == "repaired",
+                kind,
+                consumed: kind != InteractableKind::MotelDoor && state == "repaired",
             },
-            MutableInteriorElement {
+            MutableSceneElement {
+                scene_id: motel.id().to_owned(),
                 id: element.id.clone(),
                 state: state.to_owned(),
             },
         ));
+        if let Some(&interior_id) = door_routes.get(&element.id) {
+            let visual = element
+                .states
+                .get(state)
+                .or_else(|| element.states.get(&element.initial_state))
+                .expect("door needs its authored visual");
+            let doorstep = motel.element_center(element, visual.size) + Vec2::new(0.0, -52.0);
+            commands.entity(entity).insert(MotelDoorDestination {
+                interior_id,
+                initially_unlocked: matches!(
+                    interior_id,
+                    interior::InteriorId::Office | interior::InteriorId::Room05
+                ),
+                doorstep,
+            });
+        }
+    }
+
+    let interior_map = interior::InteriorMap::load(interior::InteriorId::Office);
+    if *location == WorldLocation::Interior {
+        spawn_interior_scene(&mut commands, &asset_server, &interior_map, &interior_state);
     }
 
     // Protected valley: tree-shadow slopes and the stone motel court sit over
@@ -366,26 +450,6 @@ fn setup_world(
         ));
     }
 
-    // Motel shell and three rooms.
-    spawn_tile_grid(&mut commands, stone, Vec2::new(-144.0, -16.0), 25, 11, -4.0);
-    spawn_tile_grid(&mut commands, floor, Vec2::new(-112.0, 16.0), 23, 8, -3.0);
-    for x in [-5.0, 245.0, 495.0] {
-        spawn_rect(
-            &mut commands,
-            Vec2::new(x, 105.0),
-            Vec2::new(12.0, 230.0),
-            Color::srgb(0.36, 0.37, 0.32),
-            -2.0,
-        );
-    }
-    spawn_rect(
-        &mut commands,
-        Vec2::new(245.0, -35.0),
-        Vec2::new(780.0, 52.0),
-        Color::srgb(0.23, 0.24, 0.20),
-        -2.0,
-    );
-
     spawn_interactable(
         &mut commands,
         InteractableKind::Sign,
@@ -408,38 +472,10 @@ fn setup_world(
     }
     spawn_interactable(
         &mut commands,
-        InteractableKind::Hearth,
-        Vec2::new(390.0, 135.0),
-        Vec2::new(70.0, 62.0),
-        Color::srgb(0.16, 0.13, 0.12),
-    );
-    spawn_interactable(
-        &mut commands,
-        InteractableKind::Bible,
-        Vec2::new(120.0, 130.0),
-        Vec2::new(32.0, 24.0),
-        Color::srgb(0.36, 0.12, 0.08),
-    );
-    spawn_interactable(
-        &mut commands,
         InteractableKind::Plank,
         Vec2::new(625.0, -175.0),
         Vec2::new(88.0, 24.0),
         Color::srgb(0.48, 0.31, 0.16),
-    );
-    spawn_interactable(
-        &mut commands,
-        InteractableKind::Desk,
-        Vec2::new(265.0, 125.0),
-        Vec2::new(82.0, 54.0),
-        Color::srgb(0.30, 0.20, 0.12),
-    );
-    spawn_interactable(
-        &mut commands,
-        InteractableKind::MotelDoor,
-        MOTEL_DOOR_POSITION,
-        Vec2::new(34.0, 22.0),
-        Color::srgb(0.24, 0.13, 0.08),
     );
     let traveler = spawn_interactable(
         &mut commands,
@@ -457,46 +493,115 @@ fn setup_world(
     } else {
         Vec2::new(-650.0, -260.0)
     };
+    let scribe_layout = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(SCRIBE_FRAME_SIZE),
+        SCRIBE_ATLAS_COLUMNS,
+        SCRIBE_ATLAS_ROWS,
+        None,
+        None,
+    ));
+    let facing = Facing::Down;
     commands.spawn((
-        Sprite::from_image(scribe),
+        Sprite {
+            image: scribe,
+            texture_atlas: Some(TextureAtlas {
+                layout: scribe_layout,
+                index: facing.walk_row() * SCRIBE_ATLAS_COLUMNS as usize,
+            }),
+            ..default()
+        },
         Transform::from_xyz(player_position.x, player_position.y, 5.0),
         Player,
+        PlayerAnimation {
+            timer: Timer::from_seconds(SCRIBE_WALK_SECONDS_PER_FRAME, TimerMode::Repeating),
+            facing,
+            frame: 0,
+            last_position: player_position,
+        },
     ));
-    spawn_interactable(
-        &mut commands,
-        InteractableKind::InteriorExit,
-        interior_map.cell_center(interior_map.exits[0]),
-        Vec2::splat(30.0),
-        Color::srgba(0.0, 0.0, 0.0, 0.0),
-    );
+    commands.insert_resource(motel);
     commands.insert_resource(interior_map);
     commands.insert_resource(Nearby::default());
 }
 
-fn spawn_tile_grid(
+fn spawn_interior_scene(
     commands: &mut Commands,
-    texture: Handle<Image>,
-    bottom_left: Vec2,
-    columns: u16,
-    rows: u16,
-    z: f32,
+    asset_server: &AssetServer,
+    map: &interior::InteriorMap,
+    interior_state: &InteriorState,
 ) {
-    for row in 0..rows {
-        for column in 0..columns {
-            commands.spawn((
-                Sprite::from_image(texture.clone()),
-                Transform::from_xyz(
-                    f32::from(column).mul_add(32.0, bottom_left.x),
-                    f32::from(row).mul_add(32.0, bottom_left.y),
-                    z,
-                ),
-            ));
-        }
+    interior::spawn_interior(commands, asset_server, map);
+    for element in map.mutable_elements() {
+        let state_key = format!("{}/{}", map.id(), element.id);
+        let state = interior_state
+            .0
+            .get(&state_key)
+            .map_or(element.initial_state.as_str(), String::as_str);
+        let entity = interior::spawn_interior_mutable(commands, asset_server, map, element, state);
+        let kind = if map.interior_id == interior::InteriorId::Office
+            && element.id == "stone-fireplace-1-01"
+        {
+            InteractableKind::Hearth
+        } else if map.interior_id == interior::InteriorId::Office && element.id == "old-desk-01" {
+            InteractableKind::Desk
+        } else {
+            InteractableKind::InteriorRepairable
+        };
+        commands.entity(entity).insert((
+            Interactable {
+                kind,
+                consumed: kind == InteractableKind::InteriorRepairable && state == "repaired",
+            },
+            MutableSceneElement {
+                scene_id: map.id().to_owned(),
+                id: element.id.clone(),
+                state: state.to_owned(),
+            },
+        ));
     }
+    let exit = spawn_interactable(
+        commands,
+        InteractableKind::InteriorExit,
+        map.cell_center(map.exits[0]),
+        Vec2::splat(30.0),
+        Color::NONE,
+    );
+    commands.entity(exit).insert(interior::InteriorSceneEntity);
+}
+
+fn motel_door_routes(motel: &interior::MotelExteriorMap) -> HashMap<String, interior::InteriorId> {
+    let mut door_ids = motel
+        .mutable_elements()
+        .iter()
+        .filter(|element| element.kind == "door")
+        .map(|element| (element.pixel_x, element.id.clone()))
+        .collect::<Vec<_>>();
+    door_ids.sort_by(|left, right| left.0.total_cmp(&right.0));
+    assert_eq!(
+        door_ids.len(),
+        interior::InteriorId::ALL.len(),
+        "the authored motel must have one exterior door per interior"
+    );
+    door_ids
+        .into_iter()
+        .zip(interior::InteriorId::ALL)
+        .map(|((_, id), interior_id)| (id, interior_id))
+        .collect()
+}
+
+const fn motel_door_is_unlocked(
+    destination: MotelDoorDestination,
+    motel_access: &MotelAccess,
+) -> bool {
+    destination.initially_unlocked || motel_access.keys_found
 }
 
 #[cfg(target_arch = "wasm32")]
-fn load_story(mut story: ResMut<Story>, mut interior_state: ResMut<InteriorState>) {
+fn load_story(
+    mut story: ResMut<Story>,
+    mut interior_state: ResMut<InteriorState>,
+    mut motel_access: ResMut<MotelAccess>,
+) {
     let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     else {
         return;
@@ -507,7 +612,7 @@ fn load_story(mut story: ResMut<Story>, mut interior_state: ResMut<InteriorState
     let Ok(save) = serde_json::from_str::<SaveData>(&raw) else {
         return;
     };
-    if !matches!(save.version, 1 | 2) || save.vignette_index >= vignettes().len() {
+    if !matches!(save.version, 1..=3) || save.vignette_index >= vignettes().len() {
         return;
     }
     story.stage = save.stage;
@@ -517,6 +622,7 @@ fn load_story(mut story: ResMut<Story>, mut interior_state: ResMut<InteriorState
     story.result = save.result;
     story.card = save.card;
     interior_state.0 = save.interior_states;
+    motel_access.keys_found = save.motel_keys_found;
     story.notice = Some("The old trail returns to memory.".to_owned());
 }
 
@@ -524,28 +630,27 @@ fn load_story(mut story: ResMut<Story>, mut interior_state: ResMut<InteriorState
 const fn load_story() {}
 
 #[cfg(target_arch = "wasm32")]
-fn save_story(story: Res<Story>, interior_state: Res<InteriorState>) {
-    if !story.is_changed() && !interior_state.is_changed() {
+fn save_story(
+    story: Res<Story>,
+    interior_state: Res<InteriorState>,
+    motel_access: Res<MotelAccess>,
+) {
+    if !story.is_changed() && !interior_state.is_changed() && !motel_access.is_changed() {
         return;
     }
     let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     else {
         return;
     };
-    if let Ok(raw) = serde_json::to_string(&SaveData::capture(&story, &interior_state)) {
+    if let Ok(raw) =
+        serde_json::to_string(&SaveData::capture(&story, &interior_state, &motel_access))
+    {
         let _ = storage.set_item("waystation-save-v1", &raw);
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 const fn save_story() {}
-
-fn spawn_rect(commands: &mut Commands, position: Vec2, size: Vec2, color: Color, z: f32) {
-    commands.spawn((
-        Sprite::from_color(color, size),
-        Transform::from_xyz(position.x, position.y, z),
-    ));
-}
 
 fn spawn_interactable(
     commands: &mut Commands,
@@ -688,7 +793,7 @@ fn move_player(
     story: Res<Story>,
     location: Res<WorldLocation>,
     interior: Res<interior::InteriorMap>,
-    mut player: Query<&mut Transform, (With<Player>, Without<MutableInteriorElement>)>,
+    mut player: Query<(&mut Transform, &mut PlayerAnimation), With<Player>>,
 ) {
     if matches!(
         story.stage,
@@ -703,7 +808,7 @@ fn move_player(
     ) {
         return;
     }
-    let Ok(mut transform) = player.single_mut() else {
+    let Ok((mut transform, mut animation)) = player.single_mut() else {
         return;
     };
     let mut direction = Vec2::ZERO;
@@ -720,6 +825,17 @@ fn move_player(
         direction.x += 1.0;
     }
     if direction != Vec2::ZERO {
+        animation.facing = if direction.x.abs() > direction.y.abs() {
+            if direction.x < 0.0 {
+                Facing::Left
+            } else {
+                Facing::Right
+            }
+        } else if direction.y > 0.0 {
+            Facing::Up
+        } else {
+            Facing::Down
+        };
         let delta = direction.normalize() * PLAYER_SPEED * time.delta_secs();
         if *location == WorldLocation::Exterior {
             transform.translation.x =
@@ -740,6 +856,30 @@ fn move_player(
             transform.translation.y = next.y;
         }
     }
+}
+
+fn animate_player(
+    time: Res<Time>,
+    mut player: Query<(&Transform, &mut Sprite, &mut PlayerAnimation), With<Player>>,
+) {
+    let Ok((transform, mut sprite, mut animation)) = player.single_mut() else {
+        return;
+    };
+    let position = transform.translation.truncate();
+    let moving = position.distance_squared(animation.last_position) > 0.01;
+    if moving {
+        animation.timer.tick(time.delta());
+        if animation.timer.just_finished() {
+            animation.frame = (animation.frame + 1) % SCRIBE_WALK_FRAMES;
+        }
+    } else {
+        animation.frame = 0;
+        animation.timer.reset();
+    }
+    if let Some(atlas) = &mut sprite.texture_atlas {
+        atlas.index = animation.facing.walk_row() * SCRIBE_ATLAS_COLUMNS as usize + animation.frame;
+    }
+    animation.last_position = position;
 }
 
 #[allow(clippy::type_complexity)]
@@ -810,18 +950,24 @@ fn update_nearby_interaction(
 
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn handle_interaction(
+    mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
     nearby: Res<Nearby>,
     mut story: ResMut<Story>,
     mut location: ResMut<WorldLocation>,
     interior: Res<interior::InteriorMap>,
+    motel: Res<interior::MotelExteriorMap>,
     asset_server: Res<AssetServer>,
     mut interior_state: ResMut<InteriorState>,
+    mut motel_access: ResMut<MotelAccess>,
+    mut exterior_return: ResMut<ExteriorReturn>,
     mut player: Query<&mut Transform, With<Player>>,
     mut interactables: Query<&mut Interactable>,
+    door_destinations: Query<&MotelDoorDestination>,
+    interior_entities: Query<Entity, With<interior::InteriorSceneEntity>>,
     mut mutable_elements: Query<
         (
-            &mut MutableInteriorElement,
+            &mut MutableSceneElement,
             &mut Sprite,
             &mut Transform,
             &mut Visibility,
@@ -867,16 +1013,29 @@ fn handle_interaction(
             ));
         }
         InteractableKind::Hearth if story.stage == StoryStage::LightHearth => {
+            if let (Ok((mut instance, mut sprite, mut transform, mut visibility)), Some(element)) = (
+                mutable_elements.get_mut(entity),
+                interior.mutable_element("stone-fireplace-1-01"),
+            ) {
+                let center = element.states.get("repaired").map_or_else(
+                    || transform.translation.truncate(),
+                    |visual| interior.element_center(element, visual.size),
+                );
+                repair_scene_element(
+                    &asset_server,
+                    &mut interior_state,
+                    element,
+                    center,
+                    &mut instance,
+                    &mut sprite,
+                    &mut transform,
+                    &mut visibility,
+                );
+            }
             story.stage = StoryStage::FindBible;
+            target.consumed = true;
             story.notice = Some(
                 "Flame takes. Warm light reaches into a room untouched for centuries.".to_owned(),
-            );
-        }
-        InteractableKind::Bible if story.stage == StoryStage::FindBible => {
-            story.stage = StoryStage::FindPlank;
-            story.notice = Some(
-                "A complete book. Thin leaves, tiny ordered marks—and you can read them. Find what the broken desk needs."
-                    .to_owned(),
             );
         }
         InteractableKind::Plank if story.stage == StoryStage::FindPlank => {
@@ -884,9 +1043,54 @@ fn handle_interaction(
             story.stage = StoryStage::RestoreDesk;
             story.notice = Some("Old cedar, still sound beneath the fallen awning.".to_owned());
         }
-        InteractableKind::Desk if story.stage == StoryStage::RestoreDesk => {
-            story.stage = StoryStage::Night;
-            story.notice = None;
+        InteractableKind::Desk => {
+            let mut discoveries = Vec::new();
+            if !motel_access.keys_found {
+                motel_access.keys_found = true;
+                discoveries.push(
+                    "A ring of numbered brass keys waits in the desk's shallow drawer. The other motel doors can now be opened."
+                        .to_owned(),
+                );
+            }
+            if story.stage == StoryStage::FindBible {
+                story.stage = StoryStage::FindPlank;
+                discoveries.push(
+                    "Beneath the keys lies a complete book: thin leaves, tiny ordered marks—and you can read them."
+                        .to_owned(),
+                );
+            } else if story.stage == StoryStage::RestoreDesk {
+                if let (
+                    Ok((mut instance, mut sprite, mut transform, mut visibility)),
+                    Some(element),
+                ) = (
+                    mutable_elements.get_mut(entity),
+                    interior.mutable_element("old-desk-01"),
+                ) {
+                    let center = element.states.get("repaired").map_or_else(
+                        || transform.translation.truncate(),
+                        |visual| interior.element_center(element, visual.size),
+                    );
+                    repair_scene_element(
+                        &asset_server,
+                        &mut interior_state,
+                        element,
+                        center,
+                        &mut instance,
+                        &mut sprite,
+                        &mut transform,
+                        &mut visibility,
+                    );
+                }
+                story.stage = StoryStage::Night;
+                story.notice = None;
+                target.consumed = true;
+                return;
+            }
+            story.notice = Some(if discoveries.is_empty() {
+                "The old desk has already yielded its secrets.".to_owned()
+            } else {
+                discoveries.join("\n\n")
+            });
         }
         InteractableKind::Traveler if story.stage == StoryStage::MeetTraveler => {
             story.stage = StoryStage::Dialogue;
@@ -894,22 +1098,47 @@ fn handle_interaction(
             story.notice = None;
         }
         InteractableKind::MotelDoor => {
+            let Ok(destination) = door_destinations.get(entity) else {
+                return;
+            };
+            if !motel_door_is_unlocked(*destination, &motel_access) {
+                story.notice = Some(format!(
+                    "The door to {} is locked. The office may still hold its key.",
+                    destination.interior_id.door_label()
+                ));
+                return;
+            }
             if let Ok(mut transform) = player.single_mut() {
-                let position = interior.cell_center(interior.entry);
+                for entity in &interior_entities {
+                    commands.entity(entity).despawn();
+                }
+                let next_interior = interior::InteriorMap::load(destination.interior_id);
+                spawn_interior_scene(
+                    &mut commands,
+                    &asset_server,
+                    &next_interior,
+                    &interior_state,
+                );
+                let position = next_interior.cell_center(next_interior.entry);
                 transform.translation.x = position.x;
                 transform.translation.y = position.y;
+                exterior_return.0 = destination.doorstep;
                 *location = WorldLocation::Interior;
                 story.notice = Some(format!(
                     "Inside {}, the valley light falls away behind you.",
-                    interior.name
+                    next_interior.name()
                 ));
+                commands.insert_resource(next_interior);
             }
         }
         InteractableKind::InteriorExit => {
             if let Ok(mut transform) = player.single_mut() {
-                transform.translation.x = EXTERIOR_DOORSTEP_POSITION.x;
-                transform.translation.y = EXTERIOR_DOORSTEP_POSITION.y;
+                transform.translation.x = exterior_return.0.x;
+                transform.translation.y = exterior_return.0.y;
                 *location = WorldLocation::Exterior;
+                for entity in &interior_entities {
+                    commands.entity(entity).despawn();
+                }
                 story.notice = Some("You step back into the valley air.".to_owned());
             }
         }
@@ -922,27 +1151,55 @@ fn handle_interaction(
             let Some(element) = interior.mutable_element(&instance.id) else {
                 return;
             };
-            let Some(repaired) = element.states.get("repaired") else {
+            let center = element.states.get("repaired").map_or_else(
+                || transform.translation.truncate(),
+                |visual| interior.element_center(element, visual.size),
+            );
+            if !repair_scene_element(
+                &asset_server,
+                &mut interior_state,
+                element,
+                center,
+                &mut instance,
+                &mut sprite,
+                &mut transform,
+                &mut visibility,
+            ) {
                 story.notice = Some(format!("{} cannot be repaired yet.", element.label));
                 return;
-            };
-            if let Some(path) = &repaired.image_path {
-                sprite.image = asset_server.load(path.clone());
             }
-            sprite.custom_size = Some(repaired.size.max(Vec2::ONE));
-            let center = interior.element_center(element, repaired.size);
-            transform.translation.x = center.x;
-            transform.translation.y = center.y;
-            *visibility = if repaired.visible {
-                Visibility::Visible
-            } else {
-                Visibility::Hidden
+            target.consumed = true;
+            story.notice = Some(format!(
+                "You restore the {}. The {} is sound again.",
+                element.label, element.kind
+            ));
+        }
+        InteractableKind::ExteriorRepairable => {
+            let Ok((mut instance, mut sprite, mut transform, mut visibility)) =
+                mutable_elements.get_mut(entity)
+            else {
+                return;
             };
-            "repaired".clone_into(&mut instance.state);
-            interior_state.0.insert(
-                format!("{}/{}", interior.id, instance.id),
-                instance.state.clone(),
+            let Some(element) = motel.mutable_element(&instance.id) else {
+                return;
+            };
+            let center = element.states.get("repaired").map_or_else(
+                || transform.translation.truncate(),
+                |visual| motel.element_center(element, visual.size),
             );
+            if !repair_scene_element(
+                &asset_server,
+                &mut interior_state,
+                element,
+                center,
+                &mut instance,
+                &mut sprite,
+                &mut transform,
+                &mut visibility,
+            ) {
+                story.notice = Some(format!("{} cannot be repaired yet.", element.label));
+                return;
+            }
             target.consumed = true;
             story.notice = Some(format!(
                 "You restore the {}. The {} is sound again.",
@@ -953,6 +1210,39 @@ fn handle_interaction(
             story.notice = Some("There may be a use for this later.".to_owned());
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn repair_scene_element(
+    asset_server: &AssetServer,
+    interior_state: &mut InteriorState,
+    element: &interior::MutableElement,
+    center: Vec2,
+    instance: &mut MutableSceneElement,
+    sprite: &mut Sprite,
+    transform: &mut Transform,
+    visibility: &mut Visibility,
+) -> bool {
+    let Some(repaired) = element.states.get("repaired") else {
+        return false;
+    };
+    if let Some(path) = &repaired.image_path {
+        sprite.image = asset_server.load(path.clone());
+    }
+    sprite.custom_size = Some(repaired.size.max(Vec2::ONE));
+    transform.translation.x = center.x;
+    transform.translation.y = center.y;
+    *visibility = if repaired.visible {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
+    "repaired".clone_into(&mut instance.state);
+    interior_state.0.insert(
+        format!("{}/{}", instance.scene_id, instance.id),
+        instance.state.clone(),
+    );
+    true
 }
 
 fn handle_story_input(
@@ -1132,27 +1422,6 @@ fn sync_world_state(
                 Color::srgb(0.48, 0.31, 0.16)
             };
         }
-        if interactable.kind == InteractableKind::Hearth && story.stage != StoryStage::LightHearth {
-            sprite.color = if matches!(
-                story.stage,
-                StoryStage::FindBible
-                    | StoryStage::FindPlank
-                    | StoryStage::RestoreDesk
-                    | StoryStage::Night
-                    | StoryStage::MeetTraveler
-                    | StoryStage::Dialogue
-                    | StoryStage::Interpreting
-                    | StoryStage::ChoosePaper
-                    | StoryStage::ChooseIllustration
-                    | StoryStage::ChooseBorder
-                    | StoryStage::FinishedCard
-                    | StoryStage::Epilogue
-            ) {
-                Color::srgb(0.94, 0.39, 0.10)
-            } else {
-                Color::srgb(0.16, 0.13, 0.12)
-            };
-        }
     }
 }
 
@@ -1248,13 +1517,13 @@ fn sync_ui(
                 InteractableKind::Sign => "E — inspect the old sign",
                 InteractableKind::Kindling => "E — gather kindling",
                 InteractableKind::Hearth => "E — tend the hearth",
-                InteractableKind::Bible => "E — open the nightstand",
                 InteractableKind::Plank => "E — take the cedar plank",
-                InteractableKind::Desk => "E — repair the writing desk",
+                InteractableKind::Desk => "E — search or repair the old desk",
                 InteractableKind::Traveler => "E — welcome the traveler",
-                InteractableKind::MotelDoor => "E — enter the motel room",
+                InteractableKind::MotelDoor => "E — try the motel door",
                 InteractableKind::InteriorExit => "E — step back outside",
                 InteractableKind::InteriorRepairable => "E — repair this part of the room",
+                InteractableKind::ExteriorRepairable => "E — repair this part of the motel",
             },
         );
     if let Ok(mut text) = prompt.single_mut() {
@@ -1409,9 +1678,42 @@ mod tests {
             .0
             .insert("motel-room-01/mirror-01".to_owned(), "repaired".to_owned());
 
-        let save = SaveData::capture(&story, &interior_state);
+        let motel_access = MotelAccess { keys_found: true };
+        let save = SaveData::capture(&story, &interior_state, &motel_access);
 
-        assert_eq!(save.version, 2);
+        assert_eq!(save.version, 3);
         assert_eq!(save.interior_states["motel-room-01/mirror-01"], "repaired");
+        assert!(save.motel_keys_found);
+    }
+
+    #[test]
+    fn authored_motel_doors_route_left_to_right_from_office_through_room_six() {
+        let motel = interior::MotelExteriorMap::load();
+        let routes = motel_door_routes(&motel);
+
+        assert_eq!(routes["damaged-door-1-01"], interior::InteriorId::Office);
+        assert_eq!(routes["damaged-door-2-01"], interior::InteriorId::Room01);
+        assert_eq!(routes["damaged-door-4-01"], interior::InteriorId::Room05);
+        assert_eq!(routes["damaged-door-2-03"], interior::InteriorId::Room06);
+    }
+
+    #[test]
+    fn office_and_room_five_start_open_and_desk_keys_unlock_the_rest() {
+        let locked_door = MotelDoorDestination {
+            interior_id: interior::InteriorId::Room01,
+            initially_unlocked: false,
+            doorstep: Vec2::ZERO,
+        };
+        let open_door = MotelDoorDestination {
+            interior_id: interior::InteriorId::Room05,
+            initially_unlocked: true,
+            doorstep: Vec2::ZERO,
+        };
+        let mut access = MotelAccess::default();
+
+        assert!(motel_door_is_unlocked(open_door, &access));
+        assert!(!motel_door_is_unlocked(locked_door, &access));
+        access.keys_found = true;
+        assert!(motel_door_is_unlocked(locked_door, &access));
     }
 }

@@ -1,4 +1,4 @@
-//! Authored interior metadata and runtime positioning.
+//! Authored interior and building metadata, positioning, and runtime art.
 
 use std::collections::{HashMap, HashSet};
 
@@ -6,8 +6,81 @@ use bevy::prelude::*;
 use serde::Deserialize;
 
 pub const INTERIOR_ORIGIN: Vec2 = Vec2::new(8_192.0, 0.0);
-const MOTEL_ROOM_JSON: &str = include_str!("../../../content/interiors/motel-room-01.json");
+pub const MOTEL_EXTERIOR_ORIGIN: Vec2 = Vec2::new(0.0, 100.0);
+
+#[derive(Component)]
+pub struct InteriorSceneEntity;
+
+const MOTEL_OFFICE_JSON: &str = include_str!("../../../content/interiors/motel-office.json");
+const MOTEL_ROOM_01_JSON: &str = include_str!("../../../content/interiors/motel-room-01.json");
+const MOTEL_ROOM_02_JSON: &str = include_str!("../../../content/interiors/motel-room-02.json");
+const MOTEL_ROOM_03_JSON: &str = include_str!("../../../content/interiors/motel-room-03.json");
+const MOTEL_ROOM_04_JSON: &str = include_str!("../../../content/interiors/motel-room-04.json");
+const MOTEL_ROOM_05_JSON: &str = include_str!("../../../content/interiors/motel-room-05.json");
+const MOTEL_ROOM_06_JSON: &str = include_str!("../../../content/interiors/motel-room-06.json");
+const MOTEL_EXTERIOR_JSON: &str = include_str!("../../../content/buildings/motel-exterior.json");
 const REPAIR_PAIRS_JSON: &str = include_str!("../../../content/repair-pairs.json");
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum InteriorId {
+    Office,
+    Room01,
+    Room02,
+    Room03,
+    Room04,
+    Room05,
+    Room06,
+}
+
+impl InteriorId {
+    pub const ALL: [Self; 7] = [
+        Self::Office,
+        Self::Room01,
+        Self::Room02,
+        Self::Room03,
+        Self::Room04,
+        Self::Room05,
+        Self::Room06,
+    ];
+
+    #[must_use]
+    pub const fn id(self) -> &'static str {
+        match self {
+            Self::Office => "motel-office",
+            Self::Room01 => "motel-room-01",
+            Self::Room02 => "motel-room-02",
+            Self::Room03 => "motel-room-03",
+            Self::Room04 => "motel-room-04",
+            Self::Room05 => "motel-room-05",
+            Self::Room06 => "motel-room-06",
+        }
+    }
+
+    #[must_use]
+    pub const fn door_label(self) -> &'static str {
+        match self {
+            Self::Office => "office",
+            Self::Room01 => "room 1",
+            Self::Room02 => "room 2",
+            Self::Room03 => "room 3",
+            Self::Room04 => "room 4",
+            Self::Room05 => "room 5",
+            Self::Room06 => "room 6",
+        }
+    }
+
+    const fn json(self) -> &'static str {
+        match self {
+            Self::Office => MOTEL_OFFICE_JSON,
+            Self::Room01 => MOTEL_ROOM_01_JSON,
+            Self::Room02 => MOTEL_ROOM_02_JSON,
+            Self::Room03 => MOTEL_ROOM_03_JSON,
+            Self::Room04 => MOTEL_ROOM_04_JSON,
+            Self::Room05 => MOTEL_ROOM_05_JSON,
+            Self::Room06 => MOTEL_ROOM_06_JSON,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
 pub struct Cell {
@@ -23,13 +96,16 @@ struct GridDefinition {
 }
 
 #[derive(Debug, Deserialize)]
-struct InteriorDefinition {
+struct SceneDefinition {
     schema_version: u8,
     id: String,
     name: String,
     grid: GridDefinition,
-    entry: Cell,
+    #[serde(default)]
+    entry: Option<Cell>,
+    #[serde(default)]
     exits: Vec<Cell>,
+    #[serde(default)]
     collision: Vec<Cell>,
     #[serde(default)]
     templates: HashMap<String, ElementTemplateDefinition>,
@@ -148,31 +224,37 @@ pub struct MutableElement {
     pub states: HashMap<String, ElementVisual>,
 }
 
-#[derive(Resource, Debug)]
-pub struct InteriorMap {
-    pub id: String,
-    pub name: String,
+#[derive(Debug)]
+struct SceneMap {
+    id: String,
+    name: String,
     width: u16,
     height: u16,
     tile_size: f32,
-    pub entry: Cell,
-    pub exits: Vec<Cell>,
+    origin: Vec2,
+    art_directory: &'static str,
     collision: HashSet<Cell>,
     mutable_elements: Vec<MutableElement>,
 }
 
-impl InteriorMap {
-    pub fn motel_room() -> Self {
-        let definition: InteriorDefinition =
-            serde_json::from_str(MOTEL_ROOM_JSON).expect("authored motel room must be valid JSON");
+impl SceneMap {
+    fn load(
+        json: &str,
+        expected_id: &str,
+        origin: Vec2,
+        art_directory: &'static str,
+    ) -> (Self, Option<Cell>, Vec<Cell>) {
+        let definition: SceneDefinition =
+            serde_json::from_str(json).expect("authored scene must be valid JSON");
         let repair_pairs: RepairPairLibrary = serde_json::from_str(REPAIR_PAIRS_JSON)
             .expect("authored repair-pair library must be valid JSON");
         assert!(
             matches!(definition.schema_version, 1..=4),
-            "unsupported interior schema"
+            "unsupported authored-scene schema"
         );
         assert_eq!(repair_pairs.schema_version, 1);
-        assert_eq!(definition.id, "motel-room-01");
+        assert_eq!(definition.id, expected_id);
+
         let room_id = definition.id.clone();
         let templates = &definition.templates;
         let tile_size = f32::from(definition.grid.tile_size);
@@ -216,7 +298,7 @@ impl InteriorMap {
                             });
                             let image_path = visual.source.as_ref().map(|_| {
                                 format!(
-                                    "interiors/{room_id}/{}--{state_name}.png",
+                                    "{art_directory}/{room_id}/{}--{state_name}.png",
                                     instance.template
                                 )
                             });
@@ -233,39 +315,45 @@ impl InteriorMap {
                 }
             })
             .collect();
-        Self {
-            id: definition.id,
-            name: definition.name,
-            width: definition.grid.width,
-            height: definition.grid.height,
-            tile_size,
-            entry: definition.entry,
-            exits: definition.exits,
-            collision: definition.collision.into_iter().collect(),
-            mutable_elements,
-        }
+        let entry = definition.entry;
+        let exits = definition.exits;
+        (
+            Self {
+                id: definition.id,
+                name: definition.name,
+                width: definition.grid.width,
+                height: definition.grid.height,
+                tile_size,
+                origin,
+                art_directory,
+                collision: definition.collision.into_iter().collect(),
+                mutable_elements,
+            },
+            entry,
+            exits,
+        )
     }
 
-    pub fn world_size(&self) -> Vec2 {
+    fn world_size(&self) -> Vec2 {
         Vec2::new(
             f32::from(self.width) * self.tile_size,
             f32::from(self.height) * self.tile_size,
         )
     }
 
-    pub fn cell_center(&self, cell: Cell) -> Vec2 {
+    fn cell_center(&self, cell: Cell) -> Vec2 {
         let size = self.world_size();
         Vec2::new(
-            (f32::from(cell.x) + 0.5).mul_add(self.tile_size, INTERIOR_ORIGIN.x - size.x / 2.0),
-            (f32::from(cell.y) + 0.5).mul_add(-self.tile_size, INTERIOR_ORIGIN.y + size.y / 2.0),
+            (f32::from(cell.x) + 0.5).mul_add(self.tile_size, self.origin.x - size.x / 2.0),
+            (f32::from(cell.y) + 0.5).mul_add(-self.tile_size, self.origin.y + size.y / 2.0),
         )
     }
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn cell_at(&self, position: Vec2) -> Option<Cell> {
         let size = self.world_size();
-        let x = ((position.x - (INTERIOR_ORIGIN.x - size.x / 2.0)) / self.tile_size).floor();
-        let y = (((INTERIOR_ORIGIN.y + size.y / 2.0) - position.y) / self.tile_size).floor();
+        let x = ((position.x - (self.origin.x - size.x / 2.0)) / self.tile_size).floor();
+        let y = (((self.origin.y + size.y / 2.0) - position.y) / self.tile_size).floor();
         if x < 0.0 || y < 0.0 || x >= f32::from(self.width) || y >= f32::from(self.height) {
             return None;
         }
@@ -275,9 +363,61 @@ impl InteriorMap {
         })
     }
 
+    fn element_center(&self, element: &MutableElement, visual_size: Vec2) -> Vec2 {
+        let room_size = self.world_size();
+        let top_left = Vec2::new(
+            element.pixel_x + self.origin.x - room_size.x / 2.0,
+            -element.pixel_y + self.origin.y + room_size.y / 2.0,
+        );
+        top_left + Vec2::new(visual_size.x / 2.0, -visual_size.y / 2.0)
+    }
+}
+
+#[derive(Resource, Debug)]
+pub struct InteriorMap {
+    scene: SceneMap,
+    pub interior_id: InteriorId,
+    pub entry: Cell,
+    pub exits: Vec<Cell>,
+}
+
+impl InteriorMap {
+    #[must_use]
+    pub fn load(interior_id: InteriorId) -> Self {
+        let (scene, entry, exits) = SceneMap::load(
+            interior_id.json(),
+            interior_id.id(),
+            INTERIOR_ORIGIN,
+            "interiors",
+        );
+        Self {
+            scene,
+            interior_id,
+            entry: entry.expect("an interior must define an entry"),
+            exits,
+        }
+    }
+
+    pub fn id(&self) -> &str {
+        &self.scene.id
+    }
+
+    pub fn name(&self) -> &str {
+        &self.scene.name
+    }
+
+    pub fn world_size(&self) -> Vec2 {
+        self.scene.world_size()
+    }
+
+    pub fn cell_center(&self, cell: Cell) -> Vec2 {
+        self.scene.cell_center(cell)
+    }
+
     pub fn is_walkable(&self, position: Vec2) -> bool {
-        self.cell_at(position)
-            .is_some_and(|cell| !self.collision.contains(&cell))
+        self.scene
+            .cell_at(position)
+            .is_some_and(|cell| !self.scene.collision.contains(&cell))
     }
 
     pub fn camera_position(&self, player: Vec2, camera_half_size: Vec2) -> Vec2 {
@@ -294,52 +434,123 @@ impl InteriorMap {
     }
 
     pub fn mutable_elements(&self) -> &[MutableElement] {
-        &self.mutable_elements
+        &self.scene.mutable_elements
     }
 
     pub fn mutable_element(&self, id: &str) -> Option<&MutableElement> {
-        self.mutable_elements
+        self.scene
+            .mutable_elements
             .iter()
             .find(|element| element.id == id)
     }
 
     pub fn element_center(&self, element: &MutableElement, visual_size: Vec2) -> Vec2 {
-        let room_size = self.world_size();
-        let top_left = Vec2::new(
-            element.pixel_x + INTERIOR_ORIGIN.x - room_size.x / 2.0,
-            -element.pixel_y + INTERIOR_ORIGIN.y + room_size.y / 2.0,
-        );
-        top_left + Vec2::new(visual_size.x / 2.0, -visual_size.y / 2.0)
+        self.scene.element_center(element, visual_size)
     }
 }
 
-pub fn spawn(commands: &mut Commands, asset_server: &AssetServer, map: &InteriorMap) {
+#[derive(Resource, Debug)]
+pub struct MotelExteriorMap {
+    scene: SceneMap,
+}
+
+impl MotelExteriorMap {
+    #[must_use]
+    pub fn load() -> Self {
+        let (scene, _, _) = SceneMap::load(
+            MOTEL_EXTERIOR_JSON,
+            "motel-exterior",
+            MOTEL_EXTERIOR_ORIGIN,
+            "buildings",
+        );
+        Self { scene }
+    }
+
+    pub fn id(&self) -> &str {
+        &self.scene.id
+    }
+
+    pub fn mutable_elements(&self) -> &[MutableElement] {
+        &self.scene.mutable_elements
+    }
+
+    pub fn mutable_element(&self, id: &str) -> Option<&MutableElement> {
+        self.scene
+            .mutable_elements
+            .iter()
+            .find(|element| element.id == id)
+    }
+
+    pub fn element_center(&self, element: &MutableElement, visual_size: Vec2) -> Vec2 {
+        self.scene.element_center(element, visual_size)
+    }
+}
+
+pub fn spawn_interior(commands: &mut Commands, asset_server: &AssetServer, map: &InteriorMap) {
     commands.spawn((
         Sprite::from_color(Color::srgb(0.025, 0.018, 0.014), Vec2::splat(2_500.0)),
         Transform::from_xyz(INTERIOR_ORIGIN.x, INTERIOR_ORIGIN.y, -20.0),
+        InteriorSceneEntity,
     ));
-    commands.spawn((
-        Sprite {
-            image: asset_server.load(format!("interiors/{}.png", map.id)),
-            custom_size: Some(map.world_size()),
-            ..default()
-        },
-        Transform::from_xyz(INTERIOR_ORIGIN.x, INTERIOR_ORIGIN.y, -10.0),
-    ));
+    let background = spawn_scene_background(commands, asset_server, &map.scene, -10.0);
+    commands.entity(background).insert(InteriorSceneEntity);
 }
 
-pub fn spawn_mutable(
+pub fn spawn_building(commands: &mut Commands, asset_server: &AssetServer, map: &MotelExteriorMap) {
+    spawn_scene_background(commands, asset_server, &map.scene, -4.5);
+}
+
+fn spawn_scene_background(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    scene: &SceneMap,
+    z: f32,
+) -> Entity {
+    commands
+        .spawn((
+            Sprite {
+                image: asset_server.load(format!("{}/{}.png", scene.art_directory, scene.id)),
+                custom_size: Some(scene.world_size()),
+                ..default()
+            },
+            Transform::from_xyz(scene.origin.x, scene.origin.y, z),
+        ))
+        .id()
+}
+
+pub fn spawn_interior_mutable(
     commands: &mut Commands,
     asset_server: &AssetServer,
     map: &InteriorMap,
     element: &MutableElement,
     state: &str,
 ) -> Entity {
+    spawn_mutable(commands, asset_server, &map.scene, element, state, true)
+}
+
+pub fn spawn_building_mutable(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    map: &MotelExteriorMap,
+    element: &MutableElement,
+    state: &str,
+) -> Entity {
+    spawn_mutable(commands, asset_server, &map.scene, element, state, false)
+}
+
+fn spawn_mutable(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    scene: &SceneMap,
+    element: &MutableElement,
+    state: &str,
+    interior: bool,
+) -> Entity {
     let visual = element
         .states
         .get(state)
         .or_else(|| element.states.get(&element.initial_state))
-        .expect("mutable interior element must have its initial visual state");
+        .expect("mutable scene element must have its initial visual state");
     let mut sprite = visual.image_path.as_ref().map_or_else(
         || Sprite::from_color(Color::NONE, visual.size.max(Vec2::ONE)),
         |path| Sprite::from_image(asset_server.load(path.clone())),
@@ -347,27 +558,37 @@ pub fn spawn_mutable(
     sprite.custom_size = Some(visual.size.max(Vec2::ONE));
     sprite.flip_x = element.flip_x;
     sprite.flip_y = element.flip_y;
-    let z = match element.layer.as_str() {
-        "floor" => -9.0,
-        "wall" => -8.0,
-        "overlay" => 4.0,
-        _ => -3.0,
+    let z = if interior {
+        match element.layer.as_str() {
+            "floor" => -9.0,
+            "wall" => -8.0,
+            "overlay" => 4.0,
+            _ => -3.0,
+        }
+    } else {
+        match element.layer.as_str() {
+            "floor" => -4.0,
+            "wall" => -3.0,
+            "overlay" => 0.0,
+            _ => -1.0,
+        }
     };
-    commands
+    let center = scene.element_center(element, visual.size);
+    let entity = commands
         .spawn((
             sprite,
-            Transform::from_xyz(
-                map.element_center(element, visual.size).x,
-                map.element_center(element, visual.size).y,
-                z,
-            ),
+            Transform::from_xyz(center.x, center.y, z),
             if visual.visible {
                 Visibility::Visible
             } else {
                 Visibility::Hidden
             },
         ))
-        .id()
+        .id();
+    if interior {
+        commands.entity(entity).insert(InteriorSceneEntity);
+    }
+    entity
 }
 
 #[cfg(test)]
@@ -375,29 +596,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn authored_room_has_walkable_entry_and_rejects_outside_positions() {
-        let room = InteriorMap::motel_room();
-        assert!(room.is_walkable(room.cell_center(room.entry)));
-        assert!(!room.is_walkable(INTERIOR_ORIGIN + room.world_size()));
+    fn every_authored_motel_interior_has_a_walkable_entry_and_exit() {
+        for interior_id in InteriorId::ALL {
+            let room = InteriorMap::load(interior_id);
+            assert_eq!(room.id(), interior_id.id());
+            assert!(room.is_walkable(room.cell_center(room.entry)));
+            assert_eq!(room.exits.len(), 1);
+            assert!(room
+                .scene
+                .cell_at(room.cell_center(room.exits[0]))
+                .is_some());
+            assert!(!room.is_walkable(INTERIOR_ORIGIN + room.world_size()));
+        }
     }
 
     #[test]
-    fn authored_exit_is_inside_room() {
-        let room = InteriorMap::motel_room();
-        assert_eq!(room.exits.len(), 1);
-        assert!(room.cell_at(room.cell_center(room.exits[0])).is_some());
+    fn authored_rooms_keep_repairable_elements_at_native_pixel_size() {
+        for interior_id in InteriorId::ALL {
+            let room = InteriorMap::load(interior_id);
+            let element = room
+                .mutable_elements()
+                .first()
+                .expect("every motel interior has repairable elements");
+            assert_eq!(element.initial_state, "damaged");
+            assert!(element.states["damaged"].size.cmpgt(Vec2::ZERO).all());
+            assert!(element.states.contains_key("repaired"));
+        }
     }
 
     #[test]
-    fn authored_mutable_element_has_stable_states_and_native_pixel_size() {
-        let room = InteriorMap::motel_room();
-        let element = room
-            .mutable_elements
-            .first()
-            .expect("at least one authored repairable element");
-        assert_eq!(element.initial_state, "damaged");
-        assert!(element.states["damaged"].size.cmpgt(Vec2::ZERO).all());
-        assert!(element.states.contains_key("repaired"));
+    fn motel_exterior_has_seven_authored_doors_in_left_to_right_order() {
+        let motel = MotelExteriorMap::load();
+        let mut door_x = motel
+            .mutable_elements()
+            .iter()
+            .filter(|element| element.kind == "door")
+            .map(|element| element.pixel_x)
+            .collect::<Vec<_>>();
+        door_x.sort_by(f32::total_cmp);
+        assert_eq!(door_x.len(), InteriorId::ALL.len());
+        assert!(door_x.windows(2).all(|pair| pair[0] < pair[1]));
     }
 
     #[test]

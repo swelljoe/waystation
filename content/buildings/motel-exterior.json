@@ -5,24 +5,6 @@
     {
       "layer": "floor",
       "position": {
-        "grid": 32,
-        "x": 1,
-        "y": 17
-      },
-      "width": 2,
-      "height": 3,
-      "source": {
-        "path": "custom/scribe.png",
-        "grid": 16,
-        "x": 24,
-        "y": 8,
-        "width": 4,
-        "height": 5
-      }
-    },
-    {
-      "layer": "floor",
-      "position": {
         "grid": 8,
         "x": 9,
         "y": 32
@@ -1285,8 +1267,8 @@
       }
     },
     {
-      "id": "dmaaged-door-1-01",
-      "template": "dmaaged-door-1",
+      "id": "damaged-door-1-01",
+      "template": "damaged-door-1",
       "position": {
         "grid": 8,
         "x": 13,
@@ -1297,8 +1279,8 @@
       "initial_state": "damaged"
     },
     {
-      "id": "damagd-door-2-01",
-      "template": "damagd-door-2",
+      "id": "damaged-door-2-01",
+      "template": "damaged-door-2",
       "position": {
         "grid": 8,
         "x": 45,
@@ -1313,8 +1295,8 @@
       }
     },
     {
-      "id": "damagd-door-2-02",
-      "template": "damagd-door-2",
+      "id": "damaged-door-2-02",
+      "template": "damaged-door-2",
       "position": {
         "grid": 8,
         "x": 55,
@@ -1405,8 +1387,8 @@
       "initial_state": "damaged"
     },
     {
-      "id": "damagd-door-2-03",
-      "template": "damagd-door-2",
+      "id": "damaged-door-2-03",
+      "template": "damaged-door-2",
       "position": {
         "grid": 8,
         "x": 136,
