@@ -918,6 +918,114 @@
           }
         }
       }
+    },
+    "broken-window-1": {
+      "label": "Broken Window 1",
+      "kind": "window",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-windows.png",
+            "grid": 1,
+            "x": 0,
+            "y": 0,
+            "width": 63,
+            "height": 52
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/damaged-windows.png",
+            "grid": 1,
+            "x": 0,
+            "y": 54,
+            "width": 63,
+            "height": 52
+          }
+        }
+      }
+    },
+    "tall-chimney": {
+      "label": "Tall Chimney",
+      "kind": "chimney",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/scaled-damaged-TX Village House.png",
+            "grid": 1,
+            "x": 441,
+            "y": 768,
+            "width": 43,
+            "height": 248
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House.png",
+            "grid": 1,
+            "x": 441,
+            "y": 767,
+            "width": 43,
+            "height": 248
+          }
+        }
+      }
+    },
+    "short-chimney": {
+      "label": "Short Chimney",
+      "kind": "chimney",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/scaled-damaged-TX Village House.png",
+            "grid": 1,
+            "x": 143,
+            "y": 881,
+            "width": 32,
+            "height": 95
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House.png",
+            "grid": 1,
+            "x": 143,
+            "y": 880,
+            "width": 32,
+            "height": 96
+          }
+        }
+      }
+    },
+    "broken-window-2": {
+      "label": "Broken Window 2",
+      "kind": "window",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-windows.png",
+            "grid": 1,
+            "x": 130,
+            "y": 0,
+            "width": 63,
+            "height": 52
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/damaged-windows.png",
+            "grid": 1,
+            "x": 0,
+            "y": 54,
+            "width": 63,
+            "height": 52
+          }
+        }
+      }
     }
   }
 }

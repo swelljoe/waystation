@@ -6,6 +6,7 @@ const path = require("node:path");
 
 const editorPath = path.join(__dirname, "..", "tools", "level-editor", "editor.js");
 const indexPath = path.join(__dirname, "..", "tools", "level-editor", "index.html");
+const stylesPath = path.join(__dirname, "..", "tools", "level-editor", "styles.css");
 const {
   applyBackgroundKey,
   assetUrl,
@@ -236,6 +237,7 @@ assert.deepEqual(previewOperations, ["save", ["translate", 38, 28], ["scale", -1
 assert.equal(typeof drawTransformedImage, "function");
 
 const index = fs.readFileSync(indexPath, "utf8");
+const styles = fs.readFileSync(stylesPath, "utf8");
 assert.match(index, /id="toggle-collision"/);
 assert.match(index, /aria-pressed="true"/);
 assert.match(index, /id="repair-pair-library"/);
@@ -252,5 +254,13 @@ assert.match(index, /id="repair-view"/);
 assert.match(index, /id="placed-selection-card"/);
 assert.match(index, /data-placement-preview="repaired"/);
 assert.match(index, /Floor \(bottom\)[\s\S]*Wall[\s\S]*Object[\s\S]*Overlay \(top\)/);
+const toolbarStart = index.indexOf('<div class="toolbar">');
+const toolbarEnd = index.indexOf('<div class="canvas-wrap">');
+const placementInspector = index.indexOf('id="placed-selection-card"');
+const paletteStart = index.indexOf('<aside class="palette panel">');
+assert.ok(toolbarStart < placementInspector && placementInspector < toolbarEnd, "selected placement inspector belongs in the toolbar");
+assert.ok(placementInspector < paletteStart, "selected placement inspector must not crowd the source palette");
+assert.match(styles, /grid-template-columns:\s*310px minmax\(460px, 1fr\) 585px/);
+assert.match(styles, /\.sheet-wrap\s*\{[^}]*min-height:\s*270px;[^}]*max-height:\s*70vh;/);
 
 console.log("level editor UI tests passed");

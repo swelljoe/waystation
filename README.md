@@ -85,8 +85,13 @@ it does not alter the repair pair or move every other instance that uses it.
 **Repair view** can render the complete scene in its authored state, with every
 repairable item damaged, or with every item repaired. A selected repairable item
 can instead follow the scene view or preview only its damaged/repaired state from
-the **Selected placement** card. Repair views are inspection-only and never
-rewrite the scene's saved `initial_state` values.
+the **Selected placement** inspector in the toolbar. Repair views are
+inspection-only and never rewrite the scene's saved `initial_state` values.
+
+The right-hand source palette is intentionally wide so large sprite sheets have
+more screen space for precise crop selection. Its preview expands to the palette
+width while preserving the sheet's aspect ratio and native source coordinates;
+only the display size changes.
 
 **Snap grid** controls destination placement independently of **Source grid**.
 Set it to `16` for half-cell art offsets, or any 1–256 pixel interval needed by a

@@ -905,19 +905,55 @@
     {
       "layer": "object",
       "position": {
-        "grid": 4,
-        "x": 32,
-        "y": 116
+        "grid": 8,
+        "x": 12,
+        "y": 58
       },
-      "width": 3,
+      "width": 2,
       "height": 3,
       "source": {
-        "path": "green/1-1.png",
-        "grid": 8,
-        "x": 68,
-        "y": 81,
-        "width": 9,
-        "height": 11
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 4,
+        "x": 173,
+        "y": 28,
+        "width": 14,
+        "height": 20
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 16,
+        "x": 50,
+        "y": 29
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "components/damaged-windows.png",
+        "grid": 1,
+        "x": 0,
+        "y": 54,
+        "width": 63,
+        "height": 52
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 16,
+        "x": 60,
+        "y": 29
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "components/damaged-windows.png",
+        "grid": 1,
+        "x": 0,
+        "y": 54,
+        "width": 63,
+        "height": 52
       }
     }
   ],
@@ -934,22 +970,6 @@
       "width": 4,
       "height": 4,
       "initial_state": "damaged"
-    },
-    {
-      "id": "damaged-brick-wall-3-01",
-      "template": "damaged-brick-wall-3",
-      "position": {
-        "grid": 32,
-        "x": 6,
-        "y": 13
-      },
-      "width": 4,
-      "height": 4,
-      "initial_state": "damaged",
-      "transform": {
-        "flip_x": true,
-        "flip_y": true
-      }
     },
     {
       "id": "damaged-brick-wall-3-02",
@@ -1001,18 +1021,6 @@
       "position": {
         "grid": 32,
         "x": 30,
-        "y": 13
-      },
-      "width": 4,
-      "height": 4,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "damaged-brick-wall-8-01",
-      "template": "damaged-brick-wall-8",
-      "position": {
-        "grid": 32,
-        "x": 18,
         "y": 13
       },
       "width": 4,
@@ -1177,6 +1185,95 @@
       },
       "width": 4,
       "height": 4,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "damaged-brick-wall-3-01",
+      "template": "damaged-brick-wall-3",
+      "position": {
+        "grid": 8,
+        "x": 24,
+        "y": 52
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "broken-window-1-01",
+      "template": "broken-window-1",
+      "position": {
+        "grid": 16,
+        "x": 11,
+        "y": 29
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "tall-chimney-01",
+      "template": "tall-chimney",
+      "position": {
+        "grid": 16,
+        "x": 12,
+        "y": 15
+      },
+      "width": 2,
+      "height": 8,
+      "initial_state": "damaged",
+      "layer": "floor"
+    },
+    {
+      "id": "short-chimney-01",
+      "template": "short-chimney",
+      "position": {
+        "grid": 16,
+        "x": 73,
+        "y": 17
+      },
+      "width": 1,
+      "height": 3,
+      "initial_state": "damaged",
+      "layer": "floor"
+    },
+    {
+      "id": "damaged-brick-wall-4-02",
+      "template": "damaged-brick-wall-4",
+      "position": {
+        "grid": 16,
+        "x": 36,
+        "y": 26
+      },
+      "width": 4,
+      "height": 4,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_y": true
+      }
+    },
+    {
+      "id": "broken-window-2-01",
+      "template": "broken-window-2",
+      "position": {
+        "grid": 16,
+        "x": 18,
+        "y": 29
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged"
+    },
+    {
+      "id": "broken-window-1-02",
+      "template": "broken-window-1",
+      "position": {
+        "grid": 16,
+        "x": 70,
+        "y": 29
+      },
+      "width": 2,
+      "height": 2,
       "initial_state": "damaged"
     }
   ],
