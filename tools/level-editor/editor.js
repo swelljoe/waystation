@@ -23,6 +23,7 @@ const state = {
   zoom: 1,
   snapGrid: 32,
   stampTransform: { flip_x: false, flip_y: false },
+  gridVisible: true,
   collisionVisible: true,
   room: null,
   roomDrag: null,
@@ -568,6 +569,15 @@ function drawRoomGrid(context, canvas, spacing, color) {
   context.stroke();
 }
 
+function roomGridLayersForRendering(visible, snapGrid, tileSize, zoom) {
+  if (!visible) return [];
+  const layers = [{ spacing: snapGrid * zoom, color: "rgba(224,196,134,.16)" }];
+  if (snapGrid !== tileSize) {
+    layers.push({ spacing: tileSize * zoom, color: "rgba(224,196,134,.3)" });
+  }
+  return layers;
+}
+
 function drawRoom() {
   const canvas = $("#room-canvas");
   const tile = roomTileSize() * state.zoom;
@@ -632,10 +642,13 @@ function drawRoom() {
     context.restore();
   }
 
-  const snapSpacing = state.snapGrid * state.zoom;
-  drawRoomGrid(context, canvas, snapSpacing, "rgba(224,196,134,.16)");
-  if (state.snapGrid !== roomTileSize()) {
-    drawRoomGrid(context, canvas, tile, "rgba(224,196,134,.3)");
+  for (const gridLayer of roomGridLayersForRendering(
+    state.gridVisible,
+    state.snapGrid,
+    roomTileSize(),
+    state.zoom,
+  )) {
+    drawRoomGrid(context, canvas, gridLayer.spacing, gridLayer.color);
   }
 
   const visibleCollision = collisionCellsForRendering(state.room, state.collisionVisible);
@@ -1637,6 +1650,18 @@ function toggleCollisionVisibility() {
   setStatus(`Collision overlay ${state.collisionVisible ? "shown" : "hidden"}; collision data is unchanged.`);
 }
 
+function toggleGridVisibility() {
+  state.gridVisible = !state.gridVisible;
+  const button = $("#toggle-grid");
+  button.textContent = `Grid: ${state.gridVisible ? "shown" : "hidden"}`;
+  button.setAttribute("aria-pressed", String(state.gridVisible));
+  button.title = state.gridVisible
+    ? "Hide edit-window grid lines without changing snapping"
+    : "Show edit-window grid lines";
+  drawRoom();
+  setStatus(`Edit-window grid ${state.gridVisible ? "shown" : "hidden"}; snapping and scene data are unchanged.`);
+}
+
 function updateOrientationControls() {
   const editingSelection = state.tool === "select";
   const element = editingSelection ? selectedElement() : null;
@@ -1813,6 +1838,7 @@ function bindEvents() {
     updateSelectionDetails();
     setStatus(`Stamp snap grid set to ${state.snapGrid}px; collision remains on the ${roomTileSize()}px room grid.`);
   });
+  $("#toggle-grid").addEventListener("click", toggleGridVisibility);
   $("#toggle-collision").addEventListener("click", toggleCollisionVisibility);
   $("#flip-horizontal").addEventListener("click", () => toggleStampFlip("flip_x"));
   $("#flip-vertical").addEventListener("click", () => toggleStampFlip("flip_y"));
@@ -1956,6 +1982,7 @@ if (typeof module !== "undefined") {
     repairStateForElement,
     setPlacementLayer,
     repairPairMatches,
+    roomGridLayersForRendering,
     snapCellForPixel,
     stampAnchorForUnit,
     stampPreviewPlacement,

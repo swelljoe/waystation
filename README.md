@@ -54,6 +54,10 @@ native-art footprint rounded up to the current snap interval, preventing
 differently sized stamps from overlapping one another; collision strokes advance
 one gameplay cell at a time. One undo reverts the complete stroke.
 
+Use **Grid: shown/hidden** to hide the destination grid for a clean scene
+preview. This display-only toggle does not change snap behavior or saved scene
+data; collision visibility remains independently controlled.
+
 While the stamp tool is active, the exact native-pixel crop follows the pointer
 at its snapped destination before placement. The ghost uses the chosen layer,
 horizontal/vertical flips, smart-slice transparency, and the damaged state of a

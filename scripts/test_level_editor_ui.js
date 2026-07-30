@@ -22,6 +22,7 @@ const {
   paintPairPreview,
   placementPixelPosition,
   repairStateForElement,
+  roomGridLayersForRendering,
   setPlacementLayer,
   repairPairMatches,
   snapCellForPixel,
@@ -80,6 +81,18 @@ const original = structuredClone(room.collision);
 assert.equal(collisionCellsForRendering(room, true), room.collision);
 assert.deepEqual(collisionCellsForRendering(room, false), []);
 assert.deepEqual(room.collision, original, "hiding the overlay must not mutate collision data");
+assert.deepEqual(roomGridLayersForRendering(false, 16, 32, 2), []);
+assert.deepEqual(
+  roomGridLayersForRendering(true, 16, 32, 2),
+  [
+    { spacing: 32, color: "rgba(224,196,134,.16)" },
+    { spacing: 64, color: "rgba(224,196,134,.3)" },
+  ],
+);
+assert.deepEqual(
+  roomGridLayersForRendering(true, 32, 32, 1),
+  [{ spacing: 32, color: "rgba(224,196,134,.16)" }],
+);
 assert.deepEqual(
   placementPixelPosition({ position: { grid: 16, x: 3, y: -1 } }, 32),
   { x: 48, y: -16 },
@@ -239,6 +252,7 @@ assert.equal(typeof drawTransformedImage, "function");
 const index = fs.readFileSync(indexPath, "utf8");
 const styles = fs.readFileSync(stylesPath, "utf8");
 assert.match(index, /id="toggle-collision"/);
+assert.match(index, /id="toggle-grid"/);
 assert.match(index, /aria-pressed="true"/);
 assert.match(index, /id="repair-pair-library"/);
 assert.match(index, /id="pair-list"/);
