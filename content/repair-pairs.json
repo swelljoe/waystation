@@ -1026,6 +1026,141 @@
           }
         }
       }
+    },
+    "dmaaged-door-1": {
+      "label": "Damaged Door 1",
+      "kind": "door",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-doors.png",
+            "grid": 1,
+            "x": 29,
+            "y": 0,
+            "width": 59,
+            "height": 77
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/damaged-doors.png",
+            "grid": 1,
+            "x": 29,
+            "y": 82,
+            "width": 60,
+            "height": 77
+          }
+        }
+      }
+    },
+    "damagd-door-2": {
+      "label": "Damaged Door 2",
+      "kind": "door",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-doors.png",
+            "grid": 1,
+            "x": 91,
+            "y": 0,
+            "width": 60,
+            "height": 77
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/damaged-doors.png",
+            "grid": 1,
+            "x": 29,
+            "y": 82,
+            "width": 60,
+            "height": 77
+          }
+        }
+      }
+    },
+    "damaged-door-3": {
+      "label": "Damaged Door 3",
+      "kind": "door",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-doors.png",
+            "grid": 1,
+            "x": 154,
+            "y": 0,
+            "width": 60,
+            "height": 77
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/damaged-doors.png",
+            "grid": 1,
+            "x": 29,
+            "y": 82,
+            "width": 60,
+            "height": 77
+          }
+        }
+      }
+    },
+    "damaged-door-4": {
+      "label": "Damaged Door 4",
+      "kind": "door",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-doors.png",
+            "grid": 1,
+            "x": 281,
+            "y": 0,
+            "width": 60,
+            "height": 77
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/damaged-doors.png",
+            "grid": 1,
+            "x": 29,
+            "y": 82,
+            "width": 60,
+            "height": 77
+          }
+        }
+      }
+    },
+    "broken-window-3": {
+      "label": "Broken Window 3",
+      "kind": "window",
+      "layer": "object",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-windows.png",
+            "grid": 1,
+            "x": 67,
+            "y": 0,
+            "width": 62,
+            "height": 52
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/damaged-windows.png",
+            "grid": 1,
+            "x": 0,
+            "y": 54,
+            "width": 63,
+            "height": 52
+          }
+        }
+      }
     }
   }
 }

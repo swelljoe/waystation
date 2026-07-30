@@ -87,6 +87,14 @@ function invalidateAssetImage(path) {
   return assetRevisions.get(path);
 }
 
+function invalidateCatalogImages(paths) {
+  for (const path of paths) {
+    assetRevisions.set(path, (assetRevisions.get(path) || 0) + 1);
+  }
+  imageCache.clear();
+  keyedImageCache.clear();
+}
+
 function getImage(path) {
   if (!imageCache.has(path)) {
     const image = new Image();
@@ -1288,6 +1296,71 @@ function filterAssets() {
   renderAssets();
 }
 
+function populatePackFilter(preferredPack = "") {
+  const packFilter = $("#pack-filter");
+  packFilter.replaceChildren(new Option("All packs", ""));
+  for (const pack of state.catalog.packs) packFilter.append(new Option(pack, pack));
+  packFilter.value = state.catalog.packs.includes(preferredPack) ? preferredPack : "";
+}
+
+async function refreshAssetCatalog() {
+  const button = $("#refresh-catalog");
+  if (!state.catalog) return;
+  const previousCatalog = state.catalog;
+  const previousPaths = new Set(previousCatalog.assets.map((asset) => asset.path));
+  const preferredPack = $("#pack-filter").value;
+  const selectedPath = state.sheet?.path || null;
+  button.disabled = true;
+  setStatus("Rescanning the private asset library…");
+  try {
+    const response = await fetch("/api/catalog/refresh", { method: "POST" });
+    if (!response.ok) throw new Error(`catalog refresh returned ${response.status}`);
+    const catalog = await response.json();
+    const currentPaths = new Set(catalog.assets.map((asset) => asset.path));
+    const added = [...currentPaths].filter((path) => !previousPaths.has(path)).length;
+    const removed = [...previousPaths].filter((path) => !currentPaths.has(path)).length;
+    invalidateCatalogImages(new Set([...previousPaths, ...currentPaths]));
+    state.catalog = catalog;
+    populatePackFilter(preferredPack);
+
+    const selectedAsset = selectedPath
+      ? catalog.assets.find((asset) => asset.path === selectedPath)
+      : null;
+    if (selectedAsset) {
+      state.sheet = selectedAsset;
+      $("#sheet-name").textContent = selectedAsset.name;
+      $("#sheet-dimensions").textContent = `${selectedAsset.width}×${selectedAsset.height} · ${selectedAsset.pack}`;
+      loadSelectedSheetImage(selectedAsset, true, catalogRefreshStatus(catalog.count, added, removed));
+    } else if (selectedPath) {
+      state.sheet = null;
+      state.sheetImage = null;
+      state.selection = null;
+      state.smartSlice = null;
+      $("#sheet-name").textContent = "Choose an asset";
+      $("#sheet-dimensions").textContent = "";
+      $("#smart-slice").disabled = true;
+      $("#refresh-sheet").disabled = true;
+      const canvas = $("#sheet-canvas");
+      canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    }
+    filterAssets();
+    updateSelectionDetails();
+    renderRepairPairs();
+    drawRoom();
+    if (!selectedAsset) setStatus(catalogRefreshStatus(catalog.count, added, removed));
+  } catch (error) {
+    console.error(error);
+    setStatus(`Could not refresh the asset library: ${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function catalogRefreshStatus(count, added, removed) {
+  const changes = [`${added.toLocaleString()} added`, `${removed.toLocaleString()} removed`];
+  return `Asset library refreshed · ${count.toLocaleString()} images indexed · ${changes.join(" · ")}.`;
+}
+
 function renderAssets() {
   const list = $("#asset-list");
   list.replaceChildren();
@@ -1303,7 +1376,7 @@ function renderAssets() {
   $("#asset-count").textContent = `${state.filtered.length.toLocaleString()} found${state.filtered.length > visible.length ? ` · showing ${visible.length}` : ""}`;
 }
 
-function loadSelectedSheetImage(asset, refreshed = false) {
+function loadSelectedSheetImage(asset, refreshed = false, refreshedStatus = null) {
   state.sheetImage = null;
   $("#smart-slice").disabled = true;
   $("#refresh-sheet").disabled = true;
@@ -1330,7 +1403,7 @@ function loadSelectedSheetImage(asset, refreshed = false) {
     updateSelectionDetails();
     drawRoom();
     if (refreshed) {
-      setStatus(`Reloaded ${asset.name} from disk; sheet, room, and repair-pair previews now use the new pixels.`);
+      setStatus(refreshedStatus || `Reloaded ${asset.name} from disk; sheet, room, and repair-pair previews now use the new pixels.`);
     }
   };
   if (image.complete && image.naturalWidth) finish();
@@ -1692,6 +1765,7 @@ function bindEvents() {
   $("#scene-type").addEventListener("change", (event) => switchSceneType(event.target.value));
   $("#asset-search").addEventListener("input", filterAssets);
   $("#pack-filter").addEventListener("change", filterAssets);
+  $("#refresh-catalog").addEventListener("click", refreshAssetCatalog);
   $("#layer").addEventListener("change", (event) => {
     if (state.tool === "select") {
       const element = selectedElement();
@@ -1843,7 +1917,7 @@ async function initialize() {
   const pairDocument = await pairResponse.json();
   state.repairPairs = pairDocument.pairs || {};
   const packFilter = $("#pack-filter");
-  for (const pack of state.catalog.packs) packFilter.append(new Option(pack, pack));
+  populatePackFilter();
   if (state.sceneType === "building") {
     packFilter.value = state.catalog.packs.includes("components") ? "components" : "";
     $("#asset-search").value = "";
@@ -1856,6 +1930,7 @@ async function initialize() {
   if (firstPair) selectRepairPair(firstPair);
   else newRepairPair();
   await refreshLevels();
+  $("#refresh-catalog").disabled = false;
   setStatus(`Ready · ${state.catalog.count.toLocaleString()} private images indexed.`);
 }
 

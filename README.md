@@ -118,6 +118,12 @@ canvas, asset thumbnail, room/building canvas, and repair-pair previews. Existin
 crop coordinates are retained if they still fit; Smart slice must be run again
 because the foreground regions may have changed.
 
+After adding, renaming, or removing image files under `assets`, choose **Refresh
+assets** in the Asset browser. The running editor rescans the private library and
+updates search results, pack filters, dimensions, and cached image previews
+without a server or browser restart. The current search, valid pack filter, and
+selected sheet are preserved when possible.
+
 ```bash
 make editor
 ```

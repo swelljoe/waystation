@@ -33,7 +33,10 @@
       <aside class="library panel">
         <div class="panel-heading">
           <div><span class="eyebrow">PRIVATE LIBRARY</span><h1>Asset browser</h1></div>
-          <span id="asset-count" class="count">…</span>
+          <div class="heading-actions">
+            <span id="asset-count" class="count">…</span>
+            <button id="refresh-catalog" type="button" disabled title="Rescan the assets directory for new, changed, or removed images">Refresh assets</button>
+          </div>
         </div>
         <input id="asset-search" class="search" type="search" placeholder="bed, desk, wall, floor…" />
         <select id="pack-filter"><option value="">All packs</option></select>

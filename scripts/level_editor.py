@@ -349,9 +349,18 @@ class EditorServer(ThreadingHTTPServer):
     level_root: Path
     building_root: Path
     catalog: dict[str, Any]
+    catalog_lock: Lock
     repair_pair_path: Path
     repair_pairs: dict[str, Any]
     repair_pair_lock: Lock
+
+
+def refresh_asset_catalog(server: EditorServer) -> dict[str, Any]:
+    """Rescan private assets and atomically replace the served catalog."""
+    with server.catalog_lock:
+        catalog = catalog_assets(server.asset_root)
+        server.catalog = catalog
+        return catalog
 
 
 class EditorHandler(BaseHTTPRequestHandler):
@@ -518,6 +527,13 @@ class EditorHandler(BaseHTTPRequestHandler):
         temporary_path.replace(destination)
         self.send_json({"saved": True, "path": str(destination.relative_to(ROOT))})
 
+    def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        request_path = unquote(urlparse(self.path).path)
+        if request_path == "/api/catalog/refresh":
+            self.send_json(refresh_asset_catalog(self.server))
+            return
+        self.send_error(HTTPStatus.NOT_FOUND)
+
     def do_DELETE(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         request_path = unquote(urlparse(self.path).path)
         if not request_path.startswith("/api/repair-pairs/"):
@@ -569,6 +585,7 @@ def main() -> None:
     server.level_root = LEVEL_ROOT
     server.building_root = BUILDING_ROOT
     server.catalog = catalog
+    server.catalog_lock = Lock()
     server.repair_pair_path = REPAIR_PAIR_PATH
     if REPAIR_PAIR_PATH.is_file():
         repair_pair_document = json.loads(REPAIR_PAIR_PATH.read_text(encoding="utf-8"))

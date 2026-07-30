@@ -249,6 +249,8 @@ assert.match(index, /id="snap-grid"/);
 assert.match(index, /id="scene-type"/);
 assert.match(index, /id="smart-slice"/);
 assert.match(index, /id="refresh-sheet"/);
+assert.match(index, /id="refresh-catalog"/);
+assert.match(fs.readFileSync(editorPath, "utf8"), /fetch\("\/api\/catalog\/refresh", \{ method: "POST" \}\)/);
 assert.match(index, /data-tool="select"/);
 assert.match(index, /id="repair-view"/);
 assert.match(index, /id="placed-selection-card"/);

@@ -54,6 +54,8 @@ body[data-scene-type="building"] [data-interior-only] { display: none; }
 .library { border-right: 1px solid var(--line); }
 .palette { border-left: 1px solid var(--line); overflow-y: auto; }
 .panel-heading { display: flex; justify-content: space-between; gap: 10px; align-items: flex-end; }
+.heading-actions { display: flex; gap: 7px; align-items: center; }
+.heading-actions button { min-height: 26px; padding: 3px 7px; font-size: 11px; white-space: nowrap; }
 h1, h2 { font-size: 20px; line-height: 1; margin: 2px 0 0; font-weight: 500; }
 .eyebrow { font-family: system-ui, sans-serif; letter-spacing: .14em; font-size: 9px; color: var(--gold); }
 .count { font-family: system-ui, sans-serif; color: var(--muted); font-size: 11px; }

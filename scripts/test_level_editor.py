@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from level_editor import safe_child, validate_level, validate_repair_pair
+from level_editor import refresh_asset_catalog, safe_child, validate_level, validate_repair_pair
 
 
 class LevelEditorValidationTests(unittest.TestCase):
@@ -124,6 +124,24 @@ class LevelEditorValidationTests(unittest.TestCase):
 
     def test_asset_path_cannot_escape_private_root(self) -> None:
         self.assertIsNone(safe_child(self.assets, "../secret.png"))
+
+    def test_catalog_refresh_discovers_new_assets_without_restarting(self) -> None:
+        from threading import Lock
+        from types import SimpleNamespace
+
+        server = SimpleNamespace(
+            asset_root=self.assets,
+            catalog={"count": 0, "assets": []},
+            catalog_lock=Lock(),
+        )
+        first = refresh_asset_catalog(server)
+        Image.new("RGBA", (32, 48)).save(self.assets / "new-custom-piece.png")
+        refreshed = refresh_asset_catalog(server)
+
+        self.assertEqual(first["count"], 1)
+        self.assertEqual(refreshed["count"], 2)
+        self.assertIn("new-custom-piece.png", {asset["path"] for asset in refreshed["assets"]})
+        self.assertIs(server.catalog, refreshed)
 
     def test_mutable_fixture_with_native_state_crops_passes(self) -> None:
         self.level["schema_version"] = 2
