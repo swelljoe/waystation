@@ -411,7 +411,7 @@
       "position": {
         "grid": 8,
         "x": 151,
-        "y": 50
+        "y": 49
       },
       "width": 1,
       "height": 1,
@@ -626,7 +626,7 @@
       "layer": "overlay",
       "position": {
         "grid": 4,
-        "x": 208,
+        "x": 209,
         "y": 103
       },
       "width": 3,
@@ -662,7 +662,7 @@
       "layer": "overlay",
       "position": {
         "grid": 4,
-        "x": 234,
+        "x": 233,
         "y": 103
       },
       "width": 3,
@@ -680,7 +680,7 @@
       "layer": "overlay",
       "position": {
         "grid": 4,
-        "x": 250,
+        "x": 251,
         "y": 103
       },
       "width": 3,
@@ -716,7 +716,7 @@
       "layer": "overlay",
       "position": {
         "grid": 4,
-        "x": 286,
+        "x": 285,
         "y": 103
       },
       "width": 3,
@@ -947,39 +947,57 @@
       }
     },
     {
-      "layer": "object",
+      "layer": "overlay",
       "position": {
         "grid": 16,
-        "x": 76,
-        "y": 25
+        "x": 7,
+        "y": 27
       },
       "width": 2,
       "height": 1,
       "source": {
-        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
-        "grid": 16,
-        "x": 7,
-        "y": 12,
-        "width": 3,
-        "height": 2
+        "path": "components/signs.png",
+        "grid": 1,
+        "x": 9,
+        "y": 208,
+        "width": 45,
+        "height": 18
       }
     },
     {
       "layer": "object",
       "position": {
-        "grid": 8,
-        "x": 154,
-        "y": 51
+        "grid": 2,
+        "x": 603,
+        "y": 199
       },
-      "width": 1,
+      "width": 2,
       "height": 1,
       "source": {
         "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
-        "grid": 16,
-        "x": 6,
-        "y": 10,
+        "grid": 32,
+        "x": 3,
+        "y": 6,
         "width": 2,
         "height": 1
+      }
+    },
+    {
+      "layer": "overlay",
+      "position": {
+        "grid": 1,
+        "x": 1203,
+        "y": 409
+      },
+      "width": 2,
+      "height": 1,
+      "source": {
+        "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House - Grey Translucent Shadow.png",
+        "grid": 2,
+        "x": 44,
+        "y": 78,
+        "width": 22,
+        "height": 9
       }
     }
   ],
