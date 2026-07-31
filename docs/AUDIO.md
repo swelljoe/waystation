@@ -2,6 +2,10 @@
 
 ## Runtime mix
 
+- The web build presents an **Enter the Waystation** button after WebAssembly
+  loads. Bevy and its audio output are constructed synchronously by that user
+  gesture so browser autoplay policy does not leave every sink permanently
+  silent. Native builds still start immediately.
 - The two AndriiG tracks alternate at 10% linear volume with a twelve-second
   quiet interval between songs.
 - Rain begins immediately and remains continuous for the first six minutes.

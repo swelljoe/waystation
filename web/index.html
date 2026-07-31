@@ -52,10 +52,40 @@
       }
       .loading {
         position: fixed;
-        inset: auto 0 1rem;
+        inset: 0;
+        z-index: 3;
+        display: grid;
+        place-content: center;
+        gap: 0.65rem;
         text-align: center;
         color: #a99a77;
-        pointer-events: none;
+        background: radial-gradient(circle at 50% 42%, #293023 0, #151613 55%, #090a08 100%);
+      }
+      .start-game {
+        min-width: 14rem;
+        padding: 0.6rem 1.2rem 0.7rem;
+        border: 1px solid #88764f;
+        border-radius: 0.2rem;
+        color: #eadcb9;
+        background: #29271f;
+        font: 600 1.35rem/1 "EB Garamond", Georgia, "Times New Roman", serif;
+        cursor: pointer;
+        box-shadow: 0 6px 24px #0008;
+      }
+      .start-game:hover:not(:disabled),
+      .start-game:focus-visible {
+        border-color: #c3a96f;
+        background: #373225;
+        outline: 2px solid #c3a96f55;
+        outline-offset: 3px;
+      }
+      .start-game:disabled {
+        color: #7f765f;
+        cursor: wait;
+      }
+      .start-note {
+        margin: 0;
+        font-size: 1rem;
       }
       .credits-link {
         position: fixed;
@@ -74,7 +104,10 @@
   </head>
   <body>
     <noscript>This game requires WebAssembly and JavaScript.</noscript>
-    <div class="loading">Lighting the hearth…</div>
+    <div class="loading" role="status" aria-live="polite">
+      <button class="start-game" type="button" disabled>Lighting the hearth…</button>
+      <p class="start-note">Sound begins when you enter.</p>
+    </div>
     <a
       class="credits-link"
       href="https://raw.githubusercontent.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator/0f898bb675a1abe16ce430e82e3bf9daed278690/CREDITS.csv"
@@ -82,9 +115,32 @@
       rel="noopener noreferrer"
     >LPC sprite credits &amp; licenses</a>
     <script>
+      const loading = document.querySelector(".loading");
+      const startButton = document.querySelector(".start-game");
+      let started = false;
+
+      const enableStart = () => {
+        startButton.disabled = false;
+        startButton.textContent = "Enter the Waystation";
+      };
+
+      if (window.wasmBindings?.start_web_game) {
+        enableStart();
+      } else {
+        window.addEventListener("TrunkApplicationStarted", enableStart, { once: true });
+      }
+
+      startButton.addEventListener("click", () => {
+        if (started || !window.wasmBindings?.start_web_game) return;
+        started = true;
+        startButton.disabled = true;
+        startButton.textContent = "Opening the door…";
+        window.wasmBindings.start_web_game();
+      });
+
       const observer = new MutationObserver(() => {
         if (document.querySelector("canvas")) {
-          document.querySelector(".loading")?.remove();
+          loading.remove();
           observer.disconnect();
         }
       });

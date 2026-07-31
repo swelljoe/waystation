@@ -2441,6 +2441,48 @@
         ],
         "xp": 3
       }
+    },
+    "broken-love-seat-2": {
+      "label": "worn out love seat",
+      "kind": "furniture",
+      "layer": "object",
+      "task": {
+        "action": "repair",
+        "skill": "carpentry",
+        "level": 1,
+        "tools": [
+          "hammer"
+        ],
+        "supplies": [
+          {
+            "item": "plank",
+            "amount": 1
+          }
+        ],
+        "xp": 1
+      },
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "horror hotel/tile-B-04.png",
+            "grid": 16,
+            "x": 6,
+            "y": 38,
+            "width": 6,
+            "height": 4
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "hotel/tile-B-01.png",
+            "grid": 48,
+            "x": 4,
+            "y": 12,
+            "width": 2,
+            "height": 2
+          }
+        }
+      }
     }
   }
 }

@@ -287,7 +287,10 @@ make web       # requires Trunk, wasm32-unknown-unknown, and Python Pillow
 directory as the downloadable `waystation-web` artifact on every run and deploys
 default-branch builds to the repository's configured GitHub Pages site at
 <https://swelljoe.github.io/waystation/>. Trunk uses relative URLs, so the same
-build works at a Pages repository path and from a local static server.
+build works at a Pages repository path and from a local static server. The web
+shell waits for the player to choose **Enter the Waystation** before starting
+Bevy, satisfying browser audio-autoplay policy while keeping music and rain
+enabled from the first game frame.
 
 Because `assets/` is intentionally gitignored, pull-request runners build the
 distributable procedural fallback art. Default-branch builds overlay the

@@ -4068,7 +4068,8 @@
       },
       "width": 4,
       "height": 3,
-      "initial_state": "damaged"
+      "initial_state": "damaged",
+      "occludes_player": true
     },
     {
       "id": "damaged-roof-tiles-2-03",

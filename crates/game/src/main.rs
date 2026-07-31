@@ -74,7 +74,24 @@ const TREE_PLACEMENTS: [(f32, f32, f32); 15] = [
     (1_960.0, -1_080.0, 180.0),
 ];
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
+    run_game();
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {}
+
+/// Browsers only permit a page to create audible playback during a user gesture.
+/// The web shell calls this exported entry point from its start button rather than
+/// constructing Bevy's audio output while the page is loading.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn start_web_game() {
+    run_game();
+}
+
+fn run_game() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.08)))
         .insert_resource(UiScale(DEVELOPMENT_PRESENTATION_SCALE))

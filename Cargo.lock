@@ -5164,6 +5164,7 @@ dependencies = [
  "ehttp",
  "serde",
  "serde_json",
+ "wasm-bindgen",
  "waystation-shared",
  "web-sys",
 ]
