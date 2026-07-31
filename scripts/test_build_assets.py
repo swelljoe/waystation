@@ -234,6 +234,32 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertEqual(sheet.getpixel((7, 11)), (12, 34, 56, 255))
         self.assertIn("LPC", provenance)
 
+    def test_custom_bible_icon_is_copied_at_native_pixel_size(self) -> None:
+        custom = self.assets / "custom"
+        custom.mkdir()
+        source = Image.new("RGBA", (34, 34), (0, 0, 0, 0))
+        source.putpixel((7, 11), (12, 34, 56, 255))
+        source.save(custom / "bible-32.png")
+        output = self.assets / "runtime"
+
+        records = BUILD_ASSETS.write_ui_art(self.assets, output)
+        icon = Image.open(output / "ui/bible-32.png")
+
+        self.assertEqual(icon.size, (34, 34))
+        self.assertEqual(icon.getpixel((7, 11)), (12, 34, 56, 255))
+        self.assertEqual(records[0]["path"], "ui/bible-32.png")
+        self.assertIn("custom", records[0]["source"])
+
+    def test_bible_icon_has_public_fallback(self) -> None:
+        output = self.assets / "runtime"
+
+        records = BUILD_ASSETS.write_ui_art(self.assets, output)
+        icon = Image.open(output / "ui/bible-32.png")
+
+        self.assertEqual(icon.size, (34, 34))
+        self.assertIsNotNone(icon.getbbox())
+        self.assertIn("fallback", records[0]["source"])
+
     def test_restoration_world_props_have_native_pixel_canvases(self) -> None:
         props = BUILD_ASSETS.draw_forage_and_tool_props()
 

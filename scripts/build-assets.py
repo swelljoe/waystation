@@ -203,6 +203,46 @@ def write_card_art(output: Path) -> list[dict[str, object]]:
     return records
 
 
+def draw_bible_icon() -> Image.Image:
+    """Open-build stand-in matching the authored icon's compact pixel canvas."""
+    image = Image.new("RGBA", (34, 34), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    px(draw, (2, 5, 16, 30), "#6e3f2c")
+    px(draw, (17, 5, 31, 30), "#80503a")
+    px(draw, (4, 3, 16, 28), "#d1bd86")
+    px(draw, (17, 3, 29, 28), "#dfcb92")
+    px(draw, (15, 5, 18, 30), "#533326")
+    px(draw, (9, 10, 11, 22), "#6e3f2c")
+    px(draw, (6, 14, 14, 17), "#6e3f2c")
+    return image
+
+
+def write_ui_art(source: Path, output: Path) -> list[dict[str, object]]:
+    """Copy redistributable custom UI art, with a complete public fallback."""
+    ui = output / "ui"
+    ui.mkdir(parents=True, exist_ok=True)
+    for stale in ui.glob("*.png"):
+        stale.unlink()
+
+    custom_bible = source / "custom/bible-32.png"
+    if custom_bible.is_file():
+        bible = Image.open(custom_bible).convert("RGBA")
+        bible_source = "project-authored custom item icon"
+    else:
+        bible = draw_bible_icon()
+        bible_source = "project-authored procedural fallback"
+    bible_path = ui / "bible-32.png"
+    bible.save(bible_path, optimize=False)
+    return [
+        {
+            "path": str(bible_path.relative_to(output)),
+            "sha256": sha256(bible_path),
+            "size": list(bible.size),
+            "source": bible_source,
+        }
+    ]
+
+
 def patterned_tile(base: str, detail: str, seed: int) -> Image.Image:
     image = Image.new("RGBA", (32, 32), base)
     draw = ImageDraw.Draw(image)
@@ -972,6 +1012,7 @@ def main() -> None:
     args.output.mkdir(parents=True, exist_ok=True)
     checks = verify_private_sources(args.source, manifest, args.strict_private)
     generated = write_card_art(args.output)
+    generated.extend(write_ui_art(args.source, args.output))
     generated.extend(write_world_art(args.source, args.output))
     generated.extend(write_interior_art(args.source, args.output))
     generated.extend(write_building_art(args.source, args.output))

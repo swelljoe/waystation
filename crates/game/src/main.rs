@@ -8,7 +8,7 @@ mod progression;
 mod terrain;
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::Write as _,
     sync::{Arc, Mutex},
 };
@@ -57,6 +57,8 @@ const DROP_SEARCH_STEP: f32 = terrain::TILE_SIZE;
 const DROP_SEARCH_RINGS: i16 = 72;
 const BIBLE_STATE_KEY: &str = "motel-room-03/bible-nightstand";
 const DISCOVERY_FOUND_STATE: &str = "found";
+const BIBLE_ICON_PATH: &str = "ui/bible-32.png";
+const STORY_SEEN_STATE: &str = "seen";
 
 const TREE_PLACEMENTS: [(f32, f32, f32); 15] = [
     (-1_980.0, 1_160.0, 190.0),
@@ -103,6 +105,7 @@ fn run_game() {
         .insert_resource(MotelAccess::default())
         .insert_resource(Progression::default())
         .insert_resource(ExteriorReturn::default())
+        .init_resource::<NarrativePopup>()
         .init_resource::<DoorwayAttempt>()
         .init_resource::<DoorBumpLatch>()
         .init_resource::<terrain::TerrainDebugOverlay>()
@@ -126,6 +129,7 @@ fn run_game() {
                 .set(ImagePlugin::default_nearest()),
         )
         .add_plugins(game_audio::GameAudioPlugin)
+        .add_systems(Update, terrain::update_debug_overlay)
         .add_systems(
             Startup,
             (load_story, setup_world, load_ui_fonts, setup_ui).chain(),
@@ -143,13 +147,14 @@ fn run_game() {
                     .after(animate_player)
                     .after(update_player_tree_occlusion),
                 follow_player,
-                terrain::update_debug_overlay,
+                trigger_story_hotspots,
                 update_nearby_interaction,
                 handle_interaction,
                 handle_story_input,
                 poll_interpretation,
                 sync_world_state,
                 sync_ui,
+                sync_narrative_popup_ui,
                 save_story,
             )
                 .chain(),
@@ -282,6 +287,12 @@ struct Interactable {
 #[derive(Component)]
 struct AuthoredInteractionLabel(String);
 
+#[derive(Component, Clone, Copy)]
+struct StoryHotspot {
+    beat: StoryBeat,
+    radius: f32,
+}
+
 #[derive(Component)]
 struct MutableSceneElement {
     scene_id: String,
@@ -324,6 +335,18 @@ struct InteractionResources<'w> {
     interior_state: ResMut<'w, InteriorState>,
     motel_access: ResMut<'w, MotelAccess>,
     progression: ResMut<'w, Progression>,
+}
+
+#[derive(SystemParam)]
+struct NarrativeResources<'w> {
+    interior_state: ResMut<'w, InteriorState>,
+    popup: ResMut<'w, NarrativePopup>,
+}
+
+#[derive(SystemParam)]
+struct UiKnowledge<'w> {
+    interior_state: Res<'w, InteriorState>,
+    motel_access: Res<'w, MotelAccess>,
 }
 
 #[derive(SystemParam)]
@@ -407,6 +430,175 @@ struct ProgressText;
 
 #[derive(Component)]
 struct CardArt;
+
+#[derive(Component)]
+struct NarrativePopupRoot;
+
+#[derive(Component)]
+struct NarrativePopupTitle;
+
+#[derive(Component)]
+struct NarrativePopupBody;
+
+#[derive(Component)]
+struct NarrativePopupArt;
+
+#[derive(Component)]
+struct NarrativePopupDismiss;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DiscoveredItem {
+    GideonBible,
+}
+
+impl DiscoveredItem {
+    const fn title(self) -> &'static str {
+        match self {
+            Self::GideonBible => "A Small Book",
+        }
+    }
+
+    const fn description(self) -> &'static str {
+        match self {
+            Self::GideonBible => {
+                "This must be a book… I've seen paper before, but never so much of it bound together. The pages are thin as onion skin—and somehow still dry. Someone left it here for a stranger.\n\nIt has waited safely in this room for generations. It is too precious for my leaky old pack. I'll leave it here, read while the storm passes, and come back when it is time to go."
+            }
+        }
+    }
+
+    const fn image_path(self) -> &'static str {
+        match self {
+            Self::GideonBible => BIBLE_ICON_PATH,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StoryBeat {
+    OfficeThreshold,
+    OfficeHearth,
+    OfficeLedger,
+    OfficeWelcome,
+    RoomThreePreserved,
+}
+
+impl StoryBeat {
+    const fn title(self) -> &'static str {
+        match self {
+            Self::OfficeThreshold => "The Unnumbered Door",
+            Self::OfficeHearth => "A Place to Come In",
+            Self::OfficeLedger => "Names and Numbers",
+            Self::OfficeWelcome => "For Strangers",
+            Self::RoomThreePreserved => "Room Three",
+        }
+    }
+
+    const fn description(self) -> &'static str {
+        match self {
+            Self::OfficeThreshold => {
+                "The door at the left had no number. The six beside it did. This room is not for sleeping: a desk faces the entrance, and someone once sat here waiting for whoever came through it."
+            }
+            Self::OfficeHearth => {
+                "Two chairs have been drawn close to the hearth—not a private room, then. A place to come in wet and cold. A place where someone was expected."
+            }
+            Self::OfficeLedger => {
+                "Scraps of ruled paper cling together beneath the desk's shallow drawer. Names. Dates. Numbers matching the doors outside. A guest ledger.\n\nThe brass keys carry those same numbers. I don't need to carry them far; they belong here, and now I know which doors they open."
+            }
+            Self::OfficeWelcome => {
+                "A room for receiving people. Keys kept ready. Fire and chairs for the road-worn.\n\nThis was a place that welcomed strangers."
+            }
+            Self::RoomThreePreserved => {
+                "The glass didn't fail. The door swelled shut, and the roof must have held. Decades of dust—perhaps a century—but nothing here is broken.\n\nHow did this one room endure when all the others opened to the weather?"
+            }
+        }
+    }
+
+    const fn state_key(self) -> &'static str {
+        match self {
+            Self::OfficeThreshold => "story/office-threshold",
+            Self::OfficeHearth => "story/office-hearth",
+            Self::OfficeLedger => "story/office-ledger",
+            Self::OfficeWelcome => "story/office-welcome",
+            Self::RoomThreePreserved => "story/room-three-preserved",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NarrativeCard {
+    Item(DiscoveredItem),
+    Thought(StoryBeat),
+}
+
+impl NarrativeCard {
+    const fn title(self) -> &'static str {
+        match self {
+            Self::Item(item) => item.title(),
+            Self::Thought(beat) => beat.title(),
+        }
+    }
+
+    const fn description(self) -> &'static str {
+        match self {
+            Self::Item(item) => item.description(),
+            Self::Thought(beat) => beat.description(),
+        }
+    }
+
+    const fn image_path(self) -> Option<&'static str> {
+        match self {
+            Self::Item(item) => Some(item.image_path()),
+            Self::Thought(_) => None,
+        }
+    }
+
+    const fn dismiss_label(self) -> &'static str {
+        match self {
+            Self::Item(DiscoveredItem::GideonBible) => "E / SPACE — leave it safe here",
+            Self::Thought(_) => "E / SPACE — continue",
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+struct NarrativePopup {
+    current: Option<NarrativeCard>,
+    queue: VecDeque<NarrativeCard>,
+    dismiss_armed: bool,
+}
+
+impl NarrativePopup {
+    fn present(&mut self, card: NarrativeCard) {
+        if self.current == Some(card) || self.queue.contains(&card) {
+            return;
+        }
+        if self.current.is_some() {
+            self.queue.push_back(card);
+            return;
+        }
+        self.current = Some(card);
+        self.dismiss_armed = false;
+    }
+
+    const fn is_open(&self) -> bool {
+        self.current.is_some()
+    }
+
+    /// The interaction key which opens a discovery must not also close it in
+    /// the same update. The first input pass arms dismissal; a later E, Space,
+    /// or Escape accepts the item.
+    fn handle_input(&mut self, dismiss_pressed: bool) {
+        if self.current.is_none() {
+            return;
+        }
+        if !self.dismiss_armed {
+            self.dismiss_armed = true;
+        } else if dismiss_pressed {
+            self.current = self.queue.pop_front();
+            self.dismiss_armed = false;
+        }
+    }
+}
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
 enum WorldLocation {
@@ -564,7 +756,8 @@ fn setup_world(
     asset_server: Res<AssetServer>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     location: Res<WorldLocation>,
-    interior_state: Res<InteriorState>,
+    mut interior_state: ResMut<InteriorState>,
+    mut popup: ResMut<NarrativePopup>,
     progression: Res<Progression>,
 ) {
     commands.spawn((
@@ -650,6 +843,7 @@ fn setup_world(
     let interior_map = interior::InteriorMap::load(interior::InteriorId::Office);
     if *location == WorldLocation::Interior {
         spawn_interior_scene(&mut commands, &asset_server, &interior_map, &interior_state);
+        present_story_beat(&mut popup, &mut interior_state, StoryBeat::OfficeThreshold);
     }
 
     // The motel court is only one clearing in a much larger, forageable valley.
@@ -929,6 +1123,12 @@ fn spawn_interior_scene(
                 state: state.to_owned(),
             },
         ));
+        if kind == InteractableKind::Hearth {
+            commands.entity(entity).insert(StoryHotspot {
+                beat: StoryBeat::OfficeHearth,
+                radius: 104.0,
+            });
+        }
         if game_audio::is_creaking_floorboard(element) {
             commands
                 .entity(entity)
@@ -942,6 +1142,10 @@ fn spawn_interior_scene(
         }
     }
     for interaction in map.interactions() {
+        let previously_discovered = interior_state
+            .0
+            .get(&format!("{}/{}", map.id(), interaction.id))
+            .is_some_and(|state| state == DISCOVERY_FOUND_STATE);
         let kind = match (interaction.kind, interaction.discovery) {
             (interior::SceneInteractionKind::Search, interior::SceneDiscovery::GideonBible) => {
                 InteractableKind::BibleNightstand
@@ -956,13 +1160,16 @@ fn spawn_interior_scene(
         );
         commands.entity(entity).insert((
             interior::InteriorSceneEntity,
-            AuthoredInteractionLabel(interaction.label.clone()),
+            AuthoredInteractionLabel(if previously_discovered {
+                "nightstand where the little book rests".to_owned()
+            } else {
+                interaction.label.clone()
+            }),
             Interactable {
                 kind,
-                consumed: interior_state
-                    .0
-                    .get(&format!("{}/{}", map.id(), interaction.id))
-                    .is_some_and(|state| state == DISCOVERY_FOUND_STATE),
+                // Discovery records knowledge but does not remove the object:
+                // the Scribe deliberately leaves the Bible here to revisit.
+                consumed: false,
             },
         ));
     }
@@ -1073,6 +1280,42 @@ fn record_bible_discovery(story: &mut Story, interior_state: &mut InteriorState)
         .insert(BIBLE_STATE_KEY.to_owned(), DISCOVERY_FOUND_STATE.to_owned());
     if story.stage == StoryStage::FindBible {
         story.stage = StoryStage::FindPlank;
+    }
+}
+
+fn story_beat_seen(interior_state: &InteriorState, beat: StoryBeat) -> bool {
+    interior_state
+        .0
+        .get(beat.state_key())
+        .is_some_and(|state| state == STORY_SEEN_STATE)
+}
+
+fn present_story_beat(
+    popup: &mut NarrativePopup,
+    interior_state: &mut InteriorState,
+    beat: StoryBeat,
+) -> bool {
+    if story_beat_seen(interior_state, beat) {
+        return false;
+    }
+    interior_state
+        .0
+        .insert(beat.state_key().to_owned(), STORY_SEEN_STATE.to_owned());
+    popup.present(NarrativeCard::Thought(beat));
+    true
+}
+
+fn reconcile_office_realization(popup: &mut NarrativePopup, interior_state: &mut InteriorState) {
+    let observations = [
+        StoryBeat::OfficeThreshold,
+        StoryBeat::OfficeHearth,
+        StoryBeat::OfficeLedger,
+    ];
+    if observations
+        .into_iter()
+        .all(|beat| story_beat_seen(interior_state, beat))
+    {
+        present_story_beat(popup, interior_state, StoryBeat::OfficeWelcome);
     }
 }
 
@@ -1341,60 +1584,82 @@ fn load_ui_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
 #[allow(clippy::too_many_lines)]
 fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<UiFonts>) {
     terrain::spawn_debug_legend(&mut commands);
-    let status_color = Color::srgb(0.92, 0.86, 0.67);
+    let parchment = BackgroundColor(Color::srgba(0.72, 0.63, 0.45, 0.95));
+    let parchment_edge = BorderColor::all(Color::srgb(0.28, 0.20, 0.12));
+    let ink = TextColor(Color::srgb(0.16, 0.11, 0.07));
+    let quiet_ink = TextColor(Color::srgb(0.25, 0.18, 0.11));
     commands
         .spawn((
             Text::new("📜  "),
-            fonts.emoji(18.0),
-            TextColor(status_color),
+            fonts.emoji(10.0),
+            ink,
             Node {
                 position_type: PositionType::Absolute,
                 left: Val::Px(18.0),
                 top: Val::Px(16.0),
-                max_width: Val::Px(410.0),
+                width: Val::Px(180.0),
+                max_width: Val::Percent(44.0),
+                padding: UiRect::axes(Val::Px(7.0), Val::Px(6.0)),
+                border: UiRect::all(Val::Px(1.0)),
                 ..default()
             },
+            parchment,
+            parchment_edge,
+            Outline::new(
+                Val::Px(1.0),
+                Val::Px(1.0),
+                Color::srgba(0.06, 0.04, 0.02, 0.55),
+            ),
         ))
-        .with_child((
-            TextSpan::new(""),
-            fonts.roman(18.0),
-            TextColor(status_color),
-            StatusText,
-        ));
+        .with_child((TextSpan::new(""), fonts.roman(10.0), ink, StatusText));
     commands.spawn((
         Text::new(""),
-        fonts.roman(15.0),
-        TextColor(Color::srgb(0.86, 0.80, 0.64)),
+        fonts.roman(8.0),
+        quiet_ink,
         TextLayout::new_with_justify(Justify::Right),
         Node {
             position_type: PositionType::Absolute,
             right: Val::Px(18.0),
             top: Val::Px(16.0),
-            max_width: Val::Px(285.0),
+            width: Val::Px(120.0),
+            max_width: Val::Percent(30.0),
+            padding: UiRect::axes(Val::Px(7.0), Val::Px(6.0)),
+            border: UiRect::all(Val::Px(1.0)),
             ..default()
         },
+        parchment,
+        parchment_edge,
+        Outline::new(
+            Val::Px(1.0),
+            Val::Px(1.0),
+            Color::srgba(0.06, 0.04, 0.02, 0.55),
+        ),
         ProgressText,
     ));
     commands
         .spawn((
             Text::new("☞  "),
-            fonts.emoji(19.0),
-            TextColor(Color::WHITE),
+            fonts.emoji(10.0),
+            ink,
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Percent(25.0),
+                left: Val::Percent(19.0),
                 bottom: Val::Px(18.0),
-                width: Val::Percent(50.0),
+                width: Val::Percent(62.0),
+                padding: UiRect::axes(Val::Px(7.0), Val::Px(5.0)),
+                border: UiRect::all(Val::Px(1.0)),
                 justify_content: JustifyContent::Center,
                 ..default()
             },
+            parchment,
+            parchment_edge,
+            Outline::new(
+                Val::Px(1.0),
+                Val::Px(1.0),
+                Color::srgba(0.06, 0.04, 0.02, 0.55),
+            ),
         ))
-        .with_child((
-            TextSpan::new(""),
-            fonts.roman(19.0),
-            TextColor(Color::WHITE),
-            PromptText,
-        ));
+        .with_child((TextSpan::new(""), fonts.roman(10.0), ink, PromptText));
 
     commands
         .spawn((
@@ -1451,27 +1716,105 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                 ProvenanceText,
             ));
         });
+
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.04, 0.03, 0.02, 0.56)),
+            ZIndex(200),
+            Visibility::Hidden,
+            NarrativePopupRoot,
+        ))
+        .with_children(|backdrop| {
+            backdrop
+                .spawn((
+                    Node {
+                        width: Val::Px(260.0),
+                        max_width: Val::Percent(68.0),
+                        padding: UiRect::all(Val::Px(12.0)),
+                        border: UiRect::all(Val::Px(2.0)),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Px(8.0),
+                        ..default()
+                    },
+                    parchment,
+                    parchment_edge,
+                    Outline::new(
+                        Val::Px(2.0),
+                        Val::Px(2.0),
+                        Color::srgba(0.04, 0.025, 0.01, 0.72),
+                    ),
+                ))
+                .with_children(|panel| {
+                    panel.spawn((
+                        Text::new(""),
+                        fonts.roman(15.0),
+                        ink,
+                        TextLayout::new_with_justify(Justify::Center),
+                        NarrativePopupTitle,
+                    ));
+                    panel.spawn((
+                        ImageNode::new(asset_server.load(BIBLE_ICON_PATH)),
+                        Node {
+                            display: Display::None,
+                            width: Val::Px(34.0),
+                            height: Val::Px(34.0),
+                            ..default()
+                        },
+                        NarrativePopupArt,
+                    ));
+                    panel.spawn((
+                        Text::new(""),
+                        fonts.roman(10.5),
+                        ink,
+                        TextLayout::new_with_justify(Justify::Center),
+                        Node {
+                            max_width: Val::Px(232.0),
+                            ..default()
+                        },
+                        NarrativePopupBody,
+                    ));
+                    panel.spawn((
+                        Text::new("E / SPACE — continue"),
+                        fonts.roman(8.0),
+                        quiet_ink,
+                        TextLayout::new_with_justify(Justify::Center),
+                        NarrativePopupDismiss,
+                    ));
+                });
+        });
 }
 
 fn move_player(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     story: Res<Story>,
+    popup: Res<NarrativePopup>,
     mut environment: MovementEnvironment,
     mut player: Query<(&mut Transform, &mut PlayerAnimation), With<Player>>,
 ) {
     environment.doorway_attempt.0 = None;
-    if matches!(
-        story.stage,
-        StoryStage::Night
-            | StoryStage::Dialogue
-            | StoryStage::Interpreting
-            | StoryStage::ChoosePaper
-            | StoryStage::ChooseIllustration
-            | StoryStage::ChooseBorder
-            | StoryStage::FinishedCard
-            | StoryStage::Epilogue
-    ) {
+    if popup.is_open()
+        || matches!(
+            story.stage,
+            StoryStage::Night
+                | StoryStage::Dialogue
+                | StoryStage::Interpreting
+                | StoryStage::ChoosePaper
+                | StoryStage::ChooseIllustration
+                | StoryStage::ChooseBorder
+                | StoryStage::FinishedCard
+                | StoryStage::Epilogue
+        )
+    {
         return;
     }
     let Ok((mut transform, mut animation)) = player.single_mut() else {
@@ -1770,7 +2113,7 @@ fn handle_automatic_doorways(
     mut location: ResMut<WorldLocation>,
     interior: Res<interior::InteriorMap>,
     motel_access: Res<MotelAccess>,
-    interior_state: Res<InteriorState>,
+    mut narrative: NarrativeResources,
     keys: Res<ButtonInput<KeyCode>>,
     asset_server: Res<AssetServer>,
     mut exterior_return: ResMut<ExteriorReturn>,
@@ -1811,7 +2154,7 @@ fn handle_automatic_doorways(
             &mut commands,
             &asset_server,
             &next_interior,
-            &interior_state,
+            &narrative.interior_state,
         );
         let position = next_interior.cell_center(next_interior.entry);
         player_transform.translation.x = position.x;
@@ -1822,6 +2165,23 @@ fn handle_automatic_doorways(
             "Inside {}, the valley light falls away behind you.",
             next_interior.name()
         ));
+        match destination.interior_id {
+            interior::InteriorId::Office => {
+                present_story_beat(
+                    &mut narrative.popup,
+                    &mut narrative.interior_state,
+                    StoryBeat::OfficeThreshold,
+                );
+            }
+            interior::InteriorId::Room03 => {
+                present_story_beat(
+                    &mut narrative.popup,
+                    &mut narrative.interior_state,
+                    StoryBeat::RoomThreePreserved,
+                );
+            }
+            _ => {}
+        }
         commands.insert_resource(next_interior);
     } else if interior.is_exit(player_position) {
         player_transform.translation.x = exterior_return.0.x;
@@ -1930,6 +2290,33 @@ fn update_nearby_interaction(
     nearby.0 = closest;
 }
 
+fn trigger_story_hotspots(
+    location: Res<WorldLocation>,
+    player: Query<&Transform, With<Player>>,
+    hotspots: Query<(&Transform, &StoryHotspot), Without<Player>>,
+    mut popup: ResMut<NarrativePopup>,
+    mut interior_state: ResMut<InteriorState>,
+) {
+    if *location != WorldLocation::Interior || popup.is_open() {
+        return;
+    }
+    let Ok(player) = player.single() else {
+        return;
+    };
+    for (transform, hotspot) in &hotspots {
+        if player
+            .translation
+            .truncate()
+            .distance(transform.translation.truncate())
+            <= hotspot.radius
+            && present_story_beat(&mut popup, &mut interior_state, hotspot.beat)
+        {
+            reconcile_office_realization(&mut popup, &mut interior_state);
+            return;
+        }
+    }
+}
+
 const fn interaction_key_matches(
     kind: InteractableKind,
     stage: StoryStage,
@@ -1953,6 +2340,7 @@ fn handle_interaction(
     keys: Res<ButtonInput<KeyCode>>,
     nearby: Res<Nearby>,
     mut story: ResMut<Story>,
+    mut popup: ResMut<NarrativePopup>,
     interior: Res<interior::InteriorMap>,
     motel: Res<interior::MotelExteriorMap>,
     asset_server: Res<AssetServer>,
@@ -1969,6 +2357,9 @@ fn handle_interaction(
         Without<Player>,
     >,
 ) {
+    if popup.is_open() {
+        return;
+    }
     let Some(entity) = nearby.0 else {
         return;
     };
@@ -2146,6 +2537,12 @@ fn handle_interaction(
                         .to_owned(),
                 );
             }
+            present_story_beat(
+                &mut popup,
+                &mut resources.interior_state,
+                StoryBeat::OfficeLedger,
+            );
+            reconcile_office_realization(&mut popup, &mut resources.interior_state);
             story.notice = Some(if discoveries.is_empty() {
                 "The old desk has already yielded its secrets.".to_owned()
             } else {
@@ -2154,9 +2551,9 @@ fn handle_interaction(
         }
         InteractableKind::BibleNightstand => {
             record_bible_discovery(&mut story, &mut resources.interior_state);
-            target.consumed = true;
+            popup.present(NarrativeCard::Item(DiscoveredItem::GideonBible));
             story.notice = Some(
-                "Inside the nightstand, beneath a century of dust, lies a small Gideon Bible. Its thin pages are dry. Someone left it here for a stranger—and the stranger can read."
+                "The little book remains safe on the nightstand. Someone left it here for a stranger—and the stranger can read."
                     .to_owned(),
             );
         }
@@ -2314,8 +2711,17 @@ fn repair_scene_element(
 fn handle_story_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut story: ResMut<Story>,
+    mut popup: ResMut<NarrativePopup>,
     inbox: Res<InterpretInbox>,
 ) {
+    if popup.is_open() {
+        popup.handle_input(
+            keys.just_pressed(KeyCode::KeyE)
+                || keys.just_pressed(KeyCode::Space)
+                || keys.just_pressed(KeyCode::Escape),
+        );
+        return;
+    }
     if story.stage == StoryStage::Night && keys.just_pressed(KeyCode::Space) {
         story.stage = StoryStage::MeetTraveler;
         story.notice = Some(
@@ -2467,7 +2873,7 @@ fn sync_world_state(
 fn sync_ui(
     story: Res<Story>,
     progression: Res<Progression>,
-    interior_state: Res<InteriorState>,
+    ui_knowledge: UiKnowledge,
     nearby: Res<Nearby>,
     asset_server: Res<AssetServer>,
     interactables: Query<&Interactable>,
@@ -2557,13 +2963,20 @@ fn sync_ui(
 
     if let Ok(mut text) = progress_text.single_mut() {
         let supplies = progression.supplies_summary();
-        let discovery = if bible_found(&interior_state) {
-            "\n\nFOUND\nOld Gideon Bible"
+        let mut knowledge = Vec::new();
+        if ui_knowledge.motel_access.keys_found {
+            knowledge.push("Numbered motel keys — office");
+        }
+        if bible_found(&ui_knowledge.interior_state) {
+            knowledge.push("Old Gideon Bible — room 3");
+        }
+        let knowledge = if knowledge.is_empty() {
+            String::new()
         } else {
-            ""
+            format!("\n\nKNOWN\n{}", knowledge.join("\n"))
         };
         **text = format!(
-            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{discovery}",
+            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{knowledge}",
             progression.skill_tree_summary(),
             progression.tools_summary(),
             if supplies.is_empty() {
@@ -2621,7 +3034,7 @@ fn sync_ui(
     let overlay_content: Option<(String, String, String)> = match story.stage {
         StoryStage::Night => Some((
             "A Fire in the Valley".to_owned(),
-            "You brace the desk with old cedar and set the book upon it. Smoke rises through a chimney that has been cold longer than any remembered name.\n\nSPACE — sleep until morning"
+            "You brace the desk with old cedar. In room 3, the little book waits where the dry walls have guarded it for generations. Smoke rises through a chimney that has been cold longer than any remembered name.\n\nSPACE — sleep until morning"
                 .to_owned(),
             String::new(),
         )),
@@ -2636,7 +3049,7 @@ fn sync_ui(
         }
         StoryStage::Interpreting => Some((
             "The Scribe Listens".to_owned(),
-            "The traveler's words settle beside the old book. You search for the need beneath them…"
+            "The traveler's words settle beside what you have been reading in room 3. You search for the need beneath them…"
                 .to_owned(),
             "Gloo AI is selecting from a reviewed passage catalog.".to_owned(),
         )),
@@ -2723,6 +3136,61 @@ fn sync_ui(
             "card/illustration_{motif}_{}.png",
             story.card.illustration
         ));
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn sync_narrative_popup_ui(
+    popup: Res<NarrativePopup>,
+    asset_server: Res<AssetServer>,
+    mut root: Query<&mut Visibility, With<NarrativePopupRoot>>,
+    mut text: Query<
+        (
+            &mut Text,
+            Option<&NarrativePopupTitle>,
+            Option<&NarrativePopupBody>,
+        ),
+        (
+            Or<(With<NarrativePopupTitle>, With<NarrativePopupBody>)>,
+            Without<NarrativePopupDismiss>,
+        ),
+    >,
+    mut art: Query<(&mut ImageNode, &mut Node), With<NarrativePopupArt>>,
+    mut dismiss: Query<
+        &mut Text,
+        (
+            With<NarrativePopupDismiss>,
+            Without<NarrativePopupTitle>,
+            Without<NarrativePopupBody>,
+        ),
+    >,
+) {
+    let Some(card) = popup.current else {
+        if let Ok(mut visibility) = root.single_mut() {
+            *visibility = Visibility::Hidden;
+        }
+        return;
+    };
+    if let Ok(mut visibility) = root.single_mut() {
+        *visibility = Visibility::Visible;
+    }
+    for (mut value, title, body) in &mut text {
+        if title.is_some() {
+            card.title().clone_into(&mut **value);
+        } else if body.is_some() {
+            card.description().clone_into(&mut **value);
+        }
+    }
+    if let Ok((mut image, mut node)) = art.single_mut() {
+        if let Some(path) = card.image_path() {
+            image.image = asset_server.load(path);
+            node.display = Display::Flex;
+        } else {
+            node.display = Display::None;
+        }
+    }
+    if let Ok(mut text) = dismiss.single_mut() {
+        card.dismiss_label().clone_into(&mut **text);
     }
 }
 
@@ -2836,6 +3304,54 @@ mod tests {
 
         assert!(bible_found(&interior_state));
         assert_eq!(story.stage, StoryStage::FindPlank);
+    }
+
+    #[test]
+    fn narrative_popup_waits_for_a_later_keypress_before_dismissal() {
+        let mut popup = NarrativePopup::default();
+
+        popup.present(NarrativeCard::Item(DiscoveredItem::GideonBible));
+        popup.handle_input(true);
+        assert!(popup.is_open());
+
+        popup.handle_input(false);
+        assert!(popup.is_open());
+
+        popup.handle_input(true);
+        assert!(!popup.is_open());
+    }
+
+    #[test]
+    fn narrative_popup_queues_story_beats_without_skipping_them() {
+        let mut popup = NarrativePopup::default();
+        popup.present(NarrativeCard::Thought(StoryBeat::OfficeLedger));
+        popup.present(NarrativeCard::Thought(StoryBeat::OfficeWelcome));
+
+        assert_eq!(
+            popup.current,
+            Some(NarrativeCard::Thought(StoryBeat::OfficeLedger))
+        );
+        popup.handle_input(false);
+        popup.handle_input(true);
+        assert_eq!(
+            popup.current,
+            Some(NarrativeCard::Thought(StoryBeat::OfficeWelcome))
+        );
+    }
+
+    #[test]
+    fn office_welcome_realization_requires_all_three_observations() {
+        let mut popup = NarrativePopup::default();
+        let mut interior_state = InteriorState::default();
+
+        present_story_beat(&mut popup, &mut interior_state, StoryBeat::OfficeThreshold);
+        present_story_beat(&mut popup, &mut interior_state, StoryBeat::OfficeLedger);
+        reconcile_office_realization(&mut popup, &mut interior_state);
+        assert!(!story_beat_seen(&interior_state, StoryBeat::OfficeWelcome));
+
+        present_story_beat(&mut popup, &mut interior_state, StoryBeat::OfficeHearth);
+        reconcile_office_realization(&mut popup, &mut interior_state);
+        assert!(story_beat_seen(&interior_state, StoryBeat::OfficeWelcome));
     }
 
     #[test]

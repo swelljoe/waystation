@@ -53,12 +53,25 @@ was entered from.
 
 Room 3 is unusually well preserved. Its baked nightstand carries a named search
 hotspot; searching it reveals the old Gideon Bible and persists that discovery
-under the room object's stable ID.
+under the room object's stable ID. The find opens a dismissible item card with
+the native-pixel Bible icon and the Scribe's first impression; use E, Space, or
+Escape to continue. The Scribe leaves the book safely in room 3 rather than
+putting it in the backpack, so the nightstand remains searchable.
+
+The same parchment card now carries one-time story thoughts without pretending
+they are inventory. Entering and exploring the office reveals its unnumbered
+entrance, hearth and chairs, guest-ledger scraps, and numbered keys in stages;
+only after all three clues does the Scribe recognize a place built to welcome
+strangers. Entering room 3 for the first time also pauses on its remarkable
+preservation. Seen thoughts persist with the room state, while keys and the book
+appear under **Known** as access or knowledge rather than carried supplies.
 
 The valley is now a 144×96-cell exploration area with persistent kindling,
 fallen-log, plank, and tool pickups. The upper-right restoration ledger shows
-skills, durable tools, and consumable supplies. Clean debris to develop Upkeep;
-that unlocks Carpentry and Masonry, while Carpentry eventually unlocks Roofing.
+skills, durable tools, and consumable supplies. The objective, ledger, and
+contextual controls use compact aged-paper panels so they remain legible over
+the world. Clean debris to develop Upkeep; that unlocks Carpentry and Masonry,
+while Carpentry eventually unlocks Roofing.
 The office desk supplies a starter hammer and nails, and the office hearth now
 requires three kindling plus a cleared chimney reached with the discoverable
 ladder. See [docs/RESTORATION_GAMEPLAY.md](docs/RESTORATION_GAMEPLAY.md) for the

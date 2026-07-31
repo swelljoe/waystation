@@ -115,7 +115,14 @@ backward compatibility.
 Room 3 uses an interaction rectangle over its preserved nightstand rather than
 making that furniture a repair pair. Finding the Gideon Bible records
 `motel-room-03/bible-nightstand = found` in the same stable scene-state map used
-by mutable instances.
+by mutable instances. The Bible remains in the room and can be revisited; the
+state records knowledge, not possession.
+
+One-time narrative observations use the same saved map under stable `story/*`
+keys. A queued narrative-card resource presents either an illustrated discovery
+or an unillustrated thought and blocks movement until dismissed. The office's
+final hospitality realization is gated on the entrance, hearth, and ledger
+observations rather than story-stage order.
 
 Building source data lives in `content/buildings` and uses the same schema-v4
 placement and mutable-instance model with `scene_type: "building"`. Unlike a
