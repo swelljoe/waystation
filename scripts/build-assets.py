@@ -72,8 +72,8 @@ GROUND_ATLAS_TILES = [
     (36, 0),
     (38, 0),
     (36, 1),
-    (37, 1),
-    (39, 1),
+    (39, 1),  # W.inner_nw; upper corners run opposite the sheet's visual sequence
+    (37, 1),  # W.inner_ne
     (37, 0),
     (39, 0),
 ]

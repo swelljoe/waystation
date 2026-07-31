@@ -18,6 +18,8 @@ pub const MAP_HALF_WIDTH: f32 = MAP_WIDTH as f32 * TILE_SIZE / 2.0;
 pub const MAP_HALF_HEIGHT: f32 = MAP_HEIGHT as f32 * TILE_SIZE / 2.0;
 pub const WORLD_SEED: u64 = 0x5741_5953_5441_5449;
 
+const RIVER_HALF_WIDTH: usize = 2;
+
 const ATLAS_COLUMNS: u32 = 35;
 
 const GRASS_PLAIN: usize = 0;
@@ -96,8 +98,8 @@ const TILE_DEBUG_INFO: [TileDebugInfo; ATLAS_COLUMNS as usize] = [
     TileDebugInfo::new("W.edge_e", 36, 0),
     TileDebugInfo::new("W.edge_s", 38, 0),
     TileDebugInfo::new("W.edge_w", 36, 1),
-    TileDebugInfo::new("W.inner_nw", 37, 1),
-    TileDebugInfo::new("W.inner_ne", 39, 1),
+    TileDebugInfo::new("W.inner_nw", 39, 1),
+    TileDebugInfo::new("W.inner_ne", 37, 1),
     TileDebugInfo::new("W.inner_se", 37, 0),
     TileDebugInfo::new("W.inner_sw", 39, 0),
 ];
@@ -245,9 +247,12 @@ impl WorldGrid {
         for y in 0..MAP_HEIGHT {
             let meander = value_noise(seed ^ 0xA73E, y as f32 / 11.0, 4.25);
             let center = 11 + (meander * 7.0).round() as usize;
-            let half_width =
-                2 + usize::from(cell_hash(seed ^ 0x71AE, 0, y as u64).is_multiple_of(5));
-            for x in center.saturating_sub(half_width)..=(center + half_width).min(MAP_WIDTH - 1) {
+            // Keep the prototype river's width stable. Independent per-row width
+            // variation created isolated one-cell fingers on otherwise straight
+            // banks; coherent tributaries can be authored when matching art exists.
+            for x in center.saturating_sub(RIVER_HALF_WIDTH)
+                ..=(center + RIVER_HALF_WIDTH).min(MAP_WIDTH - 1)
+            {
                 self.set(x, y, Terrain::Water);
             }
         }
@@ -873,6 +878,17 @@ mod tests {
     }
 
     #[test]
+    fn generated_river_has_a_consistent_width() {
+        let grid = WorldGrid::generate(WORLD_SEED);
+        for y in 0..MAP_HEIGHT {
+            let width = (0..MAP_WIDTH / 4)
+                .filter(|&x| grid.get(x, y) == Terrain::Water)
+                .count();
+            assert_eq!(width, RIVER_HALF_WIDTH * 2 + 1, "river width at row {y}");
+        }
+    }
+
+    #[test]
     fn world_footprints_make_water_and_map_edges_impassable() {
         let grid = WorldGrid::generate(WORLD_SEED);
         let water = (0..MAP_HEIGHT)
@@ -898,9 +914,15 @@ mod tests {
     }
 
     #[test]
-    fn water_transition_lookup_keeps_inner_corners() {
-        let inner_nw = TileNeighbors(!TileNeighbors::NW);
-        assert_eq!(water_tile_index(inner_nw, 0), WATER_INNER_NW);
+    fn upper_water_inner_corners_use_the_matching_source_art() {
+        for (missing, index, source) in [
+            (TileNeighbors::NW, WATER_INNER_NW, (39, 1)),
+            (TileNeighbors::NE, WATER_INNER_NE, (37, 1)),
+        ] {
+            assert_eq!(water_tile_index(TileNeighbors(!missing), 0), index);
+            let info = TILE_DEBUG_INFO[index];
+            assert_eq!((info.source_column, info.source_row), source);
+        }
     }
 
     #[test]

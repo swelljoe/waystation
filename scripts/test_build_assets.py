@@ -33,6 +33,10 @@ class InteriorRenderingTests(unittest.TestCase):
             "placements": [placement],
         }
 
+    def test_water_upper_inner_corners_are_not_horizontally_mirrored(self) -> None:
+        self.assertEqual(BUILD_ASSETS.GROUND_ATLAS_TILES[31], (39, 1))
+        self.assertEqual(BUILD_ASSETS.GROUND_ATLAS_TILES[32], (37, 1))
+
     def test_source_grid_does_not_scale_stamp(self) -> None:
         Image.new("RGBA", (8, 8), "#ff0000").save(self.assets / "sheet.png")
         level = self.level_with(

@@ -78,8 +78,8 @@ no mask maps to them.
 | A28 | `W.edge_e` | G(36,0) |
 | A29 | `W.edge_s` | G(38,0) |
 | A30 | `W.edge_w` | G(36,1) |
-| A31 | `W.inner_nw` | G(37,1) |
-| A32 | `W.inner_ne` | G(39,1) |
+| A31 | `W.inner_nw` | G(39,1) |
+| A32 | `W.inner_ne` | G(37,1) |
 | A33 | `W.inner_se` | G(37,0) |
 | A34 | `W.inner_sw` | G(39,0) |
 
