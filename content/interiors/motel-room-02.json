@@ -911,7 +911,7 @@
       "position": {
         "grid": 16,
         "x": 2,
-        "y": 5
+        "y": 7
       },
       "width": 2,
       "height": 2,
@@ -927,18 +927,6 @@
       },
       "width": 2,
       "height": 2,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "broken-lamp-1-01",
-      "template": "broken-lamp-1",
-      "position": {
-        "grid": 16,
-        "x": 5,
-        "y": 4
-      },
-      "width": 1,
-      "height": 3,
       "initial_state": "damaged"
     },
     {

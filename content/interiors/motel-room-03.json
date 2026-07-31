@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "id": "motel-room-03",
-  "name": "Motel Room 03",
+  "name": "Motel Room 03 - Bible Room",
   "background": "#49382b",
   "floor_line": "#34261d",
   "grid": {
@@ -779,250 +779,257 @@
         "width": 10,
         "height": 1
       }
-    }
-  ],
-  "templates": {},
-  "structures": [
+    },
     {
-      "id": "old-room-wall-3-01",
-      "template": "old-room-wall-3",
+      "layer": "object",
       "position": {
+        "grid": 32,
+        "x": 8,
+        "y": 2
+      },
+      "width": 3,
+      "height": 2,
+      "source": {
+        "path": "hotel/tile-B-01.png",
         "grid": 16,
+        "x": 12,
+        "y": 38,
+        "width": 6,
+        "height": 4
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 32,
+        "x": 3,
+        "y": 2
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "Modern Furniture Mall Tileset/tile-B-01.png",
+        "grid": 48,
         "x": 6,
+        "y": 6,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 22,
+        "y": 8
+      },
+      "width": 1,
+      "height": 2,
+      "source": {
+        "path": "Modern Furniture Mall Tileset/tile-B-01.png",
+        "grid": 16,
+        "x": 10,
+        "y": 12,
+        "width": 2,
+        "height": 3
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 25,
+        "y": 34
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "motel/tile-B-03.png",
+        "grid": 1,
+        "x": 727,
+        "y": 620,
+        "width": 39,
+        "height": 52
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 7,
+        "y": 34
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "motel/tile-B-03.png",
+        "grid": 1,
+        "x": 727,
+        "y": 620,
+        "width": 39,
+        "height": 52
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 15,
+        "y": 35
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "motel/tile-B-03.png",
+        "grid": 1,
+        "x": 642,
+        "y": 633,
+        "width": 60,
+        "height": 38
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
+    },
+    {
+      "layer": "wall",
+      "position": {
+        "grid": 8,
+        "x": 0,
         "y": 0
       },
       "width": 3,
       "height": 3,
-      "initial_state": "damaged"
+      "source": {
+        "path": "motel/Auto-tile-A4-walls-3.png",
+        "grid": 48,
+        "x": 6,
+        "y": 13,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
     },
     {
-      "id": "old-room-wall-2-01",
-      "template": "old-room-wall-2",
+      "layer": "wall",
       "position": {
-        "grid": 16,
+        "grid": 8,
         "x": 12,
         "y": 0
       },
       "width": 3,
       "height": 3,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "old-room-wall-4-01",
-      "template": "old-room-wall-4",
-      "position": {
-        "grid": 16,
-        "x": 18,
-        "y": 0
+      "source": {
+        "path": "motel/Auto-tile-A4-walls-3.png",
+        "grid": 48,
+        "x": 6,
+        "y": 13,
+        "width": 2,
+        "height": 2
       },
-      "width": 3,
-      "height": 3,
-      "initial_state": "damaged"
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
     },
     {
-      "id": "old-room-wall-2-02",
-      "template": "old-room-wall-2",
+      "layer": "wall",
       "position": {
-        "grid": 16,
+        "grid": 8,
         "x": 24,
         "y": 0
       },
       "width": 3,
       "height": 3,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "broken-floorboards-1-01",
-      "template": "broken-floorboards-1",
-      "position": {
-        "grid": 16,
+      "source": {
+        "path": "motel/Auto-tile-A4-walls-3.png",
+        "grid": 48,
         "x": 6,
-        "y": 15
+        "y": 13,
+        "width": 2,
+        "height": 2
       },
-      "width": 3,
-      "height": 3,
-      "initial_state": "damaged",
       "transform": {
         "flip_x": true,
         "flip_y": false
       }
     },
     {
-      "id": "old-room-wall-1-01",
-      "template": "old-room-wall-1",
+      "layer": "wall",
       "position": {
-        "grid": 16,
-        "x": 2,
+        "grid": 8,
+        "x": 36,
         "y": 0
       },
       "width": 3,
       "height": 3,
-      "initial_state": "damaged"
+      "source": {
+        "path": "motel/Auto-tile-A4-walls-3.png",
+        "grid": 48,
+        "x": 6,
+        "y": 13,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
     },
     {
-      "id": "old-room-wall-short-1-02",
-      "template": "old-room-wall-short-1",
+      "layer": "wall",
       "position": {
-        "grid": 16,
-        "x": 0,
+        "grid": 8,
+        "x": 48,
         "y": 0
       },
-      "width": 2,
-      "height": 3,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "big-old-bed-1-01",
-      "template": "big-old-bed-1",
-      "position": {
-        "grid": 16,
-        "x": 7,
-        "y": 4
-      },
       "width": 3,
-      "height": 4,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "night-stand-1-01",
-      "template": "night-stand-1",
-      "position": {
-        "grid": 16,
-        "x": 12,
-        "y": 5
+      "height": 3,
+      "source": {
+        "path": "motel/Auto-tile-A4-walls-3.png",
+        "grid": 48,
+        "x": 6,
+        "y": 13,
+        "width": 2,
+        "height": 2
       },
-      "width": 2,
-      "height": 2,
-      "initial_state": "damaged"
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
     },
     {
-      "id": "tiny-trash-1-01",
-      "template": "tiny-trash-1",
+      "layer": "wall",
       "position": {
-        "grid": 16,
-        "x": 12,
-        "y": 8
-      },
-      "width": 2,
-      "height": 2,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "tiny-trash-2-01",
-      "template": "tiny-trash-2",
-      "position": {
-        "grid": 16,
-        "x": 27,
-        "y": 6
-      },
-      "width": 2,
-      "height": 2,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "tiny-trash-3-01",
-      "template": "tiny-trash-3",
-      "position": {
-        "grid": 16,
-        "x": 7,
-        "y": 23
-      },
-      "width": 2,
-      "height": 2,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "tiny-trash-4-01",
-      "template": "tiny-trash-4",
-      "position": {
-        "grid": 16,
-        "x": 20,
-        "y": 25
-      },
-      "width": 2,
-      "height": 2,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "broken-lamp-1-01",
-      "template": "broken-lamp-1",
-      "position": {
-        "grid": 16,
-        "x": 5,
-        "y": 4
+        "grid": 8,
+        "x": 60,
+        "y": 0
       },
       "width": 1,
       "height": 3,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "broken-comfy-chair-01",
-      "template": "broken-comfy-chair",
-      "position": {
-        "grid": 16,
-        "x": 22,
-        "y": 13
-      },
-      "width": 2,
-      "height": 3,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "broken-coffee-table-01",
-      "template": "broken-coffee-table",
-      "position": {
-        "grid": 16,
-        "x": 16,
-        "y": 16
-      },
-      "width": 3,
-      "height": 2,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "broken-love-seat-01",
-      "template": "broken-love-seat",
-      "position": {
+      "source": {
+        "path": "motel/Auto-tile-A4-walls-3.png",
         "grid": 16,
         "x": 18,
-        "y": 2
+        "y": 39,
+        "width": 2,
+        "height": 6
       },
-      "width": 3,
-      "height": 3,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "broken-comfy-chair-02",
-      "template": "broken-comfy-chair",
-      "position": {
-        "grid": 16,
-        "x": 13,
-        "y": 13
-      },
-      "width": 2,
-      "height": 3,
-      "initial_state": "damaged",
-      "transform": {
-        "flip_x": true,
-        "flip_y": false
-      }
-    },
-    {
-      "id": "old-room-wall-shortest-01",
-      "template": "old-room-wall-shortest",
-      "position": {
-        "grid": 16,
-        "x": 30,
-        "y": 0
-      },
-      "width": 1,
-      "height": 3,
-      "initial_state": "damaged",
       "transform": {
         "flip_x": true,
         "flip_y": false
       }
     }
   ],
+  "templates": {},
+  "structures": [],
   "fixtures": []
 }
