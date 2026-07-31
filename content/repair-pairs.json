@@ -2483,6 +2483,48 @@
           }
         }
       }
+    },
+    "interior-damaged-brick-wall-1": {
+      "label": "damaged brick wall",
+      "kind": "wall",
+      "layer": "wall",
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "trowel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
+      },
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "components/damaged-brick-tiles.png",
+            "grid": 32,
+            "x": 4,
+            "y": 4,
+            "width": 4,
+            "height": 3
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Tileable Brick.png",
+            "grid": 32,
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 3
+          }
+        }
+      }
     }
   }
 }

@@ -27,6 +27,10 @@ TERRAIN_TILE_SIZE = 32
 SCRIBE_FRAME_SIZE = 64
 SCRIBE_COLUMNS = 13
 SCRIBE_ROWS = 54
+SCRIBE_TOOL_FRAME_SIZE = 128
+SCRIBE_TOOL_COLUMNS = 6
+SCRIBE_TOOL_ROWS = 4
+SCRIBE_SLASH_FIRST_ROW = 12
 INTERIOR_ROOT = ROOT / "content/interiors"
 BUILDING_ROOT = ROOT / "content/buildings"
 REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
@@ -432,6 +436,78 @@ def build_scribe_sheet(source: Path) -> tuple[Image.Image, str]:
     return sheet, "project-authored procedural fallback"
 
 
+def draw_fallback_hand_tool(kind: str, frame: int, direction: int) -> Image.Image:
+    """Readable open-build stand-in for LPC foreground/background tool layers."""
+    image = Image.new("RGBA", (SCRIBE_TOOL_FRAME_SIZE, SCRIBE_TOOL_FRAME_SIZE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    phase = min(frame, SCRIBE_TOOL_COLUMNS - 1)
+    x = 69 + (phase - 2) * (1 if direction in {0, 2} else 4)
+    y = 48 + phase * 5
+    handle = "#8f653c"
+    metal = "#a9adb0"
+    draw.line((x - 20, y + 34, x + 12, y - 12), fill=handle, width=4)
+    if kind == "hammer":
+        draw.rectangle((x + 6, y - 17, x + 22, y - 10), fill=metal)
+    else:
+        draw.polygon([(x + 4, y - 15), (x + 25, y - 24), (x + 18, y - 6)], fill=metal)
+    return image
+
+
+def build_scribe_tool_action(
+    source: Path, scribe: Image.Image, kind: str
+) -> tuple[Image.Image, str]:
+    """Compose one LPC 128px work animation around the Scribe's slash cycle."""
+    expected_overlay_size = (
+        SCRIBE_TOOL_COLUMNS * SCRIBE_TOOL_FRAME_SIZE,
+        SCRIBE_TOOL_ROWS * SCRIBE_TOOL_FRAME_SIZE,
+    )
+    overlay_root = source / "custom/lpc-tools"
+    background_path = overlay_root / f"{kind}-bg.png"
+    foreground_path = overlay_root / f"{kind}-fg.png"
+    licensed_layers = background_path.is_file() and foreground_path.is_file()
+    if licensed_layers:
+        background = Image.open(background_path).convert("RGBA")
+        foreground = Image.open(foreground_path).convert("RGBA")
+        if background.size != expected_overlay_size or foreground.size != expected_overlay_size:
+            raise SystemExit(
+                f"LPC {kind} layers must be {expected_overlay_size[0]}x{expected_overlay_size[1]}"
+            )
+    action = Image.new("RGBA", expected_overlay_size, (0, 0, 0, 0))
+    body_offset = (SCRIBE_TOOL_FRAME_SIZE - SCRIBE_FRAME_SIZE) // 2
+    for direction in range(SCRIBE_TOOL_ROWS):
+        for frame in range(SCRIBE_TOOL_COLUMNS):
+            destination = (frame * SCRIBE_TOOL_FRAME_SIZE, direction * SCRIBE_TOOL_FRAME_SIZE)
+            work_frame = Image.new(
+                "RGBA", (SCRIBE_TOOL_FRAME_SIZE, SCRIBE_TOOL_FRAME_SIZE), (0, 0, 0, 0)
+            )
+            if licensed_layers:
+                box = (
+                    destination[0],
+                    destination[1],
+                    destination[0] + SCRIBE_TOOL_FRAME_SIZE,
+                    destination[1] + SCRIBE_TOOL_FRAME_SIZE,
+                )
+                work_frame.alpha_composite(background.crop(box))
+            body_box = (
+                frame * SCRIBE_FRAME_SIZE,
+                (SCRIBE_SLASH_FIRST_ROW + direction) * SCRIBE_FRAME_SIZE,
+                (frame + 1) * SCRIBE_FRAME_SIZE,
+                (SCRIBE_SLASH_FIRST_ROW + direction + 1) * SCRIBE_FRAME_SIZE,
+            )
+            work_frame.alpha_composite(scribe.crop(body_box), (body_offset, body_offset))
+            if licensed_layers:
+                work_frame.alpha_composite(foreground.crop(box))
+            else:
+                work_frame.alpha_composite(draw_fallback_hand_tool(kind, frame, direction))
+            action.alpha_composite(work_frame, destination)
+    provenance = (
+        "LPC Scribe plus LPC hand-tool action layers"
+        if licensed_layers
+        else "LPC Scribe plus project-authored procedural tool fallback"
+    )
+    return action, provenance
+
+
 def draw_tree() -> Image.Image:
     image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
@@ -574,6 +650,11 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     scribe, scribe_source = build_scribe_sheet(source)
     scribe.save(world / "scribe.png", optimize=False)
     sources["scribe.png"] = scribe_source
+    for tool_kind in ("hammer", "axe"):
+        action, action_source = build_scribe_tool_action(source, scribe, tool_kind)
+        action_name = f"scribe-{tool_kind}.png"
+        action.save(world / action_name, optimize=False)
+        sources[action_name] = action_source
     records = []
     for path in sorted(world.glob("*.png")):
         records.append(
@@ -801,6 +882,36 @@ def write_mutable_interior_art(
     return records
 
 
+def write_portable_item_art(source: Path, output: Path) -> list[dict[str, object]]:
+    """Extract portable scene items separately so pickup never erases baked art."""
+    item_root = output / "items"
+    if item_root.exists():
+        shutil.rmtree(item_root)
+    records = []
+    for scene_root in (INTERIOR_ROOT, BUILDING_ROOT):
+        for level_path in sorted(scene_root.glob("*.json")):
+            level = json.loads(level_path.read_text(encoding="utf-8"))
+            scene_id = str(level["id"])
+            for item in level.get("items", []):
+                item_id = str(item["id"])
+                if INTERIOR_ID.fullmatch(item_id) is None:
+                    raise SystemExit(f"invalid portable item id: {item_id}")
+                stamp = load_interior_stamp(item["source"], source, item["layer"])
+                stamp = transform_interior_stamp(stamp, item.get("transform"))
+                destination = item_root / scene_id / f"{item_id}.png"
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                stamp.save(destination, optimize=False)
+                records.append(
+                    {
+                        "path": str(destination.relative_to(output)),
+                        "sha256": sha256(destination),
+                        "size": list(stamp.size),
+                        "source": "authored portable item flattened from a private crop or public fallback",
+                    }
+                )
+    return records
+
+
 def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
     interiors = output / "interiors"
     interiors.mkdir(parents=True, exist_ok=True)
@@ -813,7 +924,7 @@ def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
     records = []
     for level_path in sorted(INTERIOR_ROOT.glob("*.json")):
         level = json.loads(level_path.read_text(encoding="utf-8"))
-        if level.get("schema_version") not in {1, 2, 3, 4} or level.get("id") != level_path.stem:
+        if level.get("schema_version") not in {1, 2, 3, 4, 5} or level.get("id") != level_path.stem:
             raise SystemExit(f"invalid interior identity in {level_path}")
         for layer, image in render_scene_layers(level, source, interior=True).items():
             destination = interiors / f"{level['id']}--{layer}.png"
@@ -845,7 +956,7 @@ def write_building_art(source: Path, output: Path) -> list[dict[str, object]]:
     for level_path in sorted(BUILDING_ROOT.glob("*.json")):
         level = json.loads(level_path.read_text(encoding="utf-8"))
         if (
-            level.get("schema_version") != 4
+            level.get("schema_version") not in {4, 5}
             or level.get("scene_type") != "building"
             or level.get("id") != level_path.stem
         ):
@@ -1016,6 +1127,7 @@ def main() -> None:
     generated.extend(write_world_art(args.source, args.output))
     generated.extend(write_interior_art(args.source, args.output))
     generated.extend(write_building_art(args.source, args.output))
+    generated.extend(write_portable_item_art(args.source, args.output))
     fonts = write_bundled_fonts(manifest, args.output)
     audio = write_licensed_audio(manifest, args.output, ROOT, args.strict_private)
     report = {

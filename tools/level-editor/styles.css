@@ -77,6 +77,9 @@ h1, h2 { font-size: 20px; line-height: 1; margin: 2px 0 0; font-weight: 500; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; padding: 9px; background: var(--panel-raised); border-bottom: 1px solid var(--line); }
 .toolbar-label { color: var(--muted); font-size: 13px; }
 .toolbar #snap-grid, .toolbar #collision-pen { width: 54px; }
+.portable-editor { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin: 2px 0; padding: 7px; border: 1px solid var(--line); }
+.portable-editor legend { color: var(--gold); font: 11px system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.portable-editor #portable-label { width: 112px; }
 .placement-inspector { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); }
 .placement-summary { flex: 1 1 360px; min-width: 220px; }
 .placement-summary strong { margin-left: 7px; color: #f0dfb8; }

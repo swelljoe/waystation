@@ -18,6 +18,8 @@
 - Walking within the authored bounds of a damaged `Broken Floorboards` mutable
   placement rotates through three creaks, with a 720 ms minimum interval.
   Repaired placements no longer trigger sound.
+- Hammer-required restoration and tool repair plays the Dragon Studio hammering
+  effect with the matching six-frame LPC work animation.
 
 Bevy 0.17's built-in audio integration exposes per-sink volume, playback,
 speed, and stereo spatialization, but not a real-time filter or EQ graph. The
@@ -30,8 +32,9 @@ backend.
 
 Raw files under `music/` are ignored, like purchased art under `assets/`.
 `assets-manifest.json` explicitly selects the two music tracks, one rain loop,
-and three creaks. `scripts/build-assets.py` copies or derives only those files
-and their available attribution notes into `runtime-assets/audio` and records
+three creaks, and one hammering effect. `scripts/build-assets.py` copies or
+derives only those files and their available attribution notes into
+`runtime-assets/audio` and records
 their hashes in `runtime-assets/provenance.json`.
 
 Open CI builds tolerate an absent private music directory. Preparing private

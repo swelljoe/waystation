@@ -24,6 +24,16 @@ BUILDING_ROOT = ROOT / "content/buildings"
 REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
 LEVEL_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 MAX_REQUEST_BYTES = 5 * 1024 * 1024
+PORTABLE_TOOLS = {
+    "hammer",
+    "hatchet",
+    "trowel",
+    "ladder",
+    "pickaxe",
+    "shovel",
+    "hoe",
+    "watering_can",
+}
 
 
 def safe_child(root: Path, relative: str) -> Path | None:
@@ -160,7 +170,7 @@ def validate_task(task: Any, label: str) -> list[str]:
         errors.append(f"{task_label}.xp must be an integer from 0 to 20")
     tools = task.get("tools", [])
     if not isinstance(tools, list) or any(
-        tool not in {"hammer", "hatchet", "trowel", "ladder"} for tool in tools
+        tool not in PORTABLE_TOOLS for tool in tools
     ):
         errors.append(f"{task_label}.tools contains an unknown tool")
     supplies = task.get("supplies", [])
@@ -190,8 +200,8 @@ def validate_level(
     if not isinstance(level, dict):
         return ["level must be a JSON object"]
     schema_version = level.get("schema_version")
-    if schema_version not in {1, 2, 3, 4}:
-        errors.append("schema_version must be 1, 2, 3, or 4")
+    if schema_version not in {1, 2, 3, 4, 5}:
+        errors.append("schema_version must be 1, 2, 3, 4, or 5")
     if level.get("id") != level_id:
         errors.append("level id must match the save name")
     scene_type = level.get("scene_type", "interior")
@@ -252,6 +262,62 @@ def validate_level(
             ):
                 errors.append(f"placements[{index}] has an invalid source rectangle")
             errors.extend(validate_background_key(source, f"placements[{index}].source"))
+
+    item_ids: set[str] = set()
+    items = level.get("items", [])
+    if not isinstance(items, list):
+        errors.append("items must be an array")
+    else:
+        for index, item in enumerate(items):
+            label = f"items[{index}]"
+            if not isinstance(item, dict):
+                errors.append(f"{label} must be an object")
+                continue
+            item_id = item.get("id")
+            if not isinstance(item_id, str) or LEVEL_ID.fullmatch(item_id) is None:
+                errors.append(f"{label} has an invalid id")
+            elif item_id in item_ids:
+                errors.append(f"{label} has a duplicate id")
+            else:
+                item_ids.add(item_id)
+            if not isinstance(item.get("label"), str) or not item["label"].strip():
+                errors.append(f"{label} needs a label")
+            if item.get("tool") not in PORTABLE_TOOLS:
+                errors.append(f"{label} has an invalid tool")
+            if item.get("condition") not in {"serviceable", "broken"}:
+                errors.append(f"{label} has an invalid condition")
+            if item.get("layer") not in {"floor", "wall", "object", "overlay"}:
+                errors.append(f"{label} has an invalid layer")
+            if not all(isinstance(item.get(key), int) for key in ("width", "height")):
+                errors.append(f"{label} needs integer size")
+            elif not 1 <= item["width"] <= 128 or not 1 <= item["height"] <= 128:
+                errors.append(f"{label} width and height must be from 1 to 128")
+            position = item.get("position")
+            if position is None:
+                if not all(isinstance(item.get(key), int) for key in ("x", "y")):
+                    errors.append(f"{label} needs integer x and y or a pixel position")
+            else:
+                errors.extend(validate_pixel_position(position, label))
+            errors.extend(validate_transform(item.get("transform"), label))
+            source = item.get("source", {})
+            source_path = source.get("path") if isinstance(source, dict) else None
+            private_path = safe_child(asset_root, source_path) if isinstance(source_path, str) else None
+            if private_path is None or not private_path.is_file():
+                errors.append(f"{label} has an invalid source path")
+            source_numeric = ("grid", "x", "y", "width", "height")
+            if not isinstance(source, dict) or not all(
+                isinstance(source.get(key), int) for key in source_numeric
+            ):
+                errors.append(f"{label} needs an integer source rectangle")
+            elif (
+                source["grid"] < 1
+                or source["x"] < 0
+                or source["y"] < 0
+                or source["width"] < 1
+                or source["height"] < 1
+            ):
+                errors.append(f"{label} has an invalid source rectangle")
+            errors.extend(validate_background_key(source, f"{label}.source"))
 
     interaction_ids: set[str] = set()
     interactions = level.get("interactions", [])
@@ -338,7 +404,8 @@ def validate_level(
                 errors.append(f"{state_label} has an invalid source rectangle")
             errors.extend(validate_background_key(source, state_label))
 
-    mutable_ids: set[str] = set()
+    # Portable items and mutable scenery share the scene/id persistence namespace.
+    mutable_ids: set[str] = set(item_ids)
     for collection_name in ("structures", "fixtures"):
         elements = level.get(collection_name, [] if schema_version == 1 else None)
         if not isinstance(elements, list):

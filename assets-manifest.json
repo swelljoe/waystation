@@ -105,6 +105,17 @@
       "runtime_file": "audio/sfx/floorboard-creak-03.mp3",
       "creator": "Dragon Studio",
       "license_file": "music/dragon-studio.txt"
+    },
+    {
+      "role": "hammering",
+      "source_file": "music/dragon-studio-hammering-514264.mp3",
+      "runtime_file": "audio/sfx/hammering.mp3",
+      "creator": "Dragon Studio",
+      "license_file": "music/dragon-studio.txt",
+      "transcode": {
+        "duration_seconds": 0.9,
+        "bitrate": "96k"
+      }
     }
   ],
   "bundled_fonts": [

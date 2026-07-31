@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 const XP_PER_LEVEL: u16 = 3;
 const MAX_SKILL_LEVEL: u8 = 3;
+pub const MAX_CARRIED_TOOLS: usize = 3;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -37,6 +38,10 @@ pub enum ToolId {
     Hatchet,
     Trowel,
     Ladder,
+    Pickaxe,
+    Shovel,
+    Hoe,
+    WateringCan,
 }
 
 impl ToolId {
@@ -46,8 +51,53 @@ impl ToolId {
             Self::Hatchet => "hatchet",
             Self::Trowel => "trowel",
             Self::Ladder => "ladder",
+            Self::Pickaxe => "pickaxe",
+            Self::Shovel => "shovel",
+            Self::Hoe => "hoe",
+            Self::WateringCan => "watering can",
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolCondition {
+    Broken,
+    #[default]
+    Serviceable,
+}
+
+impl ToolCondition {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Broken => "broken",
+            Self::Serviceable => "serviceable",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "place", rename_all = "snake_case")]
+pub enum ToolLocation {
+    #[default]
+    Home,
+    Carried,
+    Dropped {
+        scene_id: String,
+        x: i32,
+        y: i32,
+    },
+    HeldBy {
+        actor_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PortableToolRecord {
+    pub tool: ToolId,
+    pub condition: ToolCondition,
+    #[serde(default)]
+    pub location: ToolLocation,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -209,6 +259,19 @@ impl TaskSpec {
             parts.join(" · ")
         }
     }
+
+    pub fn for_tool_repair(tool: ToolId) -> Self {
+        let task = Self::new(TaskAction::Repair, SkillId::Upkeep, 1);
+        if tool == ToolId::Hammer {
+            task
+        } else {
+            task.with_tools(&[ToolId::Hammer])
+        }
+    }
+
+    pub fn for_tree_chopping() -> Self {
+        Self::new(TaskAction::Clear, SkillId::Upkeep, 0).with_tools(&[ToolId::Hatchet])
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -233,6 +296,10 @@ pub struct Progression {
     supplies: BTreeMap<SupplyId, u16>,
     #[serde(default)]
     tools: BTreeSet<ToolId>,
+    #[serde(default)]
+    tool_instances: BTreeMap<String, PortableToolRecord>,
+    #[serde(default)]
+    equipped_tool: Option<String>,
     #[serde(default)]
     skills: BTreeMap<SkillId, SkillProgress>,
     #[serde(default)]
@@ -264,10 +331,119 @@ impl Progression {
 
     pub fn has_tool(&self, tool: ToolId) -> bool {
         self.tools.contains(&tool)
+            || self.tool_instances.values().any(|record| {
+                record.tool == tool
+                    && record.condition == ToolCondition::Serviceable
+                    && record.location == ToolLocation::Carried
+            })
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn add_tool(&mut self, tool: ToolId) -> bool {
         self.tools.insert(tool)
+    }
+
+    pub fn register_tool_instance(&mut self, id: &str, tool: ToolId, condition: ToolCondition) {
+        self.tool_instances
+            .entry(id.to_owned())
+            .or_insert(PortableToolRecord {
+                tool,
+                condition,
+                location: ToolLocation::Home,
+            });
+    }
+
+    pub fn tool_record(&self, id: &str) -> Option<&PortableToolRecord> {
+        self.tool_instances.get(id)
+    }
+
+    pub fn carried_tool_count(&self) -> usize {
+        self.tool_instances
+            .values()
+            .filter(|record| record.location == ToolLocation::Carried)
+            .count()
+            + self.tools.len()
+    }
+
+    pub fn pick_up_tool(&mut self, id: &str) -> Result<ToolId, String> {
+        if self.carried_tool_count() >= MAX_CARRIED_TOOLS {
+            return Err(format!(
+                "You can carry only {MAX_CARRIED_TOOLS} tools. Return or drop one first."
+            ));
+        }
+        let record = self
+            .tool_instances
+            .get_mut(id)
+            .ok_or_else(|| format!("Unknown portable tool: {id}"))?;
+        record.location = ToolLocation::Carried;
+        self.equipped_tool = Some(id.to_owned());
+        Ok(record.tool)
+    }
+
+    pub fn set_tool_condition(&mut self, id: &str, condition: ToolCondition) -> bool {
+        let Some(record) = self.tool_instances.get_mut(id) else {
+            return false;
+        };
+        record.condition = condition;
+        true
+    }
+
+    fn equipped_or_first_carried_id(&self) -> Option<String> {
+        self.equipped_tool
+            .as_ref()
+            .filter(|id| {
+                self.tool_instances
+                    .get(*id)
+                    .is_some_and(|record| record.location == ToolLocation::Carried)
+            })
+            .cloned()
+            .or_else(|| {
+                self.tool_instances
+                    .iter()
+                    .find(|(_, record)| record.location == ToolLocation::Carried)
+                    .map(|(id, _)| id.clone())
+            })
+    }
+
+    pub fn equipped_tool_id(&self) -> Option<String> {
+        self.equipped_or_first_carried_id()
+    }
+
+    pub fn drop_equipped_tool(&mut self, scene_id: &str, position: (i32, i32)) -> Option<ToolId> {
+        let id = self.equipped_or_first_carried_id()?;
+        let record = self.tool_instances.get_mut(&id)?;
+        record.location = ToolLocation::Dropped {
+            scene_id: scene_id.to_owned(),
+            x: position.0,
+            y: position.1,
+        };
+        self.equipped_tool = None;
+        Some(record.tool)
+    }
+
+    pub fn return_equipped_tool(&mut self) -> Option<ToolId> {
+        let id = self.equipped_or_first_carried_id()?;
+        let record = self.tool_instances.get_mut(&id)?;
+        record.location = ToolLocation::Home;
+        self.equipped_tool = None;
+        Some(record.tool)
+    }
+
+    pub fn cycle_equipped_tool(&mut self) -> Option<ToolId> {
+        let carried = self
+            .tool_instances
+            .iter()
+            .filter(|(_, record)| record.location == ToolLocation::Carried)
+            .map(|(id, record)| (id.clone(), record.tool))
+            .collect::<Vec<_>>();
+        let next_index = self
+            .equipped_tool
+            .as_ref()
+            .and_then(|current| carried.iter().position(|(id, _)| id == current))
+            .map_or(0, |index| (index + 1) % carried.len().max(1));
+        let (id, tool) = carried.get(next_index)?.clone();
+        self.equipped_tool = Some(id);
+        Some(tool)
     }
 
     pub fn skill_level(&self, skill: SkillId) -> u8 {
@@ -335,14 +511,28 @@ impl Progression {
     }
 
     pub fn tools_summary(&self) -> String {
-        if self.tools.is_empty() {
+        let mut carried = self
+            .tool_instances
+            .values()
+            .filter(|record| record.location == ToolLocation::Carried)
+            .map(|record| {
+                if record.condition == ToolCondition::Broken {
+                    format!("{} (broken)", record.tool.label())
+                } else {
+                    record.tool.label().to_owned()
+                }
+            })
+            .collect::<Vec<_>>();
+        carried.extend(self.tools.iter().map(|tool| tool.label().to_owned()));
+        if carried.is_empty() {
             return "none yet".to_owned();
         }
-        self.tools
-            .iter()
-            .map(|tool| tool.label())
-            .collect::<Vec<_>>()
-            .join(", ")
+        format!(
+            "carried {}/{}: {}",
+            carried.len(),
+            MAX_CARRIED_TOOLS,
+            carried.join(", ")
+        )
     }
 
     pub fn supplies_summary(&self) -> String {
@@ -423,5 +613,69 @@ mod tests {
         progression.add_supply(SupplyId::Plank, 1);
         progression.attempt(&floor).expect("requirements met");
         assert_eq!(progression.supply(SupplyId::Plank), 0);
+    }
+
+    #[test]
+    fn portable_tools_have_condition_location_and_a_small_carry_limit() {
+        let mut progression = Progression::default();
+        for (id, tool, condition) in [
+            ("hammer-01", ToolId::Hammer, ToolCondition::Serviceable),
+            ("axe-01", ToolId::Hatchet, ToolCondition::Serviceable),
+            ("shovel-01", ToolId::Shovel, ToolCondition::Serviceable),
+            ("pickaxe-01", ToolId::Pickaxe, ToolCondition::Broken),
+        ] {
+            progression.register_tool_instance(id, tool, condition);
+        }
+        progression.pick_up_tool("hammer-01").expect("first tool");
+        progression.pick_up_tool("axe-01").expect("second tool");
+        progression.pick_up_tool("shovel-01").expect("third tool");
+        assert!(progression.pick_up_tool("pickaxe-01").is_err());
+        assert!(progression.has_tool(ToolId::Hammer));
+        assert!(!progression.has_tool(ToolId::Pickaxe));
+
+        progression.drop_equipped_tool("exterior", (12, -8));
+        assert_eq!(
+            progression
+                .tool_record("shovel-01")
+                .map(|record| &record.location),
+            Some(&ToolLocation::Dropped {
+                scene_id: "exterior".to_owned(),
+                x: 12,
+                y: -8,
+            })
+        );
+        progression
+            .pick_up_tool("pickaxe-01")
+            .expect("a freed carry slot");
+        assert!(!progression.has_tool(ToolId::Pickaxe));
+    }
+
+    #[test]
+    fn a_broken_tool_can_be_repaired_and_saved_by_stable_id() {
+        let mut progression = Progression::default();
+        progression.register_tool_instance("pickaxe-01", ToolId::Pickaxe, ToolCondition::Broken);
+        progression
+            .pick_up_tool("pickaxe-01")
+            .expect("portable tool");
+        progression.add_tool(ToolId::Hammer);
+        for _ in 0..3 {
+            progression
+                .attempt(&TaskSpec::for_kind("debris"))
+                .expect("basic upkeep");
+        }
+        progression
+            .attempt(&TaskSpec::for_tool_repair(ToolId::Pickaxe))
+            .expect("repair requirements met");
+        progression.set_tool_condition("pickaxe-01", ToolCondition::Serviceable);
+
+        let serialized = serde_json::to_string(&progression).expect("serialize progression");
+        let restored: Progression = serde_json::from_str(&serialized).expect("restore progression");
+        assert!(restored.has_tool(ToolId::Pickaxe));
+        assert_eq!(
+            restored
+                .tool_record("pickaxe-01")
+                .map(|record| record.condition),
+            Some(ToolCondition::Serviceable)
+        );
     }
 }

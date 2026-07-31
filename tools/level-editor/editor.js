@@ -35,9 +35,10 @@ const state = {
 
 function freshRoom(sceneType = "interior") {
   const shared = {
-    schema_version: 4,
+    schema_version: 5,
     collision: [],
     placements: [],
+    items: [],
     templates: {},
     structures: [],
     fixtures: [],
@@ -64,9 +65,10 @@ function freshRoom(sceneType = "interior") {
 }
 
 function normalizeRoom(room, sceneType = "interior") {
-  room.schema_version = 4;
+  room.schema_version = 5;
   if (sceneType === "building") room.scene_type = "building";
   room.placements ||= [];
+  room.items ||= [];
   room.templates ||= {};
   room.structures ||= [];
   room.fixtures ||= [];
@@ -275,7 +277,7 @@ function sceneListKey() {
 async function switchSceneType(sceneType) {
   if (sceneType === state.sceneType) return;
   if (
-    (state.room.placements.length || state.room.structures.length || state.room.fixtures.length)
+    (state.room.placements.length || state.room.items.length || state.room.structures.length || state.room.fixtures.length)
     && !window.confirm("Switch scene types and start a new blank scene? Save first if needed.")
   ) {
     $("#scene-type").value = state.sceneType;
@@ -421,7 +423,7 @@ function drawTransformedImage(context, image, sourceBox, destinationBox, transfo
 function stampPreviewPlacement({ behavior, selection, layer, template, transform, snapGrid, cell }) {
   if (!cell) return null;
   const damagedVisual = template?.states?.damaged;
-  const source = behavior === "baked"
+  const source = ["baked", "portable"].includes(behavior)
     ? selection && {
       path: selection.path,
       grid: selection.grid,
@@ -434,7 +436,7 @@ function stampPreviewPlacement({ behavior, selection, layer, template, transform
     : damagedVisual?.visible === false ? null : damagedVisual?.source;
   if (!source) return null;
   const placement = {
-    layer: behavior === "baked" ? layer : template.layer,
+    layer: ["baked", "portable"].includes(behavior) ? layer : template.layer,
     position: { grid: snapGrid, x: cell.x, y: cell.y },
     source: structuredClone(source),
   };
@@ -505,6 +507,9 @@ function roomRenderables() {
     collection: "placements",
     index,
   }));
+  state.room.items.forEach((item, index) => {
+    renderables.push({ placement: item, collection: "items", index });
+  });
   for (const collection of ["structures", "fixtures"]) {
     state.room[collection].forEach((element, index) => {
       const template = templateForRoom(element.template);
@@ -595,12 +600,12 @@ function roomSnapCell(event, snapGrid) {
 function activeStampPreview() {
   if (state.tool !== "stamp" || state.roomDrag) return null;
   const behavior = $("#behavior").value;
-  const template = behavior === "baked"
+  const template = ["baked", "portable"].includes(behavior)
     ? null
     : templateForRoom(state.selectedRepairPair);
   return stampPreviewPlacement({
     behavior,
-    selection: behavior === "baked" && state.selection && state.sheet ? selectionSource() : null,
+    selection: ["baked", "portable"].includes(behavior) && state.selection && state.sheet ? selectionSource() : null,
     layer: state.layer,
     template,
     transform: state.stampTransform,
@@ -824,7 +829,7 @@ function activeStampSpec() {
   const behavior = $("#behavior").value;
   const tileSize = roomTileSize();
   const snapGrid = state.snapGrid;
-  if (behavior === "baked") {
+  if (["baked", "portable"].includes(behavior)) {
     if (!state.selection) {
       setStatus("Select a source-sheet rectangle first.");
       return null;
@@ -877,7 +882,7 @@ function editRoom(cell, forceErase = false, options = {}) {
     const spec = stampSpec || activeStampSpec();
     if (!spec) return false;
     if (recordUndo) pushUndo();
-    if (spec.behavior === "baked") {
+    if (["baked", "portable"].includes(spec.behavior)) {
       const s = state.selection;
       const transform = authoredStampTransform();
       const placement = {
@@ -888,8 +893,21 @@ function editRoom(cell, forceErase = false, options = {}) {
         source: selectionSource(),
       };
       if (transform) placement.transform = transform;
-      state.room.placements.push(placement);
-      setStatus(`Placed ${s.width * s.grid}×${s.height * s.grid}px baked stamp on a ${spec.snapGrid}px grid.`);
+      if (spec.behavior === "portable") {
+        const tool = $("#portable-tool").value;
+        const label = $("#portable-label").value.trim() || tool.replaceAll("_", " ");
+        state.room.items.push({
+          ...placement,
+          id: nextPortableItemId(tool),
+          label,
+          tool,
+          condition: $("#portable-condition").value,
+        });
+        setStatus(`Placed portable ${label}; its condition and location will persist independently from scenery.`);
+      } else {
+        state.room.placements.push(placement);
+        setStatus(`Placed ${s.width * s.grid}×${s.height * s.grid}px baked stamp on a ${spec.snapGrid}px grid.`);
+      }
     } else {
       const id = nextElementId(spec.templateId);
       const transform = authoredStampTransform();
@@ -1174,12 +1192,21 @@ function slugify(value) {
 }
 
 function nextElementId(kind) {
-  const used = new Set([...state.room.structures, ...state.room.fixtures].map((element) => element.id));
+  const used = new Set([...state.room.structures, ...state.room.fixtures, ...state.room.items].map((element) => element.id));
   for (let sequence = 1; sequence < 10000; sequence++) {
     const candidate = `${kind}-${String(sequence).padStart(2, "0")}`;
     if (!used.has(candidate)) return candidate;
   }
   throw new Error(`Could not allocate an ID for ${kind}`);
+}
+
+function nextPortableItemId(tool) {
+  const used = new Set([...state.room.items, ...state.room.structures, ...state.room.fixtures].map((item) => item.id));
+  for (let sequence = 1; sequence < 10000; sequence++) {
+    const candidate = `${tool}-${String(sequence).padStart(2, "0")}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  throw new Error(`Could not allocate an ID for ${tool}`);
 }
 
 function captureStateSource(stateName) {
@@ -1768,7 +1795,7 @@ async function refreshLevels() {
 }
 
 async function saveRoom() {
-  state.room.schema_version = 4;
+  state.room.schema_version = 5;
   if (state.sceneType === "building") state.room.scene_type = "building";
   else delete state.room.scene_type;
   state.room.id = $("#room-id").value.trim();
@@ -1899,12 +1926,15 @@ function updatePlacedSelectionInspector() {
   const clearButton = $("#clear-placement-selection");
   const previewButtons = document.querySelectorAll("[data-placement-preview]");
   const occlusionControl = $("#placement-occludes-player");
+  const portableButton = $("#toggle-portable");
   if (!element) {
     title.textContent = "None";
     details.textContent = "Choose Select, then click an item in the scene.";
     clearButton.disabled = true;
     occlusionControl.disabled = true;
     occlusionControl.checked = false;
+    portableButton.disabled = true;
+    portableButton.textContent = "Make selected portable";
     for (const button of previewButtons) {
       button.disabled = true;
       button.classList.toggle("active", button.dataset.placementPreview === "scene");
@@ -1915,6 +1945,7 @@ function updatePlacedSelectionInspector() {
 
   const { collection } = state.selectedPlaced;
   const repairable = collection === "structures" || collection === "fixtures";
+  const portable = collection === "items";
   const template = repairable ? templateForRoom(element.template) : null;
   const layer = effectivePlacementLayer(element, template);
   const position = placementPixelPosition(element);
@@ -1925,16 +1956,70 @@ function updatePlacedSelectionInspector() {
   ].filter(Boolean).join(" + ") || "original orientation";
   title.textContent = repairable
     ? `${template?.label || element.template} · ${element.id}`
-    : `Baked scenery #${state.selectedPlaced.index + 1}`;
-  details.textContent = `${repairable ? "Repairable" : "Baked"} ${collection.slice(0, -1)} on the ${layer} layer at (${position.x}, ${position.y})px · ${grid}px movement grid · ${flips}. Drag it or use arrow keys to reposition it.`;
+    : portable
+      ? `${element.label} · ${element.id}`
+      : `Baked scenery #${state.selectedPlaced.index + 1}`;
+  const placementType = repairable ? "Repairable" : portable ? `Portable ${element.tool}` : "Baked";
+  const condition = portable ? ` · ${element.condition}` : "";
+  details.textContent = `${placementType} ${collection.slice(0, -1)} on the ${layer} layer at (${position.x}, ${position.y})px · ${grid}px movement grid · ${flips}${condition}. Drag it or use arrow keys to reposition it.`;
   clearButton.disabled = false;
-  occlusionControl.disabled = false;
+  occlusionControl.disabled = portable;
   occlusionControl.checked = element.occludes_player === true;
+  portableButton.disabled = repairable;
+  portableButton.textContent = portable ? "Make selected baked scenery" : "Make selected portable";
+  if (portable) {
+    $("#portable-tool").value = element.tool;
+    $("#portable-label").value = element.label;
+    $("#portable-condition").value = element.condition;
+  }
   for (const button of previewButtons) {
     button.disabled = !repairable;
     button.classList.toggle("active", button.dataset.placementPreview === state.selectedRepairPreview);
   }
   updateLayerControl();
+}
+
+function toggleSelectedPortable() {
+  const element = selectedElement();
+  if (!element || !state.selectedPlaced || ["structures", "fixtures"].includes(state.selectedPlaced.collection)) {
+    setStatus("Select baked scenery or a portable tool first.");
+    return;
+  }
+  pushUndo();
+  const { collection, index } = state.selectedPlaced;
+  state.room[collection].splice(index, 1);
+  if (collection === "items") {
+    const { id: _id, label: _label, tool: _tool, condition: _condition, ...placement } = element;
+    state.room.placements.push(placement);
+    state.selectedPlaced = { collection: "placements", index: state.room.placements.length - 1 };
+    setStatus("Returned the selected tool to baked scenery; it will no longer have gameplay state.");
+  } else {
+    const tool = $("#portable-tool").value;
+    const label = $("#portable-label").value.trim() || tool.replaceAll("_", " ");
+    state.room.items.push({
+      ...element,
+      id: nextPortableItemId(tool),
+      label,
+      tool,
+      condition: $("#portable-condition").value,
+    });
+    state.selectedPlaced = { collection: "items", index: state.room.items.length - 1 };
+    setStatus(`Promoted ${label} to a portable tool with persistent condition and location.`);
+  }
+  updatePlacedSelectionInspector();
+  updateOrientationControls();
+  updateLayerControl();
+  drawRoom();
+}
+
+function updateSelectedPortableField(field, value) {
+  const element = selectedElement();
+  if (!element || state.selectedPlaced?.collection !== "items" || element[field] === value) return;
+  pushUndo();
+  element[field] = value;
+  updatePlacedSelectionInspector();
+  drawRoom();
+  setStatus(`Updated the portable tool's ${field}.`);
 }
 
 function nudgeSelectedPlacement(deltaX, deltaY) {
@@ -1991,6 +2076,10 @@ function bindEvents() {
       : "The selected building component now uses the ordinary crown reveal.");
   });
   $("#behavior").addEventListener("change", drawRoom);
+  $("#toggle-portable").addEventListener("click", toggleSelectedPortable);
+  $("#portable-tool").addEventListener("change", (event) => updateSelectedPortableField("tool", event.target.value));
+  $("#portable-label").addEventListener("change", (event) => updateSelectedPortableField("label", event.target.value.trim()));
+  $("#portable-condition").addEventListener("change", (event) => updateSelectedPortableField("condition", event.target.value));
   $("#repair-view").addEventListener("change", (event) => {
     state.sceneRepairPreview = event.target.value;
     drawRoom();

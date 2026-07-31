@@ -5,10 +5,11 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use serde::Deserialize;
 
-use crate::progression::TaskSpec;
+use crate::progression::{TaskSpec, ToolCondition, ToolId};
 
 pub const INTERIOR_ORIGIN: Vec2 = Vec2::new(8_192.0, 0.0);
 pub const MOTEL_EXTERIOR_ORIGIN: Vec2 = Vec2::new(0.0, 100.0);
+pub const TOOL_SHED_EXTERIOR_ORIGIN: Vec2 = Vec2::new(-1_180.0, 820.0);
 
 #[derive(Component)]
 pub struct InteriorSceneEntity;
@@ -20,7 +21,10 @@ const MOTEL_ROOM_03_JSON: &str = include_str!("../../../content/interiors/motel-
 const MOTEL_ROOM_04_JSON: &str = include_str!("../../../content/interiors/motel-room-04.json");
 const MOTEL_ROOM_05_JSON: &str = include_str!("../../../content/interiors/motel-room-05.json");
 const MOTEL_ROOM_06_JSON: &str = include_str!("../../../content/interiors/motel-room-06.json");
+const TOOL_SHED_INTERIOR_JSON: &str =
+    include_str!("../../../content/interiors/tool-shed-interior.json");
 const MOTEL_EXTERIOR_JSON: &str = include_str!("../../../content/buildings/motel-exterior.json");
+const TOOL_SHED_EXTERIOR_JSON: &str = include_str!("../../../content/buildings/tool-shed.json");
 const REPAIR_PAIRS_JSON: &str = include_str!("../../../content/repair-pairs.json");
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -32,10 +36,11 @@ pub enum InteriorId {
     Room04,
     Room05,
     Room06,
+    ToolShed,
 }
 
 impl InteriorId {
-    pub const ALL: [Self; 7] = [
+    pub const MOTEL: [Self; 7] = [
         Self::Office,
         Self::Room01,
         Self::Room02,
@@ -43,6 +48,18 @@ impl InteriorId {
         Self::Room04,
         Self::Room05,
         Self::Room06,
+    ];
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub const ALL: [Self; 8] = [
+        Self::Office,
+        Self::Room01,
+        Self::Room02,
+        Self::Room03,
+        Self::Room04,
+        Self::Room05,
+        Self::Room06,
+        Self::ToolShed,
     ];
 
     #[must_use]
@@ -55,6 +72,7 @@ impl InteriorId {
             Self::Room04 => "motel-room-04",
             Self::Room05 => "motel-room-05",
             Self::Room06 => "motel-room-06",
+            Self::ToolShed => "tool-shed-interior",
         }
     }
 
@@ -68,6 +86,7 @@ impl InteriorId {
             Self::Room04 => "room 4",
             Self::Room05 => "room 5",
             Self::Room06 => "room 6",
+            Self::ToolShed => "the tool shed",
         }
     }
 
@@ -80,6 +99,7 @@ impl InteriorId {
             Self::Room04 => MOTEL_ROOM_04_JSON,
             Self::Room05 => MOTEL_ROOM_05_JSON,
             Self::Room06 => MOTEL_ROOM_06_JSON,
+            Self::ToolShed => TOOL_SHED_INTERIOR_JSON,
         }
     }
 }
@@ -128,6 +148,8 @@ struct SceneDefinition {
     structures: Vec<MutableInstanceDefinition>,
     #[serde(default)]
     fixtures: Vec<MutableInstanceDefinition>,
+    #[serde(default)]
+    items: Vec<PortableItemDefinition>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
@@ -261,6 +283,79 @@ impl BakedPlacementDefinition {
             size,
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct PortableItemDefinition {
+    id: String,
+    label: String,
+    tool: ToolId,
+    condition: ToolCondition,
+    layer: String,
+    #[serde(default)]
+    x: Option<i16>,
+    #[serde(default)]
+    y: Option<i16>,
+    #[serde(default)]
+    position: Option<PixelPositionDefinition>,
+    source: SourceDefinition,
+    #[serde(default)]
+    transform: InstanceTransformDefinition,
+}
+
+impl PortableItemDefinition {
+    #[allow(clippy::cast_precision_loss)]
+    fn pixel_position(&self, tile_size: f32) -> Vec2 {
+        self.position.as_ref().map_or_else(
+            || {
+                Vec2::new(
+                    f32::from(self.x.expect("legacy portable item needs x")) * tile_size,
+                    f32::from(self.y.expect("legacy portable item needs y")) * tile_size,
+                )
+            },
+            |position| {
+                Vec2::new(
+                    position.x as f32 * f32::from(position.grid),
+                    position.y as f32 * f32::from(position.grid),
+                )
+            },
+        )
+    }
+}
+
+fn resolve_portable_items(
+    items: Vec<PortableItemDefinition>,
+    room_id: &str,
+    tile_size: f32,
+    world_size: Vec2,
+    origin: Vec2,
+) -> Vec<PortableItem> {
+    items
+        .into_iter()
+        .map(|item| {
+            let pixel_position = item.pixel_position(tile_size);
+            let size = Vec2::new(
+                f32::from(item.source.width) * f32::from(item.source.grid),
+                f32::from(item.source.height) * f32::from(item.source.grid),
+            );
+            let top_left = Vec2::new(
+                pixel_position.x + origin.x - world_size.x / 2.0,
+                -pixel_position.y + origin.y + world_size.y / 2.0,
+            );
+            PortableItem {
+                image_path: format!("items/{room_id}/{}.png", item.id),
+                id: item.id,
+                label: item.label,
+                tool: item.tool,
+                condition: item.condition,
+                layer: item.layer,
+                center: top_left + Vec2::new(size.x / 2.0, -size.y / 2.0),
+                size,
+                flip_x: item.transform.flip_x,
+                flip_y: item.transform.flip_y,
+            }
+        })
+        .collect()
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -406,6 +501,20 @@ pub struct MutableElement {
     pub states: HashMap<String, ElementVisual>,
 }
 
+#[derive(Clone, Debug)]
+pub struct PortableItem {
+    pub id: String,
+    pub label: String,
+    pub tool: ToolId,
+    pub condition: ToolCondition,
+    pub layer: String,
+    pub center: Vec2,
+    pub size: Vec2,
+    pub image_path: String,
+    pub flip_x: bool,
+    pub flip_y: bool,
+}
+
 #[derive(Debug)]
 struct SceneMap {
     id: String,
@@ -419,6 +528,7 @@ struct SceneMap {
     crown_occluders: Vec<CollisionArea>,
     interactions: Vec<SceneInteraction>,
     mutable_elements: Vec<MutableElement>,
+    portable_items: Vec<PortableItem>,
 }
 
 fn resolve_scene_areas(
@@ -458,7 +568,7 @@ impl SceneMap {
         let repair_pairs: RepairPairLibrary = serde_json::from_str(REPAIR_PAIRS_JSON)
             .expect("authored repair-pair library must be valid JSON");
         assert!(
-            matches!(definition.schema_version, 1..=4),
+            matches!(definition.schema_version, 1..=5),
             "unsupported authored-scene schema"
         );
         assert_eq!(repair_pairs.schema_version, 1);
@@ -532,6 +642,8 @@ impl SceneMap {
                 }
             })
             .collect();
+        let portable_items =
+            resolve_portable_items(definition.items, &room_id, tile_size, world_size, origin);
         let entry = definition.entry;
         let exits = definition.exits;
         (
@@ -547,6 +659,7 @@ impl SceneMap {
                 crown_occluders,
                 interactions,
                 mutable_elements,
+                portable_items,
             },
             entry,
             exits,
@@ -706,6 +819,10 @@ impl InteriorMap {
         &self.scene.interactions
     }
 
+    pub fn portable_items(&self) -> &[PortableItem] {
+        &self.scene.portable_items
+    }
+
     pub fn mutable_element(&self, id: &str) -> Option<&MutableElement> {
         self.scene
             .mutable_elements
@@ -721,6 +838,63 @@ impl InteriorMap {
 #[derive(Resource, Debug)]
 pub struct MotelExteriorMap {
     scene: SceneMap,
+}
+
+#[derive(Resource, Debug)]
+pub struct ToolShedExteriorMap {
+    scene: SceneMap,
+}
+
+impl ToolShedExteriorMap {
+    #[must_use]
+    pub fn load() -> Self {
+        let (scene, _, _) = SceneMap::load(
+            TOOL_SHED_EXTERIOR_JSON,
+            "tool-shed",
+            TOOL_SHED_EXTERIOR_ORIGIN,
+            "buildings",
+        );
+        Self { scene }
+    }
+
+    pub fn id(&self) -> &str {
+        &self.scene.id
+    }
+
+    pub fn mutable_elements(&self) -> &[MutableElement] {
+        &self.scene.mutable_elements
+    }
+
+    pub fn mutable_element(&self, id: &str) -> Option<&MutableElement> {
+        self.scene
+            .mutable_elements
+            .iter()
+            .find(|element| element.id == id)
+    }
+
+    pub fn element_center(&self, element: &MutableElement, visual_size: Vec2) -> Vec2 {
+        self.scene.element_center(element, visual_size)
+    }
+
+    pub fn is_walkable(&self, position: Vec2) -> bool {
+        self.scene.area_avoids_collision(position, Vec2::ZERO)
+    }
+
+    pub fn is_area_walkable(&self, center: Vec2, size: Vec2) -> bool {
+        self.scene.area_avoids_collision(center, size)
+    }
+
+    pub fn depth_ground_y(&self) -> f32 {
+        self.scene.exterior_depth_ground_y()
+    }
+
+    pub fn occludes_ground_point(&self, point: Vec2) -> bool {
+        self.scene.contains_exterior_occlusion_point(point)
+    }
+
+    pub fn fully_occludes_crown(&self, center: Vec2, size: Vec2) -> bool {
+        self.scene.crown_is_fully_occluded(center, size)
+    }
 }
 
 impl MotelExteriorMap {
@@ -805,6 +979,14 @@ pub fn spawn_building(
     spawn_scene_backgrounds(commands, asset_server, &map.scene, false)
 }
 
+pub fn spawn_tool_shed_building(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    map: &ToolShedExteriorMap,
+) -> Vec<Entity> {
+    spawn_scene_backgrounds(commands, asset_server, &map.scene, false)
+}
+
 fn scene_layer_z(layer: &str, interior: bool, mutable: bool) -> f32 {
     let z = if interior {
         match layer {
@@ -878,6 +1060,16 @@ pub fn spawn_building_mutable(
     spawn_mutable(commands, asset_server, &map.scene, element, state, false)
 }
 
+pub fn spawn_tool_shed_mutable(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    map: &ToolShedExteriorMap,
+    element: &MutableElement,
+    state: &str,
+) -> Entity {
+    spawn_mutable(commands, asset_server, &map.scene, element, state, false)
+}
+
 fn spawn_mutable(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -927,11 +1119,11 @@ mod tests {
             let room = InteriorMap::load(interior_id);
             assert_eq!(room.id(), interior_id.id());
             assert!(room.is_area_walkable(room.cell_center(room.entry), Vec2::ZERO));
-            assert_eq!(room.exits.len(), 1);
+            assert!(!room.exits.is_empty());
             assert!(room
-                .scene
-                .cell_at(room.cell_center(room.exits[0]))
-                .is_some());
+                .exits
+                .iter()
+                .all(|exit| room.scene.cell_at(room.cell_center(*exit)).is_some()));
             assert!(!room.is_area_walkable(INTERIOR_ORIGIN + room.world_size(), Vec2::ZERO));
         }
     }
@@ -967,6 +1159,27 @@ mod tests {
     }
 
     #[test]
+    fn tool_shed_authors_portable_tools_outside_the_baked_background() {
+        let shed = InteriorMap::load(InteriorId::ToolShed);
+        let tools = shed.portable_items();
+
+        assert_eq!(tools.len(), 4);
+        assert!(tools.iter().any(|item| {
+            item.id == "claw-hammer-01"
+                && item.tool == ToolId::Hammer
+                && item.condition == ToolCondition::Serviceable
+        }));
+        assert!(tools.iter().any(|item| {
+            item.id == "old-pickaxe-01"
+                && item.tool == ToolId::Pickaxe
+                && item.condition == ToolCondition::Broken
+        }));
+        assert!(tools
+            .iter()
+            .all(|item| item.size == Vec2::splat(48.0) && item.layer == "object"));
+    }
+
+    #[test]
     fn authored_rooms_keep_repairable_elements_at_native_pixel_size() {
         for interior_id in InteriorId::ALL {
             let room = InteriorMap::load(interior_id);
@@ -996,7 +1209,7 @@ mod tests {
             .map(|element| element.pixel_x)
             .collect::<Vec<_>>();
         door_x.sort_by(f32::total_cmp);
-        assert_eq!(door_x.len(), InteriorId::ALL.len());
+        assert_eq!(door_x.len(), InteriorId::MOTEL.len());
         assert!(door_x.windows(2).all(|pair| pair[0] < pair[1]));
     }
 
@@ -1012,6 +1225,18 @@ mod tests {
 
         assert!(!motel.is_walkable(blocked.center));
         assert!(motel.is_walkable(MOTEL_EXTERIOR_ORIGIN + motel.scene.world_size()));
+    }
+
+    #[test]
+    fn tool_shed_collision_footprint_stands_on_generated_land() {
+        let shed = ToolShedExteriorMap::load();
+        let grid = crate::terrain::WorldGrid::generate(crate::terrain::WORLD_SEED);
+
+        assert!(shed
+            .scene
+            .collision
+            .iter()
+            .all(|area| { grid.supports_land_footprint(area.center, area.size) }));
     }
 
     #[test]

@@ -1,0 +1,978 @@
+{
+  "schema_version": 5,
+  "collision": [
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 1,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 4,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 5,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 6,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 7,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 8,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 9,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 10,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 11,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 12,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 13,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 14,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 15,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 16,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 17,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 18,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 19,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 20,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 21,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 22,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 0
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 1
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 2
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 3
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 4
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 5
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 6
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 7
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 8
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 9
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 10
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 11
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 12
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 13
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 14
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 15
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 16
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 17
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 18
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 19
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 20
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 21
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 22
+    },
+    {
+      "grid": 16,
+      "x": 23,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 22,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 21,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 20,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 19,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 18,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 17,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 16,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 15,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 14,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 13,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 12,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 11,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 10,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 9,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 8,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 7,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 6,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 5,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 4,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 3,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 2,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 1,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 23
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 22
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 21
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 20
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 19
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 18
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 17
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 16
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 15
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 14
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 13
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 12
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 11
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 10
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 9
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 8
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 7
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 6
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 5
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 3
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 2
+    },
+    {
+      "grid": 16,
+      "x": 0,
+      "y": 1
+    }
+  ],
+  "placements": [
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 0,
+        "y": 12
+      },
+      "width": 3,
+      "height": 6,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 4,
+        "width": 2,
+        "height": 4
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 36,
+        "y": 12
+      },
+      "width": 3,
+      "height": 6,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 4,
+        "width": 2,
+        "height": 4
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 12,
+        "y": 12
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 8,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": false
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 24,
+        "y": 24
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 8,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": true,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 12,
+        "y": 36
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 8,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 24,
+        "y": 36
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 24,
+        "y": 12
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 36,
+        "y": 36
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 5,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 0,
+        "y": 36
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 7,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 12,
+        "y": 24
+      },
+      "width": 3,
+      "height": 3,
+      "source": {
+        "path": "horror hotel/tile-B-01.png",
+        "grid": 48,
+        "x": 6,
+        "y": 3,
+        "width": 2,
+        "height": 2
+      },
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 15,
+        "y": 14
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-01.png",
+        "grid": 48,
+        "x": 12,
+        "y": 13,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 16,
+        "y": 23
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-02.png",
+        "grid": 48,
+        "x": 14,
+        "y": 3,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 17,
+        "y": 33
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-02.png",
+        "grid": 48,
+        "x": 12,
+        "y": 9,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 27,
+        "y": 16
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-02.png",
+        "grid": 48,
+        "x": 8,
+        "y": 13,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 38,
+        "y": 8
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-01.png",
+        "grid": 48,
+        "x": 15,
+        "y": 12,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 33,
+        "y": 8
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-01.png",
+        "grid": 48,
+        "x": 15,
+        "y": 13,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 41,
+        "y": 14
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-01.png",
+        "grid": 48,
+        "x": 1,
+        "y": 14,
+        "width": 1,
+        "height": 1
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "old-shovel-01",
+      "label": "old shovel",
+      "tool": "shovel",
+      "condition": "serviceable",
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 3,
+        "y": 13
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-01.png",
+        "grid": 48,
+        "x": 2,
+        "y": 15,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "id": "old-pickaxe-01",
+      "label": "old pickaxe",
+      "tool": "pickaxe",
+      "condition": "broken",
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 3,
+        "y": 23
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-01.png",
+        "grid": 48,
+        "x": 2,
+        "y": 14,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "id": "wood-axe-01",
+      "label": "wood axe",
+      "tool": "hatchet",
+      "condition": "serviceable",
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 5,
+        "y": 35
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-02.png",
+        "grid": 48,
+        "x": 8,
+        "y": 4,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "id": "claw-hammer-01",
+      "label": "claw hammer",
+      "tool": "hammer",
+      "condition": "serviceable",
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 28,
+        "y": 25
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-01.png",
+        "grid": 48,
+        "x": 13,
+        "y": 12,
+        "width": 1,
+        "height": 1
+      }
+    }
+  ],
+  "templates": {},
+  "structures": [
+    {
+      "id": "interior-damaged-brick-wall-1-01",
+      "template": "interior-damaged-brick-wall-1",
+      "position": {
+        "grid": 8,
+        "x": 0,
+        "y": 0
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "interior-damaged-brick-wall-1-02",
+      "template": "interior-damaged-brick-wall-1",
+      "position": {
+        "grid": 8,
+        "x": 16,
+        "y": 0
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "interior-damaged-brick-wall-1-03",
+      "template": "interior-damaged-brick-wall-1",
+      "position": {
+        "grid": 8,
+        "x": 32,
+        "y": 0
+      },
+      "width": 4,
+      "height": 3,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    }
+  ],
+  "fixtures": [],
+  "id": "tool-shed-interior",
+  "name": "an old tool shed",
+  "background": "#49382b",
+  "floor_line": "#34261d",
+  "grid": {
+    "width": 12,
+    "height": 12,
+    "tile_size": 32
+  },
+  "entry": {
+    "x": 5,
+    "y": 10
+  },
+  "exits": [
+    {
+      "x": 5,
+      "y": 11,
+      "to": "exterior",
+      "spawn": "motel-door"
+    },
+    {
+      "x": 6,
+      "y": 11,
+      "to": "exterior",
+      "spawn": "motel-door"
+    }
+  ]
+}

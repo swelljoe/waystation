@@ -15,7 +15,7 @@ use std::{
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use progression::{Progression, SupplyId, TaskAction, ToolId};
+use progression::{Progression, SupplyId, TaskAction, ToolCondition, ToolId, ToolLocation};
 use serde::{Deserialize, Serialize};
 use terrain::{MAP_HALF_HEIGHT, MAP_HALF_WIDTH};
 use waystation_shared::{
@@ -38,6 +38,10 @@ const SCRIBE_FRAME_SIZE: u32 = 64;
 const SCRIBE_FRAME_SIZE_F32: f32 = 64.0;
 const SCRIBE_WALK_FRAMES: usize = 9;
 const SCRIBE_WALK_SECONDS_PER_FRAME: f32 = 0.11;
+const SCRIBE_TOOL_FRAME_SIZE: u32 = 128;
+const SCRIBE_TOOL_COLUMNS: u32 = 6;
+const SCRIBE_TOOL_ROWS: u32 = 4;
+const SCRIBE_TOOL_SECONDS_PER_FRAME: f32 = 0.15;
 const SCRIBE_OCCLUSION_CROWN_WIDTH: f32 = 24.0;
 const SCRIBE_OCCLUSION_CROWN_HEIGHT: f32 = 16.0;
 const TREE_OCCLUSION_SAMPLE_COLUMNS: u16 = 8;
@@ -60,7 +64,7 @@ const DISCOVERY_FOUND_STATE: &str = "found";
 const BIBLE_ICON_PATH: &str = "ui/bible-32.png";
 const STORY_SEEN_STATE: &str = "seen";
 
-const TREE_PLACEMENTS: [(f32, f32, f32); 15] = [
+const TREE_PLACEMENTS: [(f32, f32, f32); 18] = [
     (-1_980.0, 1_160.0, 190.0),
     (-1_650.0, 780.0, 150.0),
     (-1_420.0, -980.0, 180.0),
@@ -76,6 +80,9 @@ const TREE_PLACEMENTS: [(f32, f32, f32); 15] = [
     (1_380.0, -760.0, 170.0),
     (1_720.0, 1_100.0, 210.0),
     (1_960.0, -1_080.0, 180.0),
+    (-1_450.0, 840.0, 140.0),
+    (-1_180.0, 1_050.0, 150.0),
+    (-910.0, 840.0, 150.0),
 ];
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -148,8 +155,9 @@ fn run_game() {
                     .after(update_player_tree_occlusion),
                 follow_player,
                 trigger_story_hotspots,
+                sync_portable_tool_entities,
                 update_nearby_interaction,
-                handle_interaction,
+                handle_tool_hotkeys,
                 handle_story_input,
                 poll_interpretation,
                 sync_world_state,
@@ -158,6 +166,12 @@ fn run_game() {
                 save_story,
             )
                 .chain(),
+        )
+        .add_systems(
+            Update,
+            handle_interaction
+                .after(update_nearby_interaction)
+                .before(handle_tool_hotkeys),
         )
         .run();
 }
@@ -227,6 +241,27 @@ impl Facing {
             Self::Right => 11,
         }
     }
+
+    const fn direction_index(self) -> usize {
+        match self {
+            Self::Up => 0,
+            Self::Left => 1,
+            Self::Down => 2,
+            Self::Right => 3,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ToolWorkAnimation {
+    Hammer,
+    Axe,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct ActiveToolAnimation {
+    kind: ToolWorkAnimation,
+    frame: usize,
 }
 
 #[derive(Component)]
@@ -235,6 +270,17 @@ struct PlayerAnimation {
     facing: Facing,
     frame: usize,
     last_position: Vec2,
+    active_tool: Option<ActiveToolAnimation>,
+}
+
+#[derive(Resource)]
+struct PlayerArt {
+    walk_image: Handle<Image>,
+    walk_layout: Handle<TextureAtlasLayout>,
+    hammer_image: Handle<Image>,
+    hammer_layout: Handle<TextureAtlasLayout>,
+    axe_image: Handle<Image>,
+    axe_layout: Handle<TextureAtlasLayout>,
 }
 
 #[derive(Component)]
@@ -258,6 +304,7 @@ enum InteractableKind {
     InteriorExit,
     InteriorRepairable,
     ExteriorRepairable,
+    Tree,
 }
 
 #[derive(Component)]
@@ -269,8 +316,37 @@ struct WorldPickup {
 #[derive(Clone, Copy)]
 enum PickupReward {
     Supply(SupplyId, u16),
-    Tool(ToolId),
 }
+
+#[derive(Component)]
+struct ChoppableTree {
+    id: String,
+    trunk: ExteriorRect,
+    art: ExteriorRect,
+}
+
+#[derive(Component)]
+struct PortableToolEntity {
+    id: String,
+}
+
+#[derive(Clone, Debug)]
+struct PortableToolDefinition {
+    id: String,
+    label: String,
+    tool: ToolId,
+    condition: ToolCondition,
+    layer: String,
+    home_scene: String,
+    home_position: Vec2,
+    image_path: String,
+    size: Vec2,
+    flip_x: bool,
+    flip_y: bool,
+}
+
+#[derive(Resource, Default)]
+struct PortableToolCatalog(Vec<PortableToolDefinition>);
 
 #[derive(Component, Clone)]
 struct TaskTarget {
@@ -338,6 +414,33 @@ struct InteractionResources<'w> {
 }
 
 #[derive(SystemParam)]
+struct InteractionQueries<'w, 's> {
+    interactables: Query<'w, 's, &'static mut Interactable>,
+    pickups: Query<'w, 's, &'static WorldPickup>,
+    portable_tools: Query<
+        'w,
+        's,
+        (
+            &'static PortableToolEntity,
+            &'static AuthoredInteractionLabel,
+        ),
+    >,
+    choppable_trees: Query<'w, 's, &'static ChoppableTree>,
+    player_animation: Query<'w, 's, &'static mut PlayerAnimation, With<Player>>,
+    mutable_elements: Query<
+        'w,
+        's,
+        (
+            &'static mut MutableSceneElement,
+            &'static mut Sprite,
+            &'static mut Transform,
+            &'static mut Visibility,
+        ),
+        Without<Player>,
+    >,
+}
+
+#[derive(SystemParam)]
 struct NarrativeResources<'w> {
     interior_state: ResMut<'w, InteriorState>,
     popup: ResMut<'w, NarrativePopup>,
@@ -354,6 +457,7 @@ struct MovementEnvironment<'w, 's> {
     location: Res<'w, WorldLocation>,
     interior: Res<'w, interior::InteriorMap>,
     motel: Res<'w, interior::MotelExteriorMap>,
+    tool_shed: Res<'w, interior::ToolShedExteriorMap>,
     terrain: Res<'w, terrain::WorldGrid>,
     obstacles: Res<'w, ExteriorObstacles>,
     doors: Query<
@@ -367,6 +471,17 @@ struct MovementEnvironment<'w, 's> {
         Without<Player>,
     >,
     doorway_attempt: ResMut<'w, DoorwayAttempt>,
+}
+
+#[derive(SystemParam)]
+struct ToolDropEnvironment<'w> {
+    location: Res<'w, WorldLocation>,
+    interior: Res<'w, interior::InteriorMap>,
+    terrain: Res<'w, terrain::WorldGrid>,
+    motel: Res<'w, interior::MotelExteriorMap>,
+    tool_shed: Res<'w, interior::ToolShedExteriorMap>,
+    obstacles: Res<'w, ExteriorObstacles>,
+    catalog: Res<'w, PortableToolCatalog>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -385,6 +500,10 @@ impl ExteriorRect {
         (self.center.x - other.center.x).abs() < reach.x
             && (self.center.y - other.center.y).abs() < reach.y
     }
+}
+
+fn same_exterior_rect(left: ExteriorRect, right: ExteriorRect) -> bool {
+    left.center == right.center && left.size == right.size
 }
 
 #[derive(Resource, Default, Debug)]
@@ -690,7 +809,7 @@ impl SaveData {
         progression: &Progression,
     ) -> Self {
         Self {
-            version: 5,
+            version: 6,
             stage: story.stage,
             kindling: story.kindling,
             vignette_index: story.vignette_index,
@@ -758,7 +877,7 @@ fn setup_world(
     location: Res<WorldLocation>,
     mut interior_state: ResMut<InteriorState>,
     mut popup: ResMut<NarrativePopup>,
-    progression: Res<Progression>,
+    mut progression: ResMut<Progression>,
 ) {
     commands.spawn((
         Camera2d,
@@ -773,6 +892,8 @@ fn setup_world(
     commands.insert_resource(world_grid.clone());
     let tree = asset_server.load("world/tree.png");
     let scribe = asset_server.load("world/scribe.png");
+    let scribe_hammer = asset_server.load("world/scribe-hammer.png");
+    let scribe_axe = asset_server.load("world/scribe-axe.png");
     let motel = interior::MotelExteriorMap::load();
     let building_ground_y = motel.depth_ground_y();
     for (layer_index, entity) in interior::spawn_building(&mut commands, &asset_server, &motel)
@@ -840,6 +961,75 @@ fn setup_world(
         }
     }
 
+    let tool_shed = interior::ToolShedExteriorMap::load();
+    let tool_shed_ground_y = tool_shed.depth_ground_y();
+    for (layer_index, entity) in
+        interior::spawn_tool_shed_building(&mut commands, &asset_server, &tool_shed)
+            .into_iter()
+            .enumerate()
+    {
+        commands.entity(entity).insert(ExteriorFixedDepth {
+            ground_y: tool_shed_ground_y,
+            depth_bias: building_layer_depth_bias(layer_index, false),
+        });
+    }
+    for element in tool_shed.mutable_elements() {
+        let state_key = format!("{}/{}", tool_shed.id(), element.id);
+        let state = interior_state
+            .0
+            .get(&state_key)
+            .map_or(element.initial_state.as_str(), String::as_str);
+        let entity = interior::spawn_tool_shed_mutable(
+            &mut commands,
+            &asset_server,
+            &tool_shed,
+            element,
+            state,
+        );
+        commands.entity(entity).insert(ExteriorFixedDepth {
+            ground_y: tool_shed_ground_y,
+            depth_bias: building_layer_depth_bias(authored_layer_index(&element.layer), true),
+        });
+        if element.fully_occludes_player() {
+            commands.entity(entity).insert(BuildingCrownOccluder);
+        }
+        let is_door = element.kind == "door";
+        let kind = if is_door {
+            InteractableKind::MotelDoor
+        } else {
+            InteractableKind::ExteriorRepairable
+        };
+        commands.entity(entity).insert((
+            Interactable {
+                kind,
+                consumed: !is_door && state == "repaired",
+            },
+            MutableSceneElement {
+                scene_id: tool_shed.id().to_owned(),
+                id: element.id.clone(),
+                state: state.to_owned(),
+            },
+        ));
+        if is_door {
+            let visual = element
+                .states
+                .get(state)
+                .or_else(|| element.states.get(&element.initial_state))
+                .expect("tool-shed door needs its authored visual");
+            let doorstep = tool_shed.element_center(element, visual.size) + Vec2::new(0.0, -52.0);
+            commands.entity(entity).insert(MotelDoorDestination {
+                interior_id: interior::InteriorId::ToolShed,
+                initially_unlocked: true,
+                doorstep,
+            });
+        } else {
+            commands.entity(entity).insert(TaskTarget {
+                action: element.task.action,
+                requirements: element.task.requirements_text(),
+            });
+        }
+    }
+
     let interior_map = interior::InteriorMap::load(interior::InteriorId::Office);
     if *location == WorldLocation::Interior {
         spawn_interior_scene(&mut commands, &asset_server, &interior_map, &interior_state);
@@ -850,8 +1040,13 @@ fn setup_world(
     // A tree's small ground footprint must be fully on land; its broad art bounds
     // keep later forage placement from hiding objects beneath the canopy.
     let mut exterior_obstacles = ExteriorObstacles::default();
-    for (x, y, size) in TREE_PLACEMENTS {
-        let position = resolve_tree_position(&world_grid, Vec2::new(x, y), size);
+    for (index, (x, y, size)) in TREE_PLACEMENTS.into_iter().enumerate() {
+        let tree_id = format!("standing-tree-{index:02}");
+        if progression.pickup_collected(&tree_id) {
+            continue;
+        }
+        let position =
+            resolve_tree_position(&world_grid, &motel, &tool_shed, Vec2::new(x, y), size);
         commands.spawn((
             Sprite {
                 image: tree.clone(),
@@ -868,6 +1063,19 @@ fn setup_world(
                 depth_bias: 0.0,
             },
             DenseTreeOccluder,
+            Interactable {
+                kind: InteractableKind::Tree,
+                consumed: false,
+            },
+            TaskTarget {
+                action: TaskAction::Clear,
+                requirements: progression::TaskSpec::for_tree_chopping().requirements_text(),
+            },
+            ChoppableTree {
+                id: tree_id,
+                trunk: tree_trunk_rect(position, size),
+                art: ExteriorRect::new(position, Vec2::splat(size)),
+            },
         ));
         exterior_obstacles
             .tree_trunks
@@ -937,6 +1145,7 @@ fn setup_world(
             &progression,
             &world_grid,
             &motel,
+            &tool_shed,
             &exterior_obstacles,
             &mut pickup_bounds,
             format!("kindling-{index:02}"),
@@ -963,6 +1172,7 @@ fn setup_world(
             &progression,
             &world_grid,
             &motel,
+            &tool_shed,
             &exterior_obstacles,
             &mut pickup_bounds,
             format!("fallen-log-{index:02}"),
@@ -986,6 +1196,7 @@ fn setup_world(
             &progression,
             &world_grid,
             &motel,
+            &tool_shed,
             &exterior_obstacles,
             &mut pickup_bounds,
             format!("sound-plank-{index:02}"),
@@ -996,20 +1207,52 @@ fn setup_world(
             PickupReward::Supply(SupplyId::Plank, 1),
         );
     }
-    spawn_safe_world_pickup(
-        &mut commands,
-        &progression,
+    let tool_shed_interior = interior::InteriorMap::load(interior::InteriorId::ToolShed);
+    let mut portable_tools = tool_shed_interior
+        .portable_items()
+        .iter()
+        .map(|item| PortableToolDefinition {
+            id: item.id.clone(),
+            label: item.label.clone(),
+            tool: item.tool,
+            condition: item.condition,
+            layer: item.layer.clone(),
+            home_scene: tool_shed_interior.id().to_owned(),
+            home_position: item.center,
+            image_path: item.image_path.clone(),
+            size: item.size,
+            flip_x: item.flip_x,
+            flip_y: item.flip_y,
+        })
+        .collect::<Vec<_>>();
+    let ladder_size = Vec2::new(44.0, 112.0);
+    let ladder_position = safe_pickup_position(
         &world_grid,
         &motel,
+        &tool_shed,
         &exterior_obstacles,
-        &mut pickup_bounds,
-        "fallen-ladder-01".to_owned(),
-        InteractableKind::Tool,
+        &pickup_bounds,
         Vec2::new(-1_080.0, 1_010.0),
-        Vec2::new(44.0, 112.0),
-        Sprite::from_image(asset_server.load("world/ladder.png")),
-        PickupReward::Tool(ToolId::Ladder),
+        ladder_size,
     );
+    portable_tools.push(PortableToolDefinition {
+        id: "fallen-ladder-01".to_owned(),
+        label: "weathered ladder".to_owned(),
+        tool: ToolId::Ladder,
+        condition: ToolCondition::Serviceable,
+        layer: "object".to_owned(),
+        home_scene: "exterior".to_owned(),
+        home_position: ladder_position,
+        image_path: "world/ladder.png".to_owned(),
+        size: ladder_size,
+        flip_x: false,
+        flip_y: false,
+    });
+    for definition in &portable_tools {
+        progression.register_tool_instance(&definition.id, definition.tool, definition.condition);
+        spawn_portable_tool_entity(&mut commands, &asset_server, definition);
+    }
+    commands.insert_resource(PortableToolCatalog(portable_tools));
     commands.insert_resource(exterior_obstacles);
     let traveler = spawn_interactable(
         &mut commands,
@@ -1034,6 +1277,21 @@ fn setup_world(
         None,
         None,
     ));
+    let scribe_tool_layout = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(SCRIBE_TOOL_FRAME_SIZE),
+        SCRIBE_TOOL_COLUMNS,
+        SCRIBE_TOOL_ROWS,
+        None,
+        None,
+    ));
+    commands.insert_resource(PlayerArt {
+        walk_image: scribe.clone(),
+        walk_layout: scribe_layout.clone(),
+        hammer_image: scribe_hammer,
+        hammer_layout: scribe_tool_layout.clone(),
+        axe_image: scribe_axe,
+        axe_layout: scribe_tool_layout,
+    });
     let facing = Facing::Down;
     commands.spawn((
         Sprite {
@@ -1059,6 +1317,7 @@ fn setup_world(
             facing,
             frame: 0,
             last_position: player_position,
+            active_tool: None,
         },
     ));
     commands.spawn((
@@ -1085,6 +1344,7 @@ fn setup_world(
         Visibility::Hidden,
     ));
     commands.insert_resource(motel);
+    commands.insert_resource(tool_shed);
     commands.insert_resource(interior_map);
     commands.insert_resource(Nearby::default());
 }
@@ -1193,12 +1453,12 @@ fn motel_door_routes(motel: &interior::MotelExteriorMap) -> HashMap<String, inte
     door_ids.sort_by(|left, right| left.0.total_cmp(&right.0));
     assert_eq!(
         door_ids.len(),
-        interior::InteriorId::ALL.len(),
+        interior::InteriorId::MOTEL.len(),
         "the authored motel must have one exterior door per interior"
     );
     door_ids
         .into_iter()
-        .zip(interior::InteriorId::ALL)
+        .zip(interior::InteriorId::MOTEL)
         .map(|((_, id), interior_id)| (id, interior_id))
         .collect()
 }
@@ -1227,7 +1487,7 @@ fn load_story(
     let Ok(save) = serde_json::from_str::<SaveData>(&raw) else {
         return;
     };
-    if !matches!(save.version, 1..=5) || save.vignette_index >= vignettes().len() {
+    if !matches!(save.version, 1..=6) || save.vignette_index >= vignettes().len() {
         return;
     }
     let migrate_legacy_bible = save.version <= 4 && story_stage_requires_bible(save.stage);
@@ -1482,10 +1742,19 @@ fn dense_tree_occludes_player(
         })
 }
 
-fn resolve_tree_position(grid: &terrain::WorldGrid, desired: Vec2, size: f32) -> Vec2 {
+fn resolve_tree_position(
+    grid: &terrain::WorldGrid,
+    motel: &interior::MotelExteriorMap,
+    tool_shed: &interior::ToolShedExteriorMap,
+    desired: Vec2,
+    size: f32,
+) -> Vec2 {
     nearest_valid_position(desired, |candidate| {
         let ground = tree_ground_rect(candidate, size);
+        let trunk = tree_trunk_rect(candidate, size);
         grid.supports_land_footprint(ground.center, ground.size)
+            && motel.is_area_walkable(trunk.center, trunk.size)
+            && tool_shed.is_area_walkable(trunk.center, trunk.size)
     })
     .expect("the generated exterior needs enough land for every tree")
 }
@@ -1493,6 +1762,7 @@ fn resolve_tree_position(grid: &terrain::WorldGrid, desired: Vec2, size: f32) ->
 fn safe_pickup_position(
     grid: &terrain::WorldGrid,
     motel: &interior::MotelExteriorMap,
+    tool_shed: &interior::ToolShedExteriorMap,
     obstacles: &ExteriorObstacles,
     reserved: &[ExteriorRect],
     desired: Vec2,
@@ -1502,6 +1772,7 @@ fn safe_pickup_position(
         let bounds = ExteriorRect::new(candidate, size);
         grid.supports_land_footprint(candidate, size)
             && motel.is_area_walkable(candidate, size)
+            && tool_shed.is_area_walkable(candidate, size)
             && obstacles.prop_is_clear(bounds)
             && reserved.iter().all(|occupied| !occupied.overlaps(bounds))
     })
@@ -1560,6 +1831,7 @@ fn spawn_safe_world_pickup(
     progression: &Progression,
     grid: &terrain::WorldGrid,
     motel: &interior::MotelExteriorMap,
+    tool_shed: &interior::ToolShedExteriorMap,
     obstacles: &ExteriorObstacles,
     reserved: &mut Vec<ExteriorRect>,
     id: String,
@@ -1569,9 +1841,205 @@ fn spawn_safe_world_pickup(
     sprite: Sprite,
     reward: PickupReward,
 ) -> Entity {
-    let position = safe_pickup_position(grid, motel, obstacles, reserved, desired_position, size);
+    let position = safe_pickup_position(
+        grid,
+        motel,
+        tool_shed,
+        obstacles,
+        reserved,
+        desired_position,
+        size,
+    );
     reserved.push(ExteriorRect::new(position, size));
     spawn_world_pickup(commands, progression, id, kind, position, sprite, reward)
+}
+
+fn spawn_portable_tool_entity(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    definition: &PortableToolDefinition,
+) -> Entity {
+    commands
+        .spawn((
+            Sprite {
+                image: asset_server.load(definition.image_path.clone()),
+                custom_size: Some(definition.size),
+                flip_x: definition.flip_x,
+                flip_y: definition.flip_y,
+                ..default()
+            },
+            Transform::from_xyz(
+                definition.home_position.x,
+                definition.home_position.y,
+                portable_tool_interior_depth(&definition.layer),
+            ),
+            Visibility::Hidden,
+            Interactable {
+                kind: InteractableKind::Tool,
+                consumed: true,
+            },
+            AuthoredInteractionLabel(definition.label.clone()),
+            PortableToolEntity {
+                id: definition.id.clone(),
+            },
+        ))
+        .id()
+}
+
+fn portable_tool_interior_depth(layer: &str) -> f32 {
+    match layer {
+        "floor" => -9.75,
+        "wall" => -7.75,
+        "object" => -2.75,
+        "overlay" => 4.25,
+        _ => panic!("unsupported portable-tool layer: {layer}"),
+    }
+}
+
+fn active_scene_id(location: WorldLocation, interior: &interior::InteriorMap) -> &str {
+    if location == WorldLocation::Exterior {
+        "exterior"
+    } else {
+        interior.id()
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn sync_portable_tool_entities(
+    location: Res<WorldLocation>,
+    interior: Res<interior::InteriorMap>,
+    progression: Res<Progression>,
+    catalog: Res<PortableToolCatalog>,
+    mut entities: Query<(
+        &PortableToolEntity,
+        &mut Transform,
+        &mut Visibility,
+        &mut Interactable,
+    )>,
+) {
+    let scene_id = active_scene_id(*location, &interior);
+    for (portable, mut transform, mut visibility, mut interactable) in &mut entities {
+        let Some(definition) = catalog.0.iter().find(|item| item.id == portable.id) else {
+            continue;
+        };
+        let Some(record) = progression.tool_record(&portable.id) else {
+            continue;
+        };
+        let position = match &record.location {
+            ToolLocation::Home if definition.home_scene == scene_id => {
+                Some(definition.home_position)
+            }
+            ToolLocation::Dropped {
+                scene_id: dropped_scene,
+                x,
+                y,
+            } if dropped_scene == scene_id => Some(IVec2::new(*x, *y).as_vec2()),
+            _ => None,
+        };
+        let Some(position) = position else {
+            *visibility = Visibility::Hidden;
+            interactable.consumed = true;
+            continue;
+        };
+        transform.translation.x = position.x;
+        transform.translation.y = position.y;
+        transform.translation.z = if *location == WorldLocation::Exterior {
+            exterior_depth(position.y - definition.size.y / 2.0)
+        } else {
+            portable_tool_interior_depth(&definition.layer)
+        };
+        *visibility = Visibility::Visible;
+        interactable.consumed = false;
+    }
+}
+
+fn handle_tool_hotkeys(
+    keys: Res<ButtonInput<KeyCode>>,
+    popup: Res<NarrativePopup>,
+    environment: ToolDropEnvironment,
+    mut progression: ResMut<Progression>,
+    mut story: ResMut<Story>,
+    player: Query<(&Transform, &PlayerAnimation), With<Player>>,
+) {
+    if popup.is_open() {
+        return;
+    }
+    if keys.just_pressed(KeyCode::Tab) {
+        story.notice = progression.cycle_equipped_tool().map(|tool| {
+            format!(
+                "You shift the {} where it is easiest to reach.",
+                tool.label()
+            )
+        });
+    }
+    if !keys.just_pressed(KeyCode::KeyQ) {
+        return;
+    }
+    let Ok((transform, animation)) = player.single() else {
+        return;
+    };
+    let Some(equipped_id) = progression.equipped_tool_id() else {
+        story.notice = Some("You are not carrying a portable tool to put down.".to_owned());
+        return;
+    };
+    let Some(definition) = environment
+        .catalog
+        .0
+        .iter()
+        .find(|item| item.id == equipped_id)
+    else {
+        return;
+    };
+    let returning_home = *environment.location == WorldLocation::Interior
+        && environment.interior.interior_id == interior::InteriorId::ToolShed
+        && definition.home_scene == environment.interior.id();
+    let tool = if returning_home {
+        progression.return_equipped_tool()
+    } else {
+        let offset = match animation.facing {
+            Facing::Up => Vec2::new(0.0, 30.0),
+            Facing::Left => Vec2::new(-30.0, -18.0),
+            Facing::Down => Vec2::new(0.0, -42.0),
+            Facing::Right => Vec2::new(30.0, -18.0),
+        };
+        let desired = transform.translation.truncate() + offset;
+        let position = nearest_valid_position(desired, |candidate| {
+            if *environment.location == WorldLocation::Exterior {
+                let bounds = ExteriorRect::new(candidate, definition.size);
+                environment
+                    .terrain
+                    .supports_land_footprint(candidate, definition.size)
+                    && environment
+                        .motel
+                        .is_area_walkable(candidate, definition.size)
+                    && environment
+                        .tool_shed
+                        .is_area_walkable(candidate, definition.size)
+                    && environment.obstacles.prop_is_clear(bounds)
+            } else {
+                environment
+                    .interior
+                    .is_area_walkable(candidate, definition.size)
+            }
+        })
+        .unwrap_or_else(|| transform.translation.truncate())
+        .round();
+        let position = position.as_ivec2();
+        progression.drop_equipped_tool(
+            active_scene_id(*environment.location, &environment.interior),
+            (position.x, position.y),
+        )
+    };
+    story.notice = tool.map(|tool| {
+        if returning_home {
+            format!(
+                "You return the {} to its place in the tool shed.",
+                tool.label()
+            )
+        } else {
+            format!("You set down the {}. It will remain here.", tool.label())
+        }
+    });
 }
 
 fn load_ui_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -1820,6 +2288,9 @@ fn move_player(
     let Ok((mut transform, mut animation)) = player.single_mut() else {
         return;
     };
+    if animation.active_tool.is_some() {
+        return;
+    }
     let mut direction = Vec2::ZERO;
     if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
         direction.y += 1.0;
@@ -1877,6 +2348,7 @@ fn move_player_outside(
         next_x,
         &environment.terrain,
         &environment.motel,
+        &environment.tool_shed,
         &environment.obstacles,
     ) {
         next.x = next_x.x;
@@ -1886,7 +2358,9 @@ fn move_player_outside(
         (next.y + delta.y).clamp(-MAP_HALF_HEIGHT, MAP_HALF_HEIGHT),
     );
     let head_probe = next_y + Vec2::Y * DOOR_HEAD_PROBE_OFFSET;
-    let doorway = if delta.y > 0.0 && !environment.motel.is_walkable(head_probe) {
+    let head_hits_building = !environment.motel.is_walkable(head_probe)
+        || !environment.tool_shed.is_walkable(head_probe);
+    let doorway = if delta.y > 0.0 && head_hits_building {
         environment
             .doors
             .iter()
@@ -1912,6 +2386,7 @@ fn move_player_outside(
         next_y,
         &environment.terrain,
         &environment.motel,
+        &environment.tool_shed,
         &environment.obstacles,
     ) {
         next.y = next_y.y;
@@ -1923,11 +2398,13 @@ fn exterior_position_is_walkable(
     position: Vec2,
     grid: &terrain::WorldGrid,
     motel: &interior::MotelExteriorMap,
+    tool_shed: &interior::ToolShedExteriorMap,
     obstacles: &ExteriorObstacles,
 ) -> bool {
     let bounds = player_collision_rect(position);
     grid.supports_land_footprint(bounds.center, bounds.size)
         && motel.is_area_walkable(bounds.center, bounds.size)
+        && tool_shed.is_area_walkable(bounds.center, bounds.size)
         && obstacles.player_can_stand(bounds)
 }
 
@@ -2024,7 +2501,8 @@ fn update_player_tree_occlusion(
 fn sync_player_occlusion_crown(
     location: Res<WorldLocation>,
     motel: Res<interior::MotelExteriorMap>,
-    player: Query<(&Transform, &Sprite, &Visibility), With<Player>>,
+    tool_shed: Res<interior::ToolShedExteriorMap>,
+    player: Query<(&Transform, &Sprite, &Visibility, &PlayerAnimation), With<Player>>,
     mut crown: Query<
         (&mut Transform, &mut Sprite, &mut Visibility),
         (
@@ -2039,16 +2517,24 @@ fn sync_player_occlusion_crown(
     >,
 ) {
     let (
-        Ok((player_transform, player_sprite, player_visibility)),
+        Ok((player_transform, player_sprite, player_visibility, player_animation)),
         Ok((mut transform, mut sprite, mut visibility)),
     ) = (player.single(), crown.single_mut())
     else {
         return;
     };
     let player_ground = player_transform.translation.truncate() + Vec2::Y * PLAYER_GROUND_OFFSET_Y;
+    let occluding_building_ground_y = if motel.occludes_ground_point(player_ground) {
+        Some(motel.depth_ground_y())
+    } else if tool_shed.occludes_ground_point(player_ground) {
+        Some(tool_shed.depth_ground_y())
+    } else {
+        None
+    };
     if *location != WorldLocation::Exterior
         || *player_visibility == Visibility::Hidden
-        || !motel.occludes_ground_point(player_ground)
+        || player_animation.active_tool.is_some()
+        || occluding_building_ground_y.is_none()
     {
         *visibility = Visibility::Hidden;
         return;
@@ -2071,6 +2557,7 @@ fn sync_player_occlusion_crown(
     );
     let hidden_by_tall_structure = motel
         .fully_occludes_crown(crown_bounds.center, crown_bounds.size)
+        || tool_shed.fully_occludes_crown(crown_bounds.center, crown_bounds.size)
         || full_occluders.iter().any(|(occluder, sprite)| {
             crown_bounds.overlaps(ExteriorRect::new(
                 occluder.translation.truncate(),
@@ -2083,7 +2570,9 @@ fn sync_player_occlusion_crown(
     }
     transform.translation.x = crown_position.x;
     transform.translation.y = crown_position.y;
-    transform.translation.z = building_occlusion_crown_depth(motel.depth_ground_y());
+    transform.translation.z = building_occlusion_crown_depth(
+        occluding_building_ground_y.expect("an occluding building was selected"),
+    );
     *visibility = Visibility::Visible;
 }
 
@@ -2196,12 +2685,47 @@ fn handle_automatic_doorways(
 
 fn animate_player(
     time: Res<Time>,
+    art: Res<PlayerArt>,
     mut player: Query<(&Transform, &mut Sprite, &mut PlayerAnimation), With<Player>>,
 ) {
     let Ok((transform, mut sprite, mut animation)) = player.single_mut() else {
         return;
     };
     let position = transform.translation.truncate();
+    if let Some(mut active) = animation.active_tool {
+        let (image, layout) = match active.kind {
+            ToolWorkAnimation::Hammer => (&art.hammer_image, &art.hammer_layout),
+            ToolWorkAnimation::Axe => (&art.axe_image, &art.axe_layout),
+        };
+        sprite.image = image.clone();
+        sprite.texture_atlas = Some(TextureAtlas {
+            layout: layout.clone(),
+            index: animation.facing.direction_index() * SCRIBE_TOOL_COLUMNS as usize + active.frame,
+        });
+        animation.timer.tick(time.delta());
+        if animation.timer.just_finished() {
+            active.frame += 1;
+            if active.frame >= SCRIBE_TOOL_COLUMNS as usize {
+                animation.active_tool = None;
+                animation.frame = 0;
+                animation
+                    .timer
+                    .set_duration(std::time::Duration::from_secs_f32(
+                        SCRIBE_WALK_SECONDS_PER_FRAME,
+                    ));
+                animation.timer.reset();
+                sprite.image = art.walk_image.clone();
+                sprite.texture_atlas = Some(TextureAtlas {
+                    layout: art.walk_layout.clone(),
+                    index: animation.facing.walk_row() * SCRIBE_ATLAS_COLUMNS as usize,
+                });
+            } else {
+                animation.active_tool = Some(active);
+            }
+        }
+        animation.last_position = position;
+        return;
+    }
     let moving = position.distance_squared(animation.last_position) > 0.01;
     if moving {
         animation.timer.tick(time.delta());
@@ -2216,6 +2740,31 @@ fn animate_player(
         atlas.index = animation.facing.walk_row() * SCRIBE_ATLAS_COLUMNS as usize + animation.frame;
     }
     animation.last_position = position;
+}
+
+fn start_tool_animation(animation: &mut PlayerAnimation, kind: ToolWorkAnimation) {
+    animation.active_tool = Some(ActiveToolAnimation { kind, frame: 0 });
+    animation
+        .timer
+        .set_duration(std::time::Duration::from_secs_f32(
+            SCRIBE_TOOL_SECONDS_PER_FRAME,
+        ));
+    animation.timer.reset();
+}
+
+fn start_task_animation(
+    task: &progression::TaskSpec,
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    player_animation: &mut Query<&mut PlayerAnimation, With<Player>>,
+) {
+    if !task.tools.contains(&ToolId::Hammer) {
+        return;
+    }
+    if let Ok(mut animation) = player_animation.single_mut() {
+        start_tool_animation(&mut animation, ToolWorkAnimation::Hammer);
+    }
+    game_audio::play_hammering(commands, asset_server);
 }
 
 #[allow(clippy::type_complexity)]
@@ -2324,9 +2873,10 @@ const fn interaction_key_matches(
     repair_pressed: bool,
 ) -> bool {
     match kind {
-        InteractableKind::InteriorRepairable | InteractableKind::ExteriorRepairable => {
-            repair_pressed
-        }
+        InteractableKind::InteriorRepairable
+        | InteractableKind::ExteriorRepairable
+        | InteractableKind::Tree => repair_pressed,
+        InteractableKind::Tool => interact_pressed || repair_pressed,
         InteractableKind::Desk if matches!(stage, StoryStage::RestoreDesk) => {
             interact_pressed || repair_pressed
         }
@@ -2343,19 +2893,11 @@ fn handle_interaction(
     mut popup: ResMut<NarrativePopup>,
     interior: Res<interior::InteriorMap>,
     motel: Res<interior::MotelExteriorMap>,
+    tool_shed: Res<interior::ToolShedExteriorMap>,
     asset_server: Res<AssetServer>,
     mut resources: InteractionResources,
-    mut interactables: Query<&mut Interactable>,
-    pickups: Query<&WorldPickup>,
-    mut mutable_elements: Query<
-        (
-            &mut MutableSceneElement,
-            &mut Sprite,
-            &mut Transform,
-            &mut Visibility,
-        ),
-        Without<Player>,
-    >,
+    mut exterior_obstacles: ResMut<ExteriorObstacles>,
+    mut queries: InteractionQueries,
 ) {
     if popup.is_open() {
         return;
@@ -2363,7 +2905,7 @@ fn handle_interaction(
     let Some(entity) = nearby.0 else {
         return;
     };
-    let Ok(mut target) = interactables.get_mut(entity) else {
+    let Ok(mut target) = queries.interactables.get_mut(entity) else {
         return;
     };
     let interact_pressed = keys.just_pressed(KeyCode::KeyE);
@@ -2371,13 +2913,112 @@ fn handle_interaction(
     if !interaction_key_matches(target.kind, story.stage, interact_pressed, repair_pressed) {
         return;
     }
-    if let Ok(pickup) = pickups.get(entity) {
-        match pickup.reward {
-            PickupReward::Supply(item, amount) => resources.progression.add_supply(item, amount),
-            PickupReward::Tool(tool) => {
-                resources.progression.add_tool(tool);
+    if let Ok((portable, label)) = queries.portable_tools.get(entity) {
+        let Some(record) = resources.progression.tool_record(&portable.id).cloned() else {
+            return;
+        };
+        if repair_pressed {
+            if record.condition == ToolCondition::Serviceable {
+                story.notice = Some(format!("The {} is already in working order.", label.0));
+                return;
             }
+            let task = progression::TaskSpec::for_tool_repair(record.tool);
+            let outcome = match resources.progression.attempt(&task) {
+                Ok(outcome) => outcome,
+                Err(reason) => {
+                    story.notice = Some(format!(
+                        "You cannot repair the {} yet. {reason}\nRequires: {}.",
+                        label.0,
+                        task.requirements_text()
+                    ));
+                    return;
+                }
+            };
+            resources
+                .progression
+                .set_tool_condition(&portable.id, ToolCondition::Serviceable);
+            if task.tools.contains(&ToolId::Hammer) {
+                if let Ok(mut animation) = queries.player_animation.single_mut() {
+                    start_tool_animation(&mut animation, ToolWorkAnimation::Hammer);
+                }
+                game_audio::play_hammering(&mut commands, &asset_server);
+            }
+            story.notice = Some(format!(
+                "You put the {} back into working order. +{} Upkeep experience.",
+                label.0, task.xp
+            ));
+            if outcome.new_level > outcome.old_level {
+                story.notice = Some(format!(
+                    "You put the {} back into working order. Upkeep rises to level {}!",
+                    label.0, outcome.new_level
+                ));
+            }
+            return;
         }
+        match resources.progression.pick_up_tool(&portable.id) {
+            Ok(tool) => {
+                target.consumed = true;
+                commands.entity(entity).insert(Visibility::Hidden);
+                story.notice = Some(if record.condition == ToolCondition::Broken {
+                    format!(
+                        "You take the {}. It is {}, but perhaps it can be repaired. Carried tools: {}/{}.",
+                        label.0,
+                        record.condition.label(),
+                        resources.progression.carried_tool_count(),
+                        progression::MAX_CARRIED_TOOLS
+                    )
+                } else {
+                    format!(
+                        "You take the {}. It is ready for work. Carried tools: {}/{}.",
+                        tool.label(),
+                        resources.progression.carried_tool_count(),
+                        progression::MAX_CARRIED_TOOLS
+                    )
+                });
+            }
+            Err(reason) => story.notice = Some(reason),
+        }
+        return;
+    }
+    if let Ok(tree) = queries.choppable_trees.get(entity) {
+        let task = progression::TaskSpec::for_tree_chopping();
+        let outcome = match resources.progression.attempt(&task) {
+            Ok(outcome) => outcome,
+            Err(reason) => {
+                story.notice = Some(format!(
+                    "You cannot cut this tree yet. {reason}\nRequires: {}.",
+                    task.requirements_text()
+                ));
+                return;
+            }
+        };
+        resources.progression.add_supply(SupplyId::Log, 2);
+        resources.progression.add_supply(SupplyId::Kindling, 2);
+        resources.progression.collect_pickup(&tree.id);
+        exterior_obstacles
+            .tree_trunks
+            .retain(|area| !same_exterior_rect(*area, tree.trunk));
+        exterior_obstacles
+            .tree_art
+            .retain(|area| !same_exterior_rect(*area, tree.art));
+        if let Ok(mut animation) = queries.player_animation.single_mut() {
+            start_tool_animation(&mut animation, ToolWorkAnimation::Axe);
+        }
+        commands.entity(entity).despawn();
+        story.notice = Some(format!(
+            "The old axe bites cleanly. You keep two useful logs and gather dry splinters. +{} Upkeep experience{}.",
+            task.xp,
+            if outcome.new_level > outcome.old_level {
+                format!("; Upkeep rises to level {}", outcome.new_level)
+            } else {
+                String::new()
+            }
+        ));
+        return;
+    }
+    if let Ok(pickup) = queries.pickups.get(entity) {
+        let PickupReward::Supply(item, amount) = pickup.reward;
+        resources.progression.add_supply(item, amount);
         resources.progression.collect_pickup(&pickup.id);
         target.consumed = true;
         commands.entity(entity).insert(Visibility::Hidden);
@@ -2455,7 +3096,7 @@ fn handle_interaction(
                 return;
             }
             if let (Ok((mut instance, mut sprite, mut transform, mut visibility)), Some(element)) = (
-                mutable_elements.get_mut(entity),
+                queries.mutable_elements.get_mut(entity),
                 interior.mutable_element("stone-fireplace-1-01"),
             ) {
                 let center = element.states.get("repaired").map_or_else(
@@ -2489,7 +3130,7 @@ fn handle_interaction(
                     Ok((mut instance, mut sprite, mut transform, mut visibility)),
                     Some(element),
                 ) = (
-                    mutable_elements.get_mut(entity),
+                    queries.mutable_elements.get_mut(entity),
                     interior.mutable_element("old-desk-01"),
                 ) {
                     let _outcome = match resources.progression.attempt(&element.task) {
@@ -2518,6 +3159,12 @@ fn handle_interaction(
                         &mut transform,
                         &mut visibility,
                     );
+                    start_task_animation(
+                        &element.task,
+                        &mut commands,
+                        &asset_server,
+                        &mut queries.player_animation,
+                    );
                 }
                 story.stage = StoryStage::Night;
                 story.notice = Some(
@@ -2530,10 +3177,9 @@ fn handle_interaction(
             let mut discoveries = Vec::new();
             if !resources.motel_access.keys_found {
                 resources.motel_access.keys_found = true;
-                resources.progression.add_tool(ToolId::Hammer);
                 resources.progression.add_supply(SupplyId::Nails, 12);
                 discoveries.push(
-                    "A ring of numbered brass keys, a tack hammer, and twelve usable nails wait in the desk's shallow drawer. The other motel doors can now be opened."
+                    "A ring of numbered brass keys and twelve usable nails wait in the desk's shallow drawer. The other motel doors can now be opened."
                         .to_owned(),
                 );
             }
@@ -2565,7 +3211,7 @@ fn handle_interaction(
         InteractableKind::MotelDoor | InteractableKind::InteriorExit => {}
         InteractableKind::InteriorRepairable => {
             let Ok((mut instance, mut sprite, mut transform, mut visibility)) =
-                mutable_elements.get_mut(entity)
+                queries.mutable_elements.get_mut(entity)
             else {
                 return;
             };
@@ -2602,22 +3248,43 @@ fn handle_interaction(
                 story.notice = Some(format!("{} cannot be repaired yet.", element.label));
                 return;
             }
+            start_task_animation(
+                &element.task,
+                &mut commands,
+                &asset_server,
+                &mut queries.player_animation,
+            );
             target.consumed = true;
             story.notice = Some(task_success_notice(element, &outcome));
         }
         InteractableKind::ExteriorRepairable => {
             let Ok((mut instance, mut sprite, mut transform, mut visibility)) =
-                mutable_elements.get_mut(entity)
+                queries.mutable_elements.get_mut(entity)
             else {
                 return;
             };
-            let Some(element) = motel.mutable_element(&instance.id) else {
+            let scene_id = instance.scene_id.clone();
+            let (element, center) = if scene_id == motel.id() {
+                let Some(element) = motel.mutable_element(&instance.id) else {
+                    return;
+                };
+                let center = element.states.get("repaired").map_or_else(
+                    || transform.translation.truncate(),
+                    |visual| motel.element_center(element, visual.size),
+                );
+                (element, center)
+            } else if scene_id == tool_shed.id() {
+                let Some(element) = tool_shed.mutable_element(&instance.id) else {
+                    return;
+                };
+                let center = element.states.get("repaired").map_or_else(
+                    || transform.translation.truncate(),
+                    |visual| tool_shed.element_center(element, visual.size),
+                );
+                (element, center)
+            } else {
                 return;
             };
-            let center = element.states.get("repaired").map_or_else(
-                || transform.translation.truncate(),
-                |visual| motel.element_center(element, visual.size),
-            );
             let outcome = match resources.progression.attempt(&element.task) {
                 Ok(outcome) => outcome,
                 Err(reason) => {
@@ -2644,6 +3311,12 @@ fn handle_interaction(
                 story.notice = Some(format!("{} cannot be repaired yet.", element.label));
                 return;
             }
+            start_task_animation(
+                &element.task,
+                &mut commands,
+                &asset_server,
+                &mut queries.player_animation,
+            );
             target.consumed = true;
             story.notice = Some(task_success_notice(element, &outcome));
         }
@@ -2877,7 +3550,10 @@ fn sync_ui(
     nearby: Res<Nearby>,
     asset_server: Res<AssetServer>,
     interactables: Query<&Interactable>,
-    interaction_labels: Query<&AuthoredInteractionLabel>,
+    interaction_details: Query<(
+        Option<&AuthoredInteractionLabel>,
+        Option<&PortableToolEntity>,
+    )>,
     task_targets: Query<&TaskTarget>,
     mut progress_text: Query<&mut Text, With<ProgressText>>,
     mut status: Query<
@@ -2991,7 +3667,7 @@ fn sync_ui(
         .0
         .and_then(|entity| interactables.get(entity).ok().map(|item| (entity, item)))
         .map_or_else(
-            || "WASD / arrows — move     E — interact     R — restore".to_owned(),
+            || "Move: WASD/arrows  ·  E interact  ·  R work  ·  Tab tool  ·  Q drop".to_owned(),
             |(entity, item)| {
                 if let Ok(task) = task_targets.get(entity) {
                     return format!(
@@ -3001,9 +3677,26 @@ fn sync_ui(
                     );
                 }
                 if item.kind == InteractableKind::BibleNightstand {
-                    return interaction_labels.get(entity).map_or_else(
-                        |_| "E — search here".to_owned(),
-                        |label| format!("E — search the {}", label.0),
+                    return interaction_details
+                        .get(entity)
+                        .ok()
+                        .and_then(|(label, _)| label)
+                        .map_or_else(
+                            || "E — search here".to_owned(),
+                            |label| format!("E — search the {}", label.0),
+                        );
+                }
+                if let Ok((label, Some(portable))) = interaction_details.get(entity) {
+                    let label = label.map_or("portable tool", |label| label.0.as_str());
+                    return progression.tool_record(&portable.id).map_or_else(
+                        || format!("E — take the {label}"),
+                        |record| {
+                            if record.condition == ToolCondition::Broken {
+                                format!("E — take the broken {label}     R — repair it")
+                            } else {
+                                format!("E — take the {label}")
+                            }
+                        },
                     );
                 }
                 match item.kind {
@@ -3012,7 +3705,7 @@ fn sync_ui(
                     InteractableKind::Log => "E — gather a fallen log",
                     InteractableKind::Hearth => "E — tend the hearth",
                     InteractableKind::Plank => "E — take the sound plank",
-                    InteractableKind::Tool => "E — take the old ladder",
+                    InteractableKind::Tool => "E — take this tool",
                     InteractableKind::Desk if story.stage == StoryStage::RestoreDesk => {
                         "E — search the old desk     R — repair it"
                     }
@@ -3022,7 +3715,8 @@ fn sync_ui(
                     InteractableKind::MotelDoor => "Walk through the motel door",
                     InteractableKind::InteriorExit => "Walk onto the exit to step outside",
                     InteractableKind::InteriorRepairable => "R — restore this part of the room",
-                    InteractableKind::ExteriorRepairable => "R — restore this part of the motel",
+                    InteractableKind::ExteriorRepairable => "R — restore this part of the building",
+                    InteractableKind::Tree => "R — chop this tree",
                 }
                 .to_owned()
             },
@@ -3243,7 +3937,7 @@ mod tests {
         progression.add_supply(SupplyId::Plank, 2);
         let save = SaveData::capture(&story, &interior_state, &motel_access, &progression);
 
-        assert_eq!(save.version, 5);
+        assert_eq!(save.version, 6);
         assert_eq!(save.interior_states["motel-room-01/mirror-01"], "repaired");
         assert!(bible_found(&InteriorState(save.interior_states.clone())));
         assert!(save.motel_keys_found);
@@ -3453,10 +4147,15 @@ mod tests {
     #[test]
     fn every_tree_resolves_to_a_land_footprint_and_blocks_its_trunk() {
         let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
+        let motel = interior::MotelExteriorMap::load();
+        let tool_shed = interior::ToolShedExteriorMap::load();
         for (x, y, size) in TREE_PLACEMENTS {
-            let position = resolve_tree_position(&grid, Vec2::new(x, y), size);
+            let position = resolve_tree_position(&grid, &motel, &tool_shed, Vec2::new(x, y), size);
             let ground = tree_ground_rect(position, size);
+            let trunk = tree_trunk_rect(position, size);
             assert!(grid.supports_land_footprint(ground.center, ground.size));
+            assert!(motel.is_area_walkable(trunk.center, trunk.size));
+            assert!(tool_shed.is_area_walkable(trunk.center, trunk.size));
 
             let obstacles = ExteriorObstacles {
                 tree_trunks: vec![tree_trunk_rect(position, size)],
@@ -3564,12 +4263,14 @@ mod tests {
     fn pickup_safety_moves_the_motel_wall_log_to_clear_land() {
         let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
         let motel = interior::MotelExteriorMap::load();
+        let tool_shed = interior::ToolShedExteriorMap::load();
         let obstacles = ExteriorObstacles::default();
         let desired = Vec2::new(-390.0, -80.0);
         let size = Vec2::new(48.0, 34.0);
 
         assert!(!motel.is_area_walkable(desired, size));
-        let actual = safe_pickup_position(&grid, &motel, &obstacles, &[], desired, size);
+        let actual =
+            safe_pickup_position(&grid, &motel, &tool_shed, &obstacles, &[], desired, size);
         assert_ne!(actual, desired);
         assert!(grid.supports_land_footprint(actual, size));
         assert!(motel.is_area_walkable(actual, size));
@@ -3581,17 +4282,21 @@ mod tests {
         let size = Vec2::new(48.0, 32.0);
         let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
         let motel = interior::MotelExteriorMap::load();
+        let tool_shed = interior::ToolShedExteriorMap::load();
         let occupied = ExteriorRect::new(desired, Vec2::splat(100.0));
         let obstacles = ExteriorObstacles {
             tree_trunks: vec![],
             tree_art: vec![occupied],
         };
 
-        let actual = safe_pickup_position(&grid, &motel, &obstacles, &[], desired, size);
+        let actual =
+            safe_pickup_position(&grid, &motel, &tool_shed, &obstacles, &[], desired, size);
         assert!(!occupied.overlaps(ExteriorRect::new(actual, size)));
 
         let reserved = [ExteriorRect::new(actual, size)];
-        let second = safe_pickup_position(&grid, &motel, &obstacles, &reserved, actual, size);
+        let second = safe_pickup_position(
+            &grid, &motel, &tool_shed, &obstacles, &reserved, actual, size,
+        );
         assert!(!reserved[0].overlaps(ExteriorRect::new(second, size)));
     }
 }

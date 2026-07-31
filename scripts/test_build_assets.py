@@ -510,6 +510,67 @@ class InteriorRenderingTests(unittest.TestCase):
         with Image.open(interiors / "test-room" / "floor--damaged.png") as damaged:
             self.assertEqual(damaged.size, (4, 4))
 
+    def test_portable_items_are_extracted_separately_from_baked_layers(self) -> None:
+        sheet = Image.new("RGBA", (8, 4), "#ff0000")
+        sheet.putpixel((4, 0), (0, 255, 0, 255))
+        sheet.save(self.assets / "sheet.png")
+        interior_root = self.assets / "content-interiors"
+        building_root = self.assets / "content-buildings"
+        interior_root.mkdir()
+        building_root.mkdir()
+        (interior_root / "test-room.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 5,
+                    "id": "test-room",
+                    "items": [
+                        {
+                            "id": "hammer-01",
+                            "label": "hammer",
+                            "tool": "hammer",
+                            "condition": "serviceable",
+                            "layer": "object",
+                            "source": {
+                                "path": "sheet.png",
+                                "grid": 4,
+                                "x": 1,
+                                "y": 0,
+                                "width": 1,
+                                "height": 1,
+                            },
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        original_interior_root = BUILD_ASSETS.INTERIOR_ROOT
+        original_building_root = BUILD_ASSETS.BUILDING_ROOT
+        BUILD_ASSETS.INTERIOR_ROOT = interior_root
+        BUILD_ASSETS.BUILDING_ROOT = building_root
+        try:
+            output = self.assets / "runtime"
+            records = BUILD_ASSETS.write_portable_item_art(self.assets, output)
+        finally:
+            BUILD_ASSETS.INTERIOR_ROOT = original_interior_root
+            BUILD_ASSETS.BUILDING_ROOT = original_building_root
+
+        self.assertEqual(len(records), 1)
+        with Image.open(output / "items/test-room/hammer-01.png") as item:
+            self.assertEqual(item.size, (4, 4))
+            self.assertEqual(item.getpixel((0, 0)), (0, 255, 0, 255))
+
+    def test_scribe_tool_action_has_four_directions_and_six_frames(self) -> None:
+        scribe = Image.new("RGBA", (384, 1024), (0, 0, 0, 0))
+
+        action, source = BUILD_ASSETS.build_scribe_tool_action(
+            self.assets, scribe, "hammer"
+        )
+
+        self.assertEqual(action.size, (768, 512))
+        self.assertIn("procedural tool fallback", source)
+        self.assertIsNotNone(action.getbbox())
+
     def test_distinct_shared_pairs_can_reuse_the_same_repaired_crop(self) -> None:
         Image.new("RGBA", (12, 4), "#ff0000").save(self.assets / "sheet.png")
         source = {"path": "sheet.png", "grid": 4, "x": 0, "y": 0, "width": 1, "height": 1}

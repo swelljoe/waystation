@@ -67,20 +67,24 @@ preservation. Seen thoughts persist with the room state, while keys and the book
 appear under **Known** as access or knowledge rather than carried supplies.
 
 The valley is now a 144×96-cell exploration area with persistent kindling,
-fallen-log, plank, and tool pickups. The upper-right restoration ledger shows
-skills, durable tools, and consumable supplies. The objective, ledger, and
+fallen-log, and plank pickups. An authored tool shed behind the motel contains
+portable tools whose condition and location persist. The upper-right restoration
+ledger shows skills, carried tools, and consumable supplies. The objective, ledger, and
 contextual controls use compact aged-paper panels so they remain legible over
 the world. Clean debris to develop Upkeep; that unlocks Carpentry and Masonry,
 while Carpentry eventually unlocks Roofing.
-The office desk supplies a starter hammer and nails, and the office hearth now
+The office desk supplies keys and nails; the shed holds a hammer, axe, shovel,
+and broken pickaxe. The office hearth now
 requires three kindling plus a cleared chimney reached with the discoverable
-ladder. See [docs/RESTORATION_GAMEPLAY.md](docs/RESTORATION_GAMEPLAY.md) for the
-tree and task schema.
+ladder. See [docs/RESTORATION_GAMEPLAY.md](docs/RESTORATION_GAMEPLAY.md) for tool
+controls and scene/task schemas.
 
 The Scribe uses the complete 13×54 LPC action sheet from
 `assets/custom/scribe.png`. Movement currently animates the four nine-frame walk
-rows at native pixel scale; the remaining action rows stay in the runtime atlas
-for future tool, farming, sitting, climbing, expression, and combat systems.
+rows at native pixel scale. Hammer repairs and axe chopping now compose the LPC
+six-frame work layers; the remaining action rows stay available for farming,
+sitting, climbing, expression, and combat systems. The complete matrix is in
+[docs/LPC_ACTIONS.md](docs/LPC_ACTIONS.md).
 
 Exterior trees depth-sort at their trunk ground contact. When the Scribe passes
 behind the dense leafy canopy, the character is fully hidden rather than leaving

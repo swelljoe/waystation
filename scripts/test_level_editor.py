@@ -170,6 +170,70 @@ class LevelEditorValidationTests(unittest.TestCase):
 
         self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
 
+    def test_schema_five_accepts_portable_tools_with_condition(self) -> None:
+        self.level["schema_version"] = 5
+        self.level["items"] = [
+            {
+                "id": "shed-hammer-01",
+                "label": "claw hammer",
+                "tool": "hammer",
+                "condition": "broken",
+                "layer": "object",
+                "position": {"grid": 8, "x": 4, "y": 5},
+                "width": 1,
+                "height": 1,
+                "source": {
+                    "path": "sheet.png",
+                    "grid": 48,
+                    "x": 0,
+                    "y": 0,
+                    "width": 1,
+                    "height": 1,
+                },
+            }
+        ]
+
+        self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
+
+    def test_portable_tool_ids_share_the_mutable_state_namespace(self) -> None:
+        self.level["schema_version"] = 5
+        self.level["items"] = [
+            {
+                "id": "hammer-01",
+                "label": "hammer",
+                "tool": "hammer",
+                "condition": "serviceable",
+                "layer": "object",
+                "position": {"grid": 8, "x": 1, "y": 1},
+                "width": 1,
+                "height": 1,
+                "source": {
+                    "path": "sheet.png",
+                    "grid": 48,
+                    "x": 0,
+                    "y": 0,
+                    "width": 1,
+                    "height": 1,
+                },
+            }
+        ]
+        self.level["structures"] = [
+            {
+                "id": "hammer-01",
+                "template": "missing-pair",
+                "x": 1,
+                "y": 1,
+                "width": 1,
+                "height": 1,
+                "initial_state": "damaged",
+            }
+        ]
+
+        self.assertIn(
+            "structures[0] has a duplicate id",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
     def test_pixel_position_rejects_invalid_grid(self) -> None:
         self.level["placements"][0]["position"] = {"grid": 0, "x": 1, "y": 2}
         self.assertIn(

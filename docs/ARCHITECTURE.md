@@ -98,10 +98,13 @@ This constant is intentionally centralized pending dynamic display scaling.
 
 ## Authored interiors and buildings
 
-Interior source data lives in `content/interiors`. Schema v4 combines globally
+Interior source data lives in `content/interiors`. Schema v5 combines globally
 reusable repair pairs, automatically identified structural/fixture instances,
 legacy baked placements, per-placement pixel snap positions, and optional
-persistent interaction rectangles over baked scenery.
+persistent interaction rectangles over baked scenery. Its optional `items`
+collection gives portable tools stable identity, type, initial condition, layer,
+position, transform, and a private native-pixel crop. Item crops are extracted
+separately under `runtime-assets/items`; they never enter a baked layer cache.
 `content/repair-pairs.json` owns every pair's stable
 identity, semantics, render layer, and damaged/repaired private source crops;
 room instances reference the pair ID and own room-cell anchors plus initial
@@ -124,12 +127,20 @@ or an unillustrated thought and blocks movement until dismissed. The office's
 final hospitality realization is gated on the entrance, hearth, and ledger
 observations rather than story-stage order.
 
-Building source data lives in `content/buildings` and uses the same schema-v4
+Building source data lives in `content/buildings` and uses the same schema-v5
 placement and mutable-instance model with `scene_type: "building"`. Unlike a
 room, a building's four baked layer caches have transparent canvases and it has
 no entry/exit requirement. The asset pipeline writes those caches and referenced
 repair-state sprites to `runtime-assets/buildings`. This makes the static and
 mutable split identical on both sides of a motel door.
+
+The tool shed uses that same model for both its exterior building and interior.
+Portable tool state lives in `Progression`, keyed by the authored item ID, and
+stores condition plus `home`, `carried`, `dropped`, or future `held_by` location.
+An immutable runtime catalog retains home scene/position/art metadata. The sync
+system shows an item only when its saved location belongs to the active scene.
+Save version 6 therefore moves tools between scenes without mutating authored
+JSON or flattened art.
 
 New placements store `position: {grid, x, y}`. Multiplying the signed integer
 coordinates by that placement's grid yields its exact native-pixel offset from

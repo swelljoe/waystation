@@ -20,6 +20,7 @@ const FLOORBOARD_CREAK_PATHS: [&str; 3] = [
     "audio/sfx/floorboard-creak-02.mp3",
     "audio/sfx/floorboard-creak-03.mp3",
 ];
+const HAMMERING_PATH: &str = "audio/sfx/hammering.mp3";
 
 const MUSIC_VOLUME: f32 = 0.10;
 const MUSIC_GAP_SECONDS: f32 = 12.0;
@@ -30,6 +31,7 @@ const GUARANTEED_RAIN_SECONDS: f32 = 6.0 * 60.0;
 const WEATHER_PHASE_SECONDS: [f32; 6] = [85.0, 180.0, 110.0, 240.0, 70.0, 150.0];
 const FLOORBOARD_CREAK_VOLUME: f32 = 0.24;
 const FLOORBOARD_CREAK_INTERVAL: f32 = 0.72;
+const HAMMERING_VOLUME: f32 = 0.34;
 
 pub struct GameAudioPlugin;
 
@@ -132,6 +134,13 @@ fn spawn_music(commands: &mut Commands, source: Handle<AudioSource>) -> Entity {
             PlaybackSettings::ONCE.with_volume(Volume::Linear(MUSIC_VOLUME)),
         ))
         .id()
+}
+
+pub fn play_hammering(commands: &mut Commands, asset_server: &AssetServer) {
+    commands.spawn((
+        AudioPlayer::new(asset_server.load(HAMMERING_PATH)),
+        PlaybackSettings::DESPAWN.with_volume(Volume::Linear(HAMMERING_VOLUME)),
+    ));
 }
 
 fn manage_music(

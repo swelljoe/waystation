@@ -193,6 +193,23 @@ assert.deepEqual(
     transform: { flip_x: true, flip_y: false },
   },
 );
+assert.deepEqual(
+  stampPreviewPlacement({
+    behavior: "portable",
+    selection: keyedSelection,
+    layer: "object",
+    template: null,
+    transform: { flip_x: false, flip_y: true },
+    snapGrid: 8,
+    cell: { x: 4, y: 7 },
+  }),
+  {
+    layer: "object",
+    position: { grid: 8, x: 4, y: 7 },
+    source: keyedSelection,
+    transform: { flip_x: false, flip_y: true },
+  },
+);
 const damagedSource = { path: "components/house.png", grid: 1, x: 2, y: 4, width: 20, height: 30 };
 assert.deepEqual(
   stampPreviewPlacement({
@@ -292,6 +309,10 @@ assert.match(index, /id="scene-type"/);
 assert.match(index, /id="smart-slice"/);
 assert.match(index, /id="refresh-sheet"/);
 assert.match(index, /id="refresh-catalog"/);
+assert.match(index, /value="portable"/);
+assert.match(index, /id="portable-tool"/);
+assert.match(index, /id="portable-condition"/);
+assert.match(index, /id="toggle-portable"/);
 assert.match(fs.readFileSync(editorPath, "utf8"), /fetch\("\/api\/catalog\/refresh", \{ method: "POST" \}\)/);
 assert.match(index, /data-tool="select"/);
 assert.match(index, /id="repair-view"/);

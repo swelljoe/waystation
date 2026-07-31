@@ -116,10 +116,34 @@
           <label>Behavior
             <select id="behavior">
               <option value="baked">Baked scenery</option>
+              <option value="portable">Portable tool</option>
               <option value="structure">Repairable structure</option>
               <option value="fixture">Repairable fixture</option>
             </select>
           </label>
+          <fieldset class="portable-editor">
+            <legend>Portable tool</legend>
+            <label>Type
+              <select id="portable-tool">
+                <option value="hammer">Hammer</option>
+                <option value="hatchet">Hatchet / axe</option>
+                <option value="trowel">Trowel</option>
+                <option value="ladder">Ladder</option>
+                <option value="pickaxe">Pickaxe</option>
+                <option value="shovel">Shovel</option>
+                <option value="hoe">Hoe</option>
+                <option value="watering_can">Watering can</option>
+              </select>
+            </label>
+            <label>Name <input id="portable-label" placeholder="old claw hammer" /></label>
+            <label>Condition
+              <select id="portable-condition">
+                <option value="serviceable">Serviceable</option>
+                <option value="broken">Broken</option>
+              </select>
+            </label>
+            <button id="toggle-portable" type="button" disabled>Make selected portable</button>
+          </fieldset>
           <span class="toolbar-label">Orientation</span>
           <div class="tool-group" id="orientation-group">
             <button id="flip-horizontal" type="button" aria-pressed="false" title="Flip the next stamp horizontally">Flip H</button>
@@ -135,7 +159,7 @@
             <div class="placement-summary">
               <span class="eyebrow">SELECTED PLACEMENT</span>
               <strong id="placed-selection-title">None</strong>
-              <p id="placed-selection-details">Choose Select, then click an item in the scene.</p>
+              <p id="placed-selection-details">Choose Select, then click an item in the scene. A baked tool stamp can then be promoted to a portable item.</p>
             </div>
             <div class="placed-state-actions" id="placed-state-actions" aria-label="Selected placement repair preview">
               <button type="button" data-placement-preview="scene" class="active" disabled>Scene view</button>
