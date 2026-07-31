@@ -255,6 +255,21 @@
       "y": 13
     }
   ],
+  "interactions": [
+    {
+      "id": "bible-nightstand",
+      "label": "dusty nightstand",
+      "kind": "search",
+      "discovery": "gideon_bible",
+      "position": {
+        "grid": 8,
+        "x": 22,
+        "y": 8
+      },
+      "width": 32,
+      "height": 48
+    }
+  ],
   "placements": [
     {
       "layer": "floor",

@@ -100,7 +100,8 @@ This constant is intentionally centralized pending dynamic display scaling.
 
 Interior source data lives in `content/interiors`. Schema v4 combines globally
 reusable repair pairs, automatically identified structural/fixture instances,
-legacy baked placements, and per-placement pixel snap positions.
+legacy baked placements, per-placement pixel snap positions, and optional
+persistent interaction rectangles over baked scenery.
 `content/repair-pairs.json` owns every pair's stable
 identity, semantics, render layer, and damaged/repaired private source crops;
 room instances reference the pair ID and own room-cell anchors plus initial
@@ -110,6 +111,11 @@ pairs. Source pixels are always composited at native size, and the source
 selection grid never changes scale. Collisions, entry cells, and exits remain
 independent of pixels. Schema-v2 room-local templates remain readable for
 backward compatibility.
+
+Room 3 uses an interaction rectangle over its preserved nightstand rather than
+making that furniture a repair pair. Finding the Gideon Bible records
+`motel-room-03/bible-nightstand = found` in the same stable scene-state map used
+by mutable instances.
 
 Building source data lives in `content/buildings` and uses the same schema-v4
 placement and mutable-instance model with `scene_type: "building"`. Unlike a

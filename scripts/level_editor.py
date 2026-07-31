@@ -253,6 +253,35 @@ def validate_level(
                 errors.append(f"placements[{index}] has an invalid source rectangle")
             errors.extend(validate_background_key(source, f"placements[{index}].source"))
 
+    interaction_ids: set[str] = set()
+    interactions = level.get("interactions", [])
+    if not isinstance(interactions, list):
+        errors.append("interactions must be an array")
+    else:
+        for index, interaction in enumerate(interactions):
+            label = f"interactions[{index}]"
+            if not isinstance(interaction, dict):
+                errors.append(f"{label} must be an object")
+                continue
+            interaction_id = interaction.get("id")
+            if not isinstance(interaction_id, str) or LEVEL_ID.fullmatch(interaction_id) is None:
+                errors.append(f"{label} has an invalid id")
+            elif interaction_id in interaction_ids:
+                errors.append(f"{label} has a duplicate id")
+            else:
+                interaction_ids.add(interaction_id)
+            if not isinstance(interaction.get("label"), str) or not interaction["label"].strip():
+                errors.append(f"{label} needs a label")
+            if interaction.get("kind") != "search":
+                errors.append(f"{label} has an invalid kind")
+            if interaction.get("discovery") != "gideon_bible":
+                errors.append(f"{label} has an invalid discovery")
+            errors.extend(validate_pixel_position(interaction.get("position"), label))
+            if not all(isinstance(interaction.get(key), int) for key in ("width", "height")):
+                errors.append(f"{label} needs an integer size")
+            elif not all(1 <= interaction[key] <= 256 for key in ("width", "height")):
+                errors.append(f"{label} width and height must be from 1 to 256")
+
     templates = level.get("templates", {} if schema_version == 1 else None)
     if not isinstance(templates, dict):
         errors.append("templates must be an object")

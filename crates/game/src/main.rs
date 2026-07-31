@@ -55,6 +55,8 @@ const EXTERIOR_DEPTH_PER_Y: f32 = 0.001;
 const BUILDING_LAYER_DEPTH_STEP: f32 = 0.000_1;
 const DROP_SEARCH_STEP: f32 = terrain::TILE_SIZE;
 const DROP_SEARCH_RINGS: i16 = 72;
+const BIBLE_STATE_KEY: &str = "motel-room-03/bible-nightstand";
+const DISCOVERY_FOUND_STATE: &str = "found";
 
 const TREE_PLACEMENTS: [(f32, f32, f32); 15] = [
     (-1_980.0, 1_160.0, 190.0),
@@ -245,6 +247,7 @@ enum InteractableKind {
     Plank,
     Tool,
     Desk,
+    BibleNightstand,
     Traveler,
     MotelDoor,
     InteriorExit,
@@ -275,6 +278,9 @@ struct Interactable {
     kind: InteractableKind,
     consumed: bool,
 }
+
+#[derive(Component)]
+struct AuthoredInteractionLabel(String);
 
 #[derive(Component)]
 struct MutableSceneElement {
@@ -492,7 +498,7 @@ impl SaveData {
         progression: &Progression,
     ) -> Self {
         Self {
-            version: 4,
+            version: 5,
             stage: story.stage,
             kindling: story.kindling,
             vignette_index: story.vignette_index,
@@ -935,6 +941,31 @@ fn spawn_interior_scene(
             });
         }
     }
+    for interaction in map.interactions() {
+        let kind = match (interaction.kind, interaction.discovery) {
+            (interior::SceneInteractionKind::Search, interior::SceneDiscovery::GideonBible) => {
+                InteractableKind::BibleNightstand
+            }
+        };
+        let entity = spawn_interactable(
+            commands,
+            kind,
+            interaction.center,
+            interaction.size,
+            Color::NONE,
+        );
+        commands.entity(entity).insert((
+            interior::InteriorSceneEntity,
+            AuthoredInteractionLabel(interaction.label.clone()),
+            Interactable {
+                kind,
+                consumed: interior_state
+                    .0
+                    .get(&format!("{}/{}", map.id(), interaction.id))
+                    .is_some_and(|state| state == DISCOVERY_FOUND_STATE),
+            },
+        ));
+    }
     let exit = spawn_interactable(
         commands,
         InteractableKind::InteriorExit,
@@ -989,9 +1020,10 @@ fn load_story(
     let Ok(save) = serde_json::from_str::<SaveData>(&raw) else {
         return;
     };
-    if !matches!(save.version, 1..=4) || save.vignette_index >= vignettes().len() {
+    if !matches!(save.version, 1..=5) || save.vignette_index >= vignettes().len() {
         return;
     }
+    let migrate_legacy_bible = save.version <= 4 && story_stage_requires_bible(save.stage);
     story.stage = save.stage;
     story.kindling = save.kindling.min(3);
     story.vignette_index = save.vignette_index;
@@ -999,9 +1031,49 @@ fn load_story(
     story.result = save.result;
     story.card = save.card;
     interior_state.0 = save.interior_states;
+    if migrate_legacy_bible {
+        interior_state
+            .0
+            .entry(BIBLE_STATE_KEY.to_owned())
+            .or_insert_with(|| DISCOVERY_FOUND_STATE.to_owned());
+    }
     motel_access.keys_found = save.motel_keys_found;
     *progression = save.progression;
     story.notice = Some("The old trail returns to memory.".to_owned());
+}
+
+#[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
+const fn story_stage_requires_bible(stage: StoryStage) -> bool {
+    matches!(
+        stage,
+        StoryStage::FindPlank
+            | StoryStage::RestoreDesk
+            | StoryStage::Night
+            | StoryStage::MeetTraveler
+            | StoryStage::Dialogue
+            | StoryStage::Interpreting
+            | StoryStage::ChoosePaper
+            | StoryStage::ChooseIllustration
+            | StoryStage::ChooseBorder
+            | StoryStage::FinishedCard
+            | StoryStage::Epilogue
+    )
+}
+
+fn bible_found(interior_state: &InteriorState) -> bool {
+    interior_state
+        .0
+        .get(BIBLE_STATE_KEY)
+        .is_some_and(|state| state == DISCOVERY_FOUND_STATE)
+}
+
+fn record_bible_discovery(story: &mut Story, interior_state: &mut InteriorState) {
+    interior_state
+        .0
+        .insert(BIBLE_STATE_KEY.to_owned(), DISCOVERY_FOUND_STATE.to_owned());
+    if story.stage == StoryStage::FindBible {
+        story.stage = StoryStage::FindPlank;
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1858,6 +1930,23 @@ fn update_nearby_interaction(
     nearby.0 = closest;
 }
 
+const fn interaction_key_matches(
+    kind: InteractableKind,
+    stage: StoryStage,
+    interact_pressed: bool,
+    repair_pressed: bool,
+) -> bool {
+    match kind {
+        InteractableKind::InteriorRepairable | InteractableKind::ExteriorRepairable => {
+            repair_pressed
+        }
+        InteractableKind::Desk if matches!(stage, StoryStage::RestoreDesk) => {
+            interact_pressed || repair_pressed
+        }
+        _ => interact_pressed,
+    }
+}
+
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn handle_interaction(
     mut commands: Commands,
@@ -1880,15 +1969,17 @@ fn handle_interaction(
         Without<Player>,
     >,
 ) {
-    if !keys.just_pressed(KeyCode::KeyE) {
-        return;
-    }
     let Some(entity) = nearby.0 else {
         return;
     };
     let Ok(mut target) = interactables.get_mut(entity) else {
         return;
     };
+    let interact_pressed = keys.just_pressed(KeyCode::KeyE);
+    let repair_pressed = keys.just_pressed(KeyCode::KeyR);
+    if !interaction_key_matches(target.kind, story.stage, interact_pressed, repair_pressed) {
+        return;
+    }
     if let Ok(pickup) = pickups.get(entity) {
         match pickup.reward {
             PickupReward::Supply(item, amount) => resources.progression.add_supply(item, amount),
@@ -1991,30 +2082,18 @@ fn handle_interaction(
                     &mut visibility,
                 );
             }
-            story.stage = StoryStage::FindBible;
+            story.stage = if bible_found(&resources.interior_state) {
+                StoryStage::FindPlank
+            } else {
+                StoryStage::FindBible
+            };
             target.consumed = true;
             story.notice = Some(
                 "Flame takes. Warm light reaches into a room untouched for centuries.".to_owned(),
             );
         }
         InteractableKind::Desk => {
-            let mut discoveries = Vec::new();
-            if !resources.motel_access.keys_found {
-                resources.motel_access.keys_found = true;
-                resources.progression.add_tool(ToolId::Hammer);
-                resources.progression.add_supply(SupplyId::Nails, 12);
-                discoveries.push(
-                    "A ring of numbered brass keys, a tack hammer, and twelve usable nails wait in the desk's shallow drawer. The other motel doors can now be opened."
-                        .to_owned(),
-                );
-            }
-            if story.stage == StoryStage::FindBible {
-                story.stage = StoryStage::FindPlank;
-                discoveries.push(
-                    "Beneath the keys lies a complete book: thin leaves, tiny ordered marks—and you can read them."
-                        .to_owned(),
-                );
-            } else if story.stage == StoryStage::RestoreDesk {
+            if repair_pressed && story.stage == StoryStage::RestoreDesk {
                 if let (
                     Ok((mut instance, mut sprite, mut transform, mut visibility)),
                     Some(element),
@@ -2057,11 +2136,29 @@ fn handle_interaction(
                 target.consumed = true;
                 return;
             }
+            let mut discoveries = Vec::new();
+            if !resources.motel_access.keys_found {
+                resources.motel_access.keys_found = true;
+                resources.progression.add_tool(ToolId::Hammer);
+                resources.progression.add_supply(SupplyId::Nails, 12);
+                discoveries.push(
+                    "A ring of numbered brass keys, a tack hammer, and twelve usable nails wait in the desk's shallow drawer. The other motel doors can now be opened."
+                        .to_owned(),
+                );
+            }
             story.notice = Some(if discoveries.is_empty() {
                 "The old desk has already yielded its secrets.".to_owned()
             } else {
                 discoveries.join("\n\n")
             });
+        }
+        InteractableKind::BibleNightstand => {
+            record_bible_discovery(&mut story, &mut resources.interior_state);
+            target.consumed = true;
+            story.notice = Some(
+                "Inside the nightstand, beneath a century of dust, lies a small Gideon Bible. Its thin pages are dry. Someone left it here for a stranger—and the stranger can read."
+                    .to_owned(),
+            );
         }
         InteractableKind::Traveler if story.stage == StoryStage::MeetTraveler => {
             story.stage = StoryStage::Dialogue;
@@ -2264,7 +2361,7 @@ fn handle_story_input(
     if story.stage == StoryStage::FinishedCard && keys.just_pressed(KeyCode::KeyE) {
         story.stage = StoryStage::Epilogue;
     }
-    if story.stage == StoryStage::Epilogue && keys.just_pressed(KeyCode::KeyR) {
+    if story.stage == StoryStage::Epilogue && keys.just_pressed(KeyCode::Space) {
         story.reset_for_replay();
     }
 }
@@ -2370,9 +2467,11 @@ fn sync_world_state(
 fn sync_ui(
     story: Res<Story>,
     progression: Res<Progression>,
+    interior_state: Res<InteriorState>,
     nearby: Res<Nearby>,
     asset_server: Res<AssetServer>,
     interactables: Query<&Interactable>,
+    interaction_labels: Query<&AuthoredInteractionLabel>,
     task_targets: Query<&TaskTarget>,
     mut progress_text: Query<&mut Text, With<ProgressText>>,
     mut status: Query<
@@ -2437,7 +2536,7 @@ fn sync_ui(
         StoryStage::LightHearth => {
             "Clear three pieces of debris, find the old ladder, clear the office chimney, then light the hearth."
         }
-        StoryStage::FindBible => "Search the room now that you have light.",
+        StoryStage::FindBible => "Search the nightstand beside the bed in room 3.",
         StoryStage::FindPlank => "Find a sound plank in the valley for the office desk.",
         StoryStage::RestoreDesk => "Repair the writing desk.",
         StoryStage::MeetTraveler => "Welcome the traveler who followed your smoke.",
@@ -2458,8 +2557,13 @@ fn sync_ui(
 
     if let Ok(mut text) = progress_text.single_mut() {
         let supplies = progression.supplies_summary();
+        let discovery = if bible_found(&interior_state) {
+            "\n\nFOUND\nOld Gideon Bible"
+        } else {
+            ""
+        };
         **text = format!(
-            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}",
+            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{discovery}",
             progression.skill_tree_summary(),
             progression.tools_summary(),
             if supplies.is_empty() {
@@ -2474,13 +2578,19 @@ fn sync_ui(
         .0
         .and_then(|entity| interactables.get(entity).ok().map(|item| (entity, item)))
         .map_or_else(
-            || "WASD / arrows — move     E — interact".to_owned(),
+            || "WASD / arrows — move     E — interact     R — restore".to_owned(),
             |(entity, item)| {
                 if let Ok(task) = task_targets.get(entity) {
                     return format!(
-                        "E — {} this item     [{}]",
+                        "R — {} this item     [{}]",
                         task.action.infinitive(),
                         task.requirements
+                    );
+                }
+                if item.kind == InteractableKind::BibleNightstand {
+                    return interaction_labels.get(entity).map_or_else(
+                        |_| "E — search here".to_owned(),
+                        |label| format!("E — search the {}", label.0),
                     );
                 }
                 match item.kind {
@@ -2490,12 +2600,16 @@ fn sync_ui(
                     InteractableKind::Hearth => "E — tend the hearth",
                     InteractableKind::Plank => "E — take the sound plank",
                     InteractableKind::Tool => "E — take the old ladder",
-                    InteractableKind::Desk => "E — search or repair the old desk",
+                    InteractableKind::Desk if story.stage == StoryStage::RestoreDesk => {
+                        "E — search the old desk     R — repair it"
+                    }
+                    InteractableKind::Desk => "E — search the old desk",
+                    InteractableKind::BibleNightstand => "E — search here",
                     InteractableKind::Traveler => "E — welcome the traveler",
                     InteractableKind::MotelDoor => "Walk through the motel door",
                     InteractableKind::InteriorExit => "Walk onto the exit to step outside",
-                    InteractableKind::InteriorRepairable => "E — work on this part of the room",
-                    InteractableKind::ExteriorRepairable => "E — work on this part of the motel",
+                    InteractableKind::InteriorRepairable => "R — restore this part of the room",
+                    InteractableKind::ExteriorRepairable => "R — restore this part of the motel",
                 }
                 .to_owned()
             },
@@ -2562,7 +2676,7 @@ fn sync_ui(
         StoryStage::Epilogue => Some((
             "The First Word Carried".to_owned(),
             format!(
-                "{} reads the marks slowly after you speak them aloud. The card disappears into a weathered coat, close to the heart.\n\nBy evening there are new footprints on the old road. Tomorrow, perhaps, there will be another column of smoke answering yours.\n\nR — begin again with another traveler",
+                "{} reads the marks slowly after you speak them aloud. The card disappears into a weathered coat, close to the heart.\n\nBy evening there are new footprints on the old road. Tomorrow, perhaps, there will be another column of smoke answering yours.\n\nSPACE — begin again with another traveler",
                 story.traveler_name()
             ),
             "The Waystation at the Edge of the Ash · Scripture via YouVersion · Interpretation via Gloo AI Studio"
@@ -2651,6 +2765,9 @@ mod tests {
         interior_state
             .0
             .insert("motel-room-01/mirror-01".to_owned(), "repaired".to_owned());
+        interior_state
+            .0
+            .insert(BIBLE_STATE_KEY.to_owned(), DISCOVERY_FOUND_STATE.to_owned());
 
         let motel_access = MotelAccess { keys_found: true };
         let mut progression = Progression::default();
@@ -2658,11 +2775,67 @@ mod tests {
         progression.add_supply(SupplyId::Plank, 2);
         let save = SaveData::capture(&story, &interior_state, &motel_access, &progression);
 
-        assert_eq!(save.version, 4);
+        assert_eq!(save.version, 5);
         assert_eq!(save.interior_states["motel-room-01/mirror-01"], "repaired");
+        assert!(bible_found(&InteriorState(save.interior_states.clone())));
         assert!(save.motel_keys_found);
         assert!(save.progression.has_tool(ToolId::Hammer));
         assert_eq!(save.progression.supply(SupplyId::Plank), 2);
+    }
+
+    #[test]
+    fn repairables_use_r_while_search_and_interaction_use_e() {
+        assert!(interaction_key_matches(
+            InteractableKind::InteriorRepairable,
+            StoryStage::FindBible,
+            false,
+            true,
+        ));
+        assert!(!interaction_key_matches(
+            InteractableKind::InteriorRepairable,
+            StoryStage::FindBible,
+            true,
+            false,
+        ));
+        assert!(interaction_key_matches(
+            InteractableKind::BibleNightstand,
+            StoryStage::FindBible,
+            true,
+            false,
+        ));
+        assert!(!interaction_key_matches(
+            InteractableKind::BibleNightstand,
+            StoryStage::FindBible,
+            false,
+            true,
+        ));
+        assert!(interaction_key_matches(
+            InteractableKind::Desk,
+            StoryStage::RestoreDesk,
+            false,
+            true,
+        ));
+    }
+
+    #[test]
+    fn completed_legacy_story_stages_imply_the_bible_was_already_found() {
+        assert!(!story_stage_requires_bible(StoryStage::FindBible));
+        assert!(story_stage_requires_bible(StoryStage::FindPlank));
+        assert!(story_stage_requires_bible(StoryStage::Epilogue));
+    }
+
+    #[test]
+    fn finding_the_room_three_bible_persists_and_advances_its_story_beat() {
+        let mut story = Story {
+            stage: StoryStage::FindBible,
+            ..Story::default()
+        };
+        let mut interior_state = InteriorState::default();
+
+        record_bible_discovery(&mut story, &mut interior_state);
+
+        assert!(bible_found(&interior_state));
+        assert_eq!(story.stage, StoryStage::FindPlank);
     }
 
     #[test]

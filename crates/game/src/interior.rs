@@ -97,6 +97,15 @@ struct GridDefinition {
     tile_size: u16,
 }
 
+impl GridDefinition {
+    fn world_size(&self) -> Vec2 {
+        Vec2::new(
+            f32::from(self.width) * f32::from(self.tile_size),
+            f32::from(self.height) * f32::from(self.tile_size),
+        )
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct SceneDefinition {
     schema_version: u8,
@@ -110,6 +119,8 @@ struct SceneDefinition {
     #[serde(default)]
     collision: Vec<CollisionDefinition>,
     #[serde(default)]
+    interactions: Vec<InteractionDefinition>,
+    #[serde(default)]
     placements: Vec<BakedPlacementDefinition>,
     #[serde(default)]
     templates: HashMap<String, ElementTemplateDefinition>,
@@ -117,6 +128,70 @@ struct SceneDefinition {
     structures: Vec<MutableInstanceDefinition>,
     #[serde(default)]
     fixtures: Vec<MutableInstanceDefinition>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SceneInteractionKind {
+    Search,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SceneDiscovery {
+    GideonBible,
+}
+
+#[derive(Debug, Deserialize)]
+struct InteractionDefinition {
+    id: String,
+    label: String,
+    kind: SceneInteractionKind,
+    discovery: SceneDiscovery,
+    position: PixelPositionDefinition,
+    width: u16,
+    height: u16,
+}
+
+impl InteractionDefinition {
+    #[allow(clippy::cast_precision_loss)]
+    fn resolve(self, world_size: Vec2, origin: Vec2) -> SceneInteraction {
+        let grid = f32::from(self.position.grid);
+        let size = Vec2::new(f32::from(self.width), f32::from(self.height));
+        let top_left = Vec2::new(
+            (self.position.x as f32).mul_add(grid, origin.x - world_size.x / 2.0),
+            (self.position.y as f32).mul_add(-grid, origin.y + world_size.y / 2.0),
+        );
+        SceneInteraction {
+            id: self.id,
+            label: self.label,
+            kind: self.kind,
+            discovery: self.discovery,
+            center: top_left + Vec2::new(size.x / 2.0, -size.y / 2.0),
+            size,
+        }
+    }
+}
+
+fn resolve_interactions(
+    interactions: Vec<InteractionDefinition>,
+    world_size: Vec2,
+    origin: Vec2,
+) -> Vec<SceneInteraction> {
+    interactions
+        .into_iter()
+        .map(|interaction| interaction.resolve(world_size, origin))
+        .collect()
+}
+
+#[derive(Clone, Debug)]
+pub struct SceneInteraction {
+    pub id: String,
+    pub label: String,
+    pub kind: SceneInteractionKind,
+    pub discovery: SceneDiscovery,
+    pub center: Vec2,
+    pub size: Vec2,
 }
 
 #[derive(Debug, Deserialize)]
@@ -342,6 +417,7 @@ struct SceneMap {
     art_directory: &'static str,
     collision: Vec<CollisionArea>,
     crown_occluders: Vec<CollisionArea>,
+    interactions: Vec<SceneInteraction>,
     mutable_elements: Vec<MutableElement>,
 }
 
@@ -391,11 +467,9 @@ impl SceneMap {
         let room_id = definition.id.clone();
         let templates = &definition.templates;
         let tile_size = f32::from(definition.grid.tile_size);
-        let world_size = Vec2::new(
-            f32::from(definition.grid.width) * tile_size,
-            f32::from(definition.grid.height) * tile_size,
-        );
+        let world_size = definition.grid.world_size();
         let (collision, crown_occluders) = resolve_scene_areas(&definition, world_size, origin);
+        let interactions = resolve_interactions(definition.interactions, world_size, origin);
         let mutable_elements = definition
             .structures
             .into_iter()
@@ -471,6 +545,7 @@ impl SceneMap {
                 art_directory,
                 collision,
                 crown_occluders,
+                interactions,
                 mutable_elements,
             },
             entry,
@@ -625,6 +700,10 @@ impl InteriorMap {
 
     pub fn mutable_elements(&self) -> &[MutableElement] {
         &self.scene.mutable_elements
+    }
+
+    pub fn interactions(&self) -> &[SceneInteraction] {
+        &self.scene.interactions
     }
 
     pub fn mutable_element(&self, id: &str) -> Option<&MutableElement> {
@@ -870,16 +949,40 @@ mod tests {
     }
 
     #[test]
+    fn room_three_authors_the_bible_nightstand_search_at_native_size() {
+        let room = InteriorMap::load(InteriorId::Room03);
+        let [interaction] = room.interactions() else {
+            panic!("room 3 should have exactly one authored interaction");
+        };
+
+        assert_eq!(interaction.id, "bible-nightstand");
+        assert_eq!(interaction.label, "dusty nightstand");
+        assert_eq!(interaction.kind, SceneInteractionKind::Search);
+        assert_eq!(interaction.discovery, SceneDiscovery::GideonBible);
+        assert_eq!(
+            interaction.center,
+            INTERIOR_ORIGIN + Vec2::new(-64.0, 152.0)
+        );
+        assert_eq!(interaction.size, Vec2::new(32.0, 48.0));
+    }
+
+    #[test]
     fn authored_rooms_keep_repairable_elements_at_native_pixel_size() {
         for interior_id in InteriorId::ALL {
             let room = InteriorMap::load(interior_id);
-            let element = room
-                .mutable_elements()
-                .first()
-                .expect("every motel interior has repairable elements");
-            assert_eq!(element.initial_state, "damaged");
-            assert!(element.states["damaged"].size.cmpgt(Vec2::ZERO).all());
-            assert!(element.states.contains_key("repaired"));
+            if interior_id == InteriorId::Room03 {
+                assert!(
+                    room.mutable_elements().is_empty(),
+                    "the preserved Bible room intentionally has nothing to repair"
+                );
+                continue;
+            }
+            assert!(!room.mutable_elements().is_empty());
+            for element in room.mutable_elements() {
+                assert_eq!(element.initial_state, "damaged");
+                assert!(element.states["damaged"].size.cmpgt(Vec2::ZERO).all());
+                assert!(element.states.contains_key("repaired"));
+            }
         }
     }
 

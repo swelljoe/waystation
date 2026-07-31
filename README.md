@@ -29,10 +29,10 @@ make game
 The fixture server listens on `http://127.0.0.1:7777`. Controls are:
 
 - WASD or arrow keys: move
-- E: inspect, gather, repair, or welcome
-- Space: advance quiet story moments and dialogue
+- E: inspect, search, gather, or welcome
+- R: restore, including cleaning, clearing, and repair work
+- Space: advance quiet story moments and dialogue; begin another traveler after the ending
 - 1–3: choose paper, illumination, and border
-- R: replay with the next authored traveler after the ending
 - F3: toggle logical-cell, dual-grid mask, and atlas identifiers
 
 The development client currently uses a fixed 2× presentation scale for both
@@ -50,6 +50,10 @@ doors route left-to-right to the office and numbered rooms. The office and room
 5 begin unlocked; searching the authored office desk finds the keys for the
 remaining rooms. Every room returns the Scribe to the same exterior doorstep it
 was entered from.
+
+Room 3 is unusually well preserved. Its baked nightstand carries a named search
+hotspot; searching it reveals the old Gideon Bible and persists that discovery
+under the room object's stable ID.
 
 The valley is now a 144×96-cell exploration area with persistent kindling,
 fallen-log, plank, and tool pickups. The upper-right restoration ledger shows

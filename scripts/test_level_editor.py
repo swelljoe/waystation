@@ -50,6 +50,36 @@ class LevelEditorValidationTests(unittest.TestCase):
     def test_valid_level_passes(self) -> None:
         self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
 
+    def test_searchable_discovery_hotspot_passes(self) -> None:
+        self.level["interactions"] = [
+            {
+                "id": "bible-nightstand",
+                "label": "dusty nightstand",
+                "kind": "search",
+                "discovery": "gideon_bible",
+                "position": {"grid": 8, "x": 22, "y": 8},
+                "width": 32,
+                "height": 48,
+            }
+        ]
+        self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
+
+    def test_searchable_discovery_hotspots_require_unique_ids(self) -> None:
+        interaction = {
+            "id": "bible-nightstand",
+            "label": "dusty nightstand",
+            "kind": "search",
+            "discovery": "gideon_bible",
+            "position": {"grid": 8, "x": 22, "y": 8},
+            "width": 32,
+            "height": 48,
+        }
+        self.level["interactions"] = [interaction, interaction.copy()]
+        self.assertIn(
+            "interactions[1] has a duplicate id",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
     def test_collision_accepts_mixed_legacy_and_fine_pixel_grids(self) -> None:
         self.level["collision"].append({"grid": 8, "x": 17, "y": 9})
         self.assertEqual(validate_level(self.level, "test-room", self.assets), [])

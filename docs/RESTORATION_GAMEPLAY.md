@@ -22,6 +22,12 @@ and light the hearth. Searching the office desk yields the motel keys, a starter
 hammer, and nails. Fallen logs, kindling, and sound planks are scattered across
 the expanded valley for later work.
 
+`R` performs authored restoration tasks, including cleaning, clearing, restoring,
+and literal repairs. `E` remains the contextual interaction key for inspecting,
+searching, gathering, tending the hearth, and welcoming travelers. Keeping those
+paths separate prevents a search target beside damaged scenery from silently
+choosing the wrong action.
+
 ## Authoring a task
 
 Task data belongs to a reusable repair pair in `content/repair-pairs.json`:
@@ -56,3 +62,25 @@ visual may be marked invisible, which is the normal representation for debris:
 the same persistent state transition occurs, but no fake blank source tile is
 needed. Older repair pairs without task metadata still receive conservative
 kind-based defaults at runtime.
+
+## Searchable baked scenery
+
+Furniture that does not need mutable repair art may remain in a baked layer and
+still expose a persistent interaction. Room 3 uses this for the preserved
+nightstand containing the Gideon Bible:
+
+```json
+{
+  "id": "bible-nightstand",
+  "label": "dusty nightstand",
+  "kind": "search",
+  "discovery": "gideon_bible",
+  "position": { "grid": 8, "x": 22, "y": 8 },
+  "width": 32,
+  "height": 48
+}
+```
+
+Interaction positions use the same native-pixel top-left coordinate convention
+as placements. Discovery state persists under `room-id/interaction-id` without
+requiring the furniture to become a repair pair.
