@@ -50,6 +50,24 @@ class LevelEditorValidationTests(unittest.TestCase):
     def test_valid_level_passes(self) -> None:
         self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
 
+    def test_collision_accepts_mixed_legacy_and_fine_pixel_grids(self) -> None:
+        self.level["collision"].append({"grid": 8, "x": 17, "y": 9})
+        self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
+
+    def test_fine_collision_must_fit_inside_scene_pixels(self) -> None:
+        self.level["collision"] = [{"grid": 16, "x": 16, "y": 0}]
+        self.assertIn(
+            "collision[0] lies outside the scene",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
+    def test_collision_grid_is_bounded(self) -> None:
+        self.level["collision"] = [{"grid": 0, "x": 0, "y": 0}]
+        self.assertIn(
+            "collision[0].grid must be an integer from 1 to 256",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
     def test_stamp_may_overhang_room_edge(self) -> None:
         self.level["placements"][0]["x"] = 7
         self.assertEqual(validate_level(self.level, "test-room", self.assets), [])

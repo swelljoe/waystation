@@ -1,6 +1,6 @@
 //! Authored interior and building metadata, positioning, and runtime art.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use bevy::prelude::*;
 use serde::Deserialize;
@@ -108,13 +108,41 @@ struct SceneDefinition {
     #[serde(default)]
     exits: Vec<Cell>,
     #[serde(default)]
-    collision: Vec<Cell>,
+    collision: Vec<CollisionDefinition>,
     #[serde(default)]
     templates: HashMap<String, ElementTemplateDefinition>,
     #[serde(default)]
     structures: Vec<MutableInstanceDefinition>,
     #[serde(default)]
     fixtures: Vec<MutableInstanceDefinition>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+struct CollisionDefinition {
+    x: i16,
+    y: i16,
+    #[serde(default)]
+    grid: Option<u16>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CollisionArea {
+    center: Vec2,
+    size: Vec2,
+}
+
+impl CollisionDefinition {
+    fn resolve(self, default_grid: u16, world_size: Vec2, origin: Vec2) -> CollisionArea {
+        let grid = f32::from(self.grid.unwrap_or(default_grid));
+        let top_left = Vec2::new(
+            f32::from(self.x).mul_add(grid, origin.x - world_size.x / 2.0),
+            f32::from(self.y).mul_add(-grid, origin.y + world_size.y / 2.0),
+        );
+        CollisionArea {
+            center: top_left + Vec2::new(grid / 2.0, -grid / 2.0),
+            size: Vec2::splat(grid),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -238,7 +266,7 @@ struct SceneMap {
     tile_size: f32,
     origin: Vec2,
     art_directory: &'static str,
-    collision: HashSet<Cell>,
+    collision: Vec<CollisionArea>,
     mutable_elements: Vec<MutableElement>,
 }
 
@@ -263,6 +291,15 @@ impl SceneMap {
         let room_id = definition.id.clone();
         let templates = &definition.templates;
         let tile_size = f32::from(definition.grid.tile_size);
+        let world_size = Vec2::new(
+            f32::from(definition.grid.width) * tile_size,
+            f32::from(definition.grid.height) * tile_size,
+        );
+        let collision = definition
+            .collision
+            .iter()
+            .map(|&area| area.resolve(definition.grid.tile_size, world_size, origin))
+            .collect();
         let mutable_elements = definition
             .structures
             .into_iter()
@@ -335,7 +372,7 @@ impl SceneMap {
                 tile_size,
                 origin,
                 art_directory,
-                collision: definition.collision.into_iter().collect(),
+                collision,
                 mutable_elements,
             },
             entry,
@@ -370,6 +407,39 @@ impl SceneMap {
             x: x as u16,
             y: y as u16,
         })
+    }
+
+    fn contains_area(&self, center: Vec2, size: Vec2) -> bool {
+        let scene_half = self.world_size() / 2.0;
+        let area_half = size / 2.0;
+        let offset = center - self.origin;
+        offset.x.abs() + area_half.x <= scene_half.x && offset.y.abs() + area_half.y <= scene_half.y
+    }
+
+    fn area_avoids_collision(&self, center: Vec2, size: Vec2) -> bool {
+        let half = size / 2.0;
+        self.collision.iter().all(|area| {
+            let area_half = area.size / 2.0;
+            (center.x - area.center.x).abs() >= half.x + area_half.x
+                || (center.y - area.center.y).abs() >= half.y + area_half.y
+        })
+    }
+
+    fn exterior_depth_ground_y(&self) -> f32 {
+        self.collision
+            .iter()
+            .map(|area| area.center.y - area.size.y / 2.0)
+            .min_by(f32::total_cmp)
+            .unwrap_or_else(|| self.origin.y - self.world_size().y / 2.0)
+    }
+
+    fn contains_exterior_occlusion_point(&self, point: Vec2) -> bool {
+        let half_size = self.world_size() / 2.0;
+        let ground_y = self.exterior_depth_ground_y();
+        point.x >= self.origin.x - half_size.x
+            && point.x <= self.origin.x + half_size.x
+            && point.y >= ground_y
+            && point.y <= self.origin.y + half_size.y
     }
 
     fn element_center(&self, element: &MutableElement, visual_size: Vec2) -> Vec2 {
@@ -423,10 +493,8 @@ impl InteriorMap {
         self.scene.cell_center(cell)
     }
 
-    pub fn is_walkable(&self, position: Vec2) -> bool {
-        self.scene
-            .cell_at(position)
-            .is_some_and(|cell| !self.scene.collision.contains(&cell))
+    pub fn is_area_walkable(&self, center: Vec2, size: Vec2) -> bool {
+        self.scene.contains_area(center, size) && self.scene.area_avoids_collision(center, size)
     }
 
     pub fn is_exit(&self, position: Vec2) -> bool {
@@ -501,9 +569,24 @@ impl MotelExteriorMap {
     }
 
     pub fn is_walkable(&self, position: Vec2) -> bool {
-        self.scene
-            .cell_at(position)
-            .is_none_or(|cell| !self.scene.collision.contains(&cell))
+        self.scene.area_avoids_collision(position, Vec2::ZERO)
+    }
+
+    /// Placement-time counterpart to `is_walkable`: no part of a prop may
+    /// overlap an authored building collision cell.
+    pub fn is_area_walkable(&self, center: Vec2, size: Vec2) -> bool {
+        self.scene.area_avoids_collision(center, size)
+    }
+
+    /// Tall exterior art is depth-sorted at the southernmost edge of its
+    /// authored collision. This treats the collision footprint as the point
+    /// where the building meets the ground, independently of roof overhangs.
+    pub fn depth_ground_y(&self) -> f32 {
+        self.scene.exterior_depth_ground_y()
+    }
+
+    pub fn occludes_ground_point(&self, point: Vec2) -> bool {
+        self.scene.contains_exterior_occlusion_point(point)
     }
 }
 
@@ -518,8 +601,12 @@ pub fn spawn_interior(commands: &mut Commands, asset_server: &AssetServer, map: 
     }
 }
 
-pub fn spawn_building(commands: &mut Commands, asset_server: &AssetServer, map: &MotelExteriorMap) {
-    spawn_scene_backgrounds(commands, asset_server, &map.scene, false);
+pub fn spawn_building(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    map: &MotelExteriorMap,
+) -> Vec<Entity> {
+    spawn_scene_backgrounds(commands, asset_server, &map.scene, false)
 }
 
 fn scene_layer_z(layer: &str, interior: bool, mutable: bool) -> f32 {
@@ -643,13 +730,25 @@ mod tests {
         for interior_id in InteriorId::ALL {
             let room = InteriorMap::load(interior_id);
             assert_eq!(room.id(), interior_id.id());
-            assert!(room.is_walkable(room.cell_center(room.entry)));
+            assert!(room.is_area_walkable(room.cell_center(room.entry), Vec2::ZERO));
             assert_eq!(room.exits.len(), 1);
             assert!(room
                 .scene
                 .cell_at(room.cell_center(room.exits[0]))
                 .is_some());
-            assert!(!room.is_walkable(INTERIOR_ORIGIN + room.world_size()));
+            assert!(!room.is_area_walkable(INTERIOR_ORIGIN + room.world_size(), Vec2::ZERO));
+        }
+    }
+
+    #[test]
+    fn authored_interior_entries_fit_the_player_stance() {
+        let player_size = Vec2::new(18.0, 16.0);
+        let player_offset = Vec2::new(0.0, -18.0);
+        for interior_id in InteriorId::ALL {
+            let room = InteriorMap::load(interior_id);
+            assert!(
+                room.is_area_walkable(room.cell_center(room.entry) + player_offset, player_size)
+            );
         }
     }
 
@@ -687,13 +786,68 @@ mod tests {
         let blocked = motel
             .scene
             .collision
-            .iter()
-            .next()
+            .first()
             .copied()
             .expect("motel exterior has collision cells");
 
-        assert!(!motel.is_walkable(motel.scene.cell_center(blocked)));
+        assert!(!motel.is_walkable(blocked.center));
         assert!(motel.is_walkable(MOTEL_EXTERIOR_ORIGIN + motel.scene.world_size()));
+    }
+
+    #[test]
+    fn motel_exterior_rejects_props_that_overlap_authored_collision() {
+        let motel = MotelExteriorMap::load();
+        let blocked = motel
+            .scene
+            .collision
+            .first()
+            .copied()
+            .expect("motel exterior has collision cells");
+        let center = blocked.center;
+
+        assert!(!motel.is_area_walkable(center, Vec2::splat(8.0)));
+        assert!(motel.is_area_walkable(
+            MOTEL_EXTERIOR_ORIGIN + motel.scene.world_size(),
+            Vec2::splat(8.0)
+        ));
+    }
+
+    #[test]
+    fn motel_collision_footprint_defines_its_depth_ground_line() {
+        let motel = MotelExteriorMap::load();
+        let ground_y = motel.depth_ground_y();
+
+        assert!(motel.occludes_ground_point(Vec2::new(0.0, ground_y)));
+        assert!(motel.occludes_ground_point(Vec2::new(0.0, ground_y + 1.0)));
+        assert!(!motel.occludes_ground_point(Vec2::new(0.0, ground_y - 1.0)));
+        assert!(!motel.occludes_ground_point(Vec2::new(10_000.0, ground_y + 1.0)));
+    }
+
+    #[test]
+    fn mixed_collision_grids_resolve_to_native_pixel_areas() {
+        let definition: SceneDefinition = serde_json::from_str(
+            r#"{
+                "schema_version": 4,
+                "id": "fine-collision",
+                "name": "Fine collision",
+                "grid": {"width": 4, "height": 4, "tile_size": 32},
+                "collision": [
+                    {"x": 1, "y": 1},
+                    {"grid": 8, "x": 9, "y": 5}
+                ]
+            }"#,
+        )
+        .expect("mixed legacy and fine collision areas");
+
+        assert_eq!(definition.collision[0].grid, None);
+        assert_eq!(definition.collision[1].grid, Some(8));
+        let world_size = Vec2::splat(128.0);
+        let legacy = definition.collision[0].resolve(32, world_size, Vec2::ZERO);
+        let fine = definition.collision[1].resolve(32, world_size, Vec2::ZERO);
+        assert_eq!(legacy.center, Vec2::new(-16.0, 16.0));
+        assert_eq!(legacy.size, Vec2::splat(32.0));
+        assert_eq!(fine.center, Vec2::new(12.0, 20.0));
+        assert_eq!(fine.size, Vec2::splat(8.0));
     }
 
     #[test]

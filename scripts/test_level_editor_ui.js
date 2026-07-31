@@ -10,7 +10,10 @@ const stylesPath = path.join(__dirname, "..", "tools", "level-editor", "styles.c
 const {
   applyBackgroundKey,
   assetUrl,
+  collisionAreaBounds,
+  collisionBrush,
   collisionCellsForRendering,
+  collisionIndicesOverlapping,
   defaultTaskForKind,
   detectSmartRegions,
   draggedPlacementPosition,
@@ -30,6 +33,7 @@ const {
   stampAnchorForUnit,
   stampPreviewPlacement,
   stampUnitForCell,
+  subtractCollisionArea,
 } = require(editorPath);
 
 const refreshedPath = "components/Village House/TX House.png";
@@ -82,6 +86,17 @@ const original = structuredClone(room.collision);
 assert.equal(collisionCellsForRendering(room, true), room.collision);
 assert.deepEqual(collisionCellsForRendering(room, false), []);
 assert.deepEqual(room.collision, original, "hiding the overlay must not mutate collision data");
+assert.deepEqual(collisionAreaBounds({ x: 2, y: 3 }, 32), { x: 64, y: 96, width: 32, height: 32 });
+assert.deepEqual(
+  collisionAreaBounds({ grid: 8, x: 2, y: 3 }, 32),
+  { x: 16, y: 24, width: 8, height: 8 },
+);
+const mixedCollision = { collision: [{ x: 1, y: 1 }, { grid: 8, x: 8, y: 4 }] };
+assert.deepEqual(collisionIndicesOverlapping(mixedCollision, collisionBrush({ x: 5, y: 5 }, 8), 32), [0]);
+assert.deepEqual(collisionIndicesOverlapping(mixedCollision, collisionBrush({ x: 8, y: 4 }, 8), 32), [1]);
+const carvedLegacy = subtractCollisionArea({ x: 1, y: 1 }, collisionBrush({ x: 5, y: 5 }, 8), 32);
+assert.equal(carvedLegacy.length, 15);
+assert.equal(carvedLegacy.some((area) => area.grid === 8 && area.x === 5 && area.y === 5), false);
 assert.deepEqual(roomGridLayersForRendering(false, 16, 32, 2), []);
 assert.deepEqual(
   roomGridLayersForRendering(true, 16, 32, 2),
@@ -253,6 +268,7 @@ assert.equal(typeof drawTransformedImage, "function");
 const index = fs.readFileSync(indexPath, "utf8");
 const styles = fs.readFileSync(stylesPath, "utf8");
 assert.match(index, /id="toggle-collision"/);
+assert.match(index, /id="collision-pen"/);
 assert.match(index, /id="toggle-grid"/);
 assert.match(index, /aria-pressed="true"/);
 assert.match(index, /id="repair-pair-library"/);

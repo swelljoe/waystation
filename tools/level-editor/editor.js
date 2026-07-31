@@ -22,6 +22,7 @@ const state = {
   layer: "floor",
   zoom: 1,
   snapGrid: 32,
+  collisionPen: 8,
   stampTransform: { flip_x: false, flip_y: false },
   gridVisible: true,
   collisionVisible: true,
@@ -339,6 +340,55 @@ function collisionCellsForRendering(room, visible) {
   return visible ? room.collision : [];
 }
 
+function collisionAreaBounds(area, tileSize) {
+  const grid = Number.isInteger(area.grid) ? area.grid : tileSize;
+  return { x: area.x * grid, y: area.y * grid, width: grid, height: grid };
+}
+
+function rectanglesOverlap(left, right) {
+  return left.x < right.x + right.width
+    && left.x + left.width > right.x
+    && left.y < right.y + right.height
+    && left.y + left.height > right.y;
+}
+
+function rectangleContains(outer, inner) {
+  return inner.x >= outer.x
+    && inner.y >= outer.y
+    && inner.x + inner.width <= outer.x + outer.width
+    && inner.y + inner.height <= outer.y + outer.height;
+}
+
+function collisionBrush(cell, grid) {
+  return { grid, x: cell.x, y: cell.y };
+}
+
+function collisionIndicesOverlapping(room, brush, tileSize) {
+  const brushBounds = collisionAreaBounds(brush, tileSize);
+  return room.collision
+    .map((area, index) => rectanglesOverlap(collisionAreaBounds(area, tileSize), brushBounds) ? index : -1)
+    .filter((index) => index >= 0);
+}
+
+function subtractCollisionArea(area, brush, tileSize) {
+  const areaBounds = collisionAreaBounds(area, tileSize);
+  const brushBounds = collisionAreaBounds(brush, tileSize);
+  if (!rectanglesOverlap(areaBounds, brushBounds)) return [area];
+  const areaGrid = Number.isInteger(area.grid) ? area.grid : tileSize;
+  const brushGrid = brush.grid;
+  if (areaGrid % brushGrid !== 0) return [];
+  const remainder = [];
+  for (let y = areaBounds.y; y < areaBounds.y + areaBounds.height; y += brushGrid) {
+    for (let x = areaBounds.x; x < areaBounds.x + areaBounds.width; x += brushGrid) {
+      const square = { x, y, width: brushGrid, height: brushGrid };
+      if (!rectanglesOverlap(square, brushBounds)) {
+        remainder.push({ grid: brushGrid, x: x / brushGrid, y: y / brushGrid });
+      }
+    }
+  }
+  return remainder;
+}
+
 function authoredStampTransform() {
   return state.stampTransform.flip_x || state.stampTransform.flip_y
     ? structuredClone(state.stampTransform)
@@ -654,7 +704,36 @@ function drawRoom() {
   const visibleCollision = collisionCellsForRendering(state.room, state.collisionVisible);
   if (visibleCollision.length) {
     context.fillStyle = "rgba(180,65,65,.42)";
-    for (const cell of visibleCollision) context.fillRect(cell.x * tile, cell.y * tile, tile, tile);
+    for (const area of visibleCollision) {
+      const bounds = collisionAreaBounds(area, roomTileSize());
+      context.fillRect(
+        bounds.x * state.zoom,
+        bounds.y * state.zoom,
+        bounds.width * state.zoom,
+        bounds.height * state.zoom,
+      );
+    }
+  }
+  if (state.tool === "collision" && state.roomHoverPixel) {
+    const cell = snapCellForPixel(state.roomHoverPixel, state.collisionPen);
+    const brush = collisionBrush(cell, state.collisionPen);
+    const bounds = collisionAreaBounds(brush, roomTileSize());
+    const removing = collisionIndicesOverlapping(state.room, brush, roomTileSize()).length > 0;
+    context.fillStyle = removing ? "rgba(255,110,100,.28)" : "rgba(116,217,194,.28)";
+    context.strokeStyle = removing ? "#ff8c80" : "#74d9c2";
+    context.lineWidth = 1;
+    context.fillRect(
+      bounds.x * state.zoom,
+      bounds.y * state.zoom,
+      bounds.width * state.zoom,
+      bounds.height * state.zoom,
+    );
+    context.strokeRect(
+      Math.round(bounds.x * state.zoom) + 0.5,
+      Math.round(bounds.y * state.zoom) + 0.5,
+      Math.max(0, Math.round(bounds.width * state.zoom) - 1),
+      Math.max(0, Math.round(bounds.height * state.zoom) - 1),
+    );
   }
   if (previewPlacement) {
     const position = placementPixelPosition(previewPlacement);
@@ -781,7 +860,12 @@ function activeStampSpec() {
 
 function editRoom(cell, forceErase = false, options = {}) {
   if (!cell) return false;
-  const { recordUndo = true, collisionMode = null, stampSpec = null } = options;
+  const {
+    recordUndo = true,
+    collisionMode = null,
+    collisionGrid = state.collisionPen,
+    stampSpec = null,
+  } = options;
   const tool = forceErase ? "erase" : state.tool;
   if (tool === "stamp") {
     const spec = stampSpec || activeStampSpec();
@@ -822,12 +906,20 @@ function editRoom(cell, forceErase = false, options = {}) {
       return false;
     }
   } else if (tool === "collision") {
-    const index = state.room.collision.findIndex((item) => item.x === cell.x && item.y === cell.y);
-    const mode = collisionMode || (index >= 0 ? "remove" : "add");
-    if ((mode === "add" && index >= 0) || (mode === "remove" && index < 0)) return false;
+    const brush = collisionBrush(cell, collisionGrid);
+    const brushBounds = collisionAreaBounds(brush, roomTileSize());
+    const overlaps = collisionIndicesOverlapping(state.room, brush, roomTileSize());
+    const mode = collisionMode || (overlaps.length ? "remove" : "add");
+    const alreadyCovered = state.room.collision.some((area) => (
+      rectangleContains(collisionAreaBounds(area, roomTileSize()), brushBounds)
+    ));
+    if ((mode === "add" && alreadyCovered) || (mode === "remove" && !overlaps.length)) return false;
     if (recordUndo) pushUndo();
-    if (mode === "remove") state.room.collision.splice(index, 1);
-    else state.room.collision.push(cell);
+    if (mode === "remove") {
+      state.room.collision = state.room.collision.flatMap((area) => (
+        subtractCollisionArea(area, brush, roomTileSize())
+      ));
+    } else state.room.collision.push(brush);
   } else if (tool === "entry") {
     if (recordUndo) pushUndo();
     state.room.entry = cell;
@@ -890,16 +982,17 @@ function sameCell(left, right) {
 }
 
 function updateRoomHover(event) {
-  const previous = snapCellForPixel(state.roomHoverPixel, state.snapGrid);
+  const hoverGrid = state.tool === "collision" ? state.collisionPen : state.snapGrid;
+  const previous = snapCellForPixel(state.roomHoverPixel, hoverGrid);
   state.roomHoverPixel = roomPixel(event);
-  const next = snapCellForPixel(state.roomHoverPixel, state.snapGrid);
-  if (!sameCell(previous, next) && state.tool === "stamp" && !state.roomDrag) drawRoom();
+  const next = snapCellForPixel(state.roomHoverPixel, hoverGrid);
+  if (!sameCell(previous, next) && ["stamp", "collision"].includes(state.tool) && !state.roomDrag) drawRoom();
 }
 
 function clearRoomHover() {
   if (!state.roomHoverPixel) return;
   state.roomHoverPixel = null;
-  if (state.tool === "stamp" && !state.roomDrag) drawRoom();
+  if (["stamp", "collision"].includes(state.tool) && !state.roomDrag) drawRoom();
 }
 
 function beginRoomStroke(event) {
@@ -937,16 +1030,24 @@ function beginRoomStroke(event) {
   }
   const stampSpec = tool === "stamp" ? activeStampSpec() : null;
   if (tool === "stamp" && !stampSpec) return;
+  const collisionGrid = state.collisionPen;
   const cell = tool === "stamp"
     ? roomSnapCell(event, stampSpec.snapGrid)
-    : roomCell(event);
+    : tool === "collision"
+      ? roomSnapCell(event, collisionGrid)
+      : roomCell(event);
   if (!cell) return;
-  const collisionIndex = tool === "collision"
-    ? state.room.collision.findIndex((item) => item.x === cell.x && item.y === cell.y)
-    : -1;
-  const collisionMode = collisionIndex >= 0 ? "remove" : "add";
+  const brush = tool === "collision" ? collisionBrush(cell, collisionGrid) : null;
+  const collisionMode = brush && collisionIndicesOverlapping(state.room, brush, roomTileSize()).length
+    ? "remove"
+    : "add";
   pushUndo();
-  const changed = editRoom(cell, false, { recordUndo: false, collisionMode, stampSpec });
+  const changed = editRoom(cell, false, {
+    recordUndo: false,
+    collisionMode,
+    collisionGrid,
+    stampSpec,
+  });
   if (!changed) {
     state.undo.pop();
     return;
@@ -971,6 +1072,7 @@ function beginRoomStroke(event) {
       pointerId: event.pointerId,
       kind: tool,
       collisionMode,
+      collisionGrid,
       lastCell: cell,
       visited: new Set([`${cell.x},${cell.y}`]),
       count: 1,
@@ -1005,7 +1107,9 @@ function continueRoomStroke(event) {
   }
   const cell = drag.kind === "stamp"
     ? roomSnapCell(event, drag.stampSpec.snapGrid)
-    : roomCell(event);
+    : drag.kind === "collision"
+      ? roomSnapCell(event, drag.collisionGrid)
+      : roomCell(event);
   if (!cell) return;
   if (drag.kind === "stamp") {
     const unit = stampUnitForCell(drag.origin, cell, drag.footprint);
@@ -1028,6 +1132,7 @@ function continueRoomStroke(event) {
     const changed = editRoom(nextCell, false, {
       recordUndo: false,
       collisionMode: drag.collisionMode,
+      collisionGrid: drag.collisionGrid,
     });
     if (changed) drag.count += 1;
   }
@@ -1892,7 +1997,13 @@ function bindEvents() {
     event.target.value = state.snapGrid;
     drawRoom();
     updateSelectionDetails();
-    setStatus(`Stamp snap grid set to ${state.snapGrid}px; collision remains on the ${roomTileSize()}px room grid.`);
+    setStatus(`Stamp snap grid set to ${state.snapGrid}px; the ${state.collisionPen}px collision pen is independent.`);
+  });
+  $("#collision-pen").addEventListener("change", (event) => {
+    state.collisionPen = Math.max(1, Math.min(256, Number(event.target.value) || 8));
+    event.target.value = state.collisionPen;
+    drawRoom();
+    setStatus(`Collision pen set to ${state.collisionPen}px; existing collision areas are unchanged.`);
   });
   $("#toggle-grid").addEventListener("click", toggleGridVisibility);
   $("#toggle-collision").addEventListener("click", toggleCollisionVisibility);
@@ -2024,7 +2135,10 @@ if (typeof module !== "undefined") {
   module.exports = {
     applyBackgroundKey,
     assetUrl,
+    collisionAreaBounds,
+    collisionBrush,
     collisionCellsForRendering,
+    collisionIndicesOverlapping,
     defaultTaskForKind,
     detectSmartRegions,
     draggedPlacementPosition,
@@ -2044,5 +2158,6 @@ if (typeof module !== "undefined") {
     stampAnchorForUnit,
     stampPreviewPlacement,
     stampUnitForCell,
+    subtractCollisionArea,
   };
 }

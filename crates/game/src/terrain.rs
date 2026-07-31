@@ -157,6 +157,26 @@ impl WorldGrid {
         self.cells[y * MAP_WIDTH + x]
     }
 
+    /// Checks every logical cell touched by an object's ground footprint.
+    #[must_use]
+    pub fn supports_land_footprint(&self, center: Vec2, size: Vec2) -> bool {
+        let half = size / 2.0;
+        let min = center - half;
+        let max = center + half;
+        if min.x < -MAP_HALF_WIDTH
+            || min.y < -MAP_HALF_HEIGHT
+            || max.x >= MAP_HALF_WIDTH
+            || max.y >= MAP_HALF_HEIGHT
+        {
+            return false;
+        }
+        let min_x = ((min.x + MAP_HALF_WIDTH) / TILE_SIZE).floor() as usize;
+        let max_x = ((max.x + MAP_HALF_WIDTH) / TILE_SIZE).floor() as usize;
+        let min_y = ((min.y + MAP_HALF_HEIGHT) / TILE_SIZE).floor() as usize;
+        let max_y = ((max.y + MAP_HALF_HEIGHT) / TILE_SIZE).floor() as usize;
+        (min_y..=max_y).all(|y| (min_x..=max_x).all(|x| self.get(x, y) != Terrain::Water))
+    }
+
     fn get_clamped(&self, x: isize, y: isize) -> Terrain {
         let x = x.clamp(0, MAP_WIDTH as isize - 1) as usize;
         let y = y.clamp(0, MAP_HEIGHT as isize - 1) as usize;
@@ -850,6 +870,31 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn world_footprints_make_water_and_map_edges_impassable() {
+        let grid = WorldGrid::generate(WORLD_SEED);
+        let water = (0..MAP_HEIGHT)
+            .flat_map(|y| (0..MAP_WIDTH).map(move |x| (x, y)))
+            .find(|&(x, y)| grid.get(x, y) == Terrain::Water)
+            .expect("generated world has water");
+        let water_position = cell_position(water.0, water.1);
+
+        assert!(!grid.supports_land_footprint(water_position, Vec2::splat(1.0)));
+        assert!(!grid.supports_land_footprint(Vec2::new(MAP_HALF_WIDTH, 0.0), Vec2::splat(1.0)));
+    }
+
+    #[test]
+    fn land_footprints_reject_any_overlapped_water_cell() {
+        let grid = WorldGrid::generate(WORLD_SEED);
+        let water = (0..MAP_HEIGHT)
+            .flat_map(|y| (0..MAP_WIDTH).map(move |x| (x, y)))
+            .find(|&(x, y)| grid.get(x, y) == Terrain::Water)
+            .expect("generated world has water");
+        let water_position = cell_position(water.0, water.1);
+
+        assert!(!grid.supports_land_footprint(water_position, Vec2::splat(1.0)));
     }
 
     #[test]

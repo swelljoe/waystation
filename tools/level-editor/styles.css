@@ -75,7 +75,7 @@ h1, h2 { font-size: 20px; line-height: 1; margin: 2px 0 0; font-weight: 500; }
 .stage { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; padding: 9px; background: var(--panel-raised); border-bottom: 1px solid var(--line); }
 .toolbar-label { color: var(--muted); font-size: 13px; }
-.toolbar #snap-grid { width: 54px; }
+.toolbar #snap-grid, .toolbar #collision-pen { width: 54px; }
 .placement-inspector { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); }
 .placement-summary { flex: 1 1 360px; min-width: 220px; }
 .placement-summary strong { margin-left: 7px; color: #f0dfb8; }

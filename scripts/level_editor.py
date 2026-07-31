@@ -207,6 +207,7 @@ def validate_level(
                 errors.append(f"grid.{key} must be an integer from {low} to {high}")
     width = grid.get("width") if isinstance(grid, dict) else None
     height = grid.get("height") if isinstance(grid, dict) else None
+    tile_size = grid.get("tile_size") if isinstance(grid, dict) else None
     placements = level.get("placements")
     if not isinstance(placements, list):
         errors.append("placements must be an array")
@@ -357,7 +358,35 @@ def validate_level(
             template_states = template.get("states", {}) if isinstance(template, dict) else {}
             if not isinstance(initial_state, str) or initial_state not in template_states:
                 errors.append(f"{label} initial_state must name one of its states")
-    required_cell_lists = ("collision", "exits") if expected_scene_type == "interior" else ("collision",)
+    collision = level.get("collision")
+    if not isinstance(collision, list):
+        errors.append("collision must be an array")
+    elif all(isinstance(value, int) for value in (width, height, tile_size)):
+        scene_pixel_width = width * tile_size
+        scene_pixel_height = height * tile_size
+        for index, area in enumerate(collision):
+            label = f"collision[{index}]"
+            if (
+                not isinstance(area, dict)
+                or not isinstance(area.get("x"), int)
+                or not isinstance(area.get("y"), int)
+            ):
+                errors.append(f"{label} needs integer x and y")
+                continue
+            grid = area.get("grid")
+            if grid is None:
+                if not 0 <= area["x"] < width or not 0 <= area["y"] < height:
+                    errors.append(f"{label} lies outside the scene")
+            elif not isinstance(grid, int) or not 1 <= grid <= 256:
+                errors.append(f"{label}.grid must be an integer from 1 to 256")
+            elif not (
+                0 <= area["x"] * grid
+                and (area["x"] + 1) * grid <= scene_pixel_width
+                and 0 <= area["y"] * grid
+                and (area["y"] + 1) * grid <= scene_pixel_height
+            ):
+                errors.append(f"{label} lies outside the scene")
+    required_cell_lists = ("exits",) if expected_scene_type == "interior" else ()
     for key in required_cell_lists:
         cells = level.get(key)
         if not isinstance(cells, list):

@@ -73,7 +73,11 @@ overlay layers with the mouse. It also edits collision, entry, and exit cells.
 Hold the mouse button to paint continuously. Stamp strokes advance by the full
 native-art footprint rounded up to the current snap interval, preventing
 differently sized stamps from overlapping one another; collision strokes advance
-one gameplay cell at a time. One undo reverts the complete stroke.
+by the independently adjustable **Collision pen** size. One undo reverts the
+complete stroke. Existing logical-cell collision remains readable, while new
+strokes store their own 1–256 pixel grid so coarse and fine boundaries can coexist.
+Using a finer pen as an eraser carves that square out of a compatible coarse
+area, automatically subdividing the remainder instead of deleting the whole cell.
 
 Use **Grid: shown/hidden** to hide the destination grid for a clean scene
 preview. This display-only toggle does not change snap behavior or saved scene
@@ -121,14 +125,26 @@ only the display size changes.
 **Snap grid** controls destination placement independently of **Source grid**.
 Set it to `16` for half-cell art offsets, or any 1–256 pixel interval needed by a
 pack. Each placement remembers the grid used when it was stamped, so changing the
-control never moves existing art. Collision, entry, and exit editing remains on
-the room's logical gameplay grid.
+control never moves existing art. Collision, entry, and exit editing remain on
+their own controls: **Collision pen** selects a native-pixel square brush, while
+entry and exit markers remain on the room's logical gameplay grid. The pointer
+preview shows the exact collision square that will be added or removed.
 
 Choose **Building exterior** to author a transparent building canvas with the
 same native-pixel stamps, layers, repair pairs, transforms, collision, and undo
 behavior. Building documents save under `content/buildings`; generated caches
 and state sprites go under `runtime-assets/buildings`. The browser initially
 filters to `assets/components`, but **All packs** remains available.
+
+In the exterior game view, a building's southernmost collision edge is also its
+ground-contact depth line. The complete building—including its baked floor,
+wall, object, and overlay caches and all repairable components—passes in front
+of the Scribe when the Scribe walks north/behind that line, while preserving its
+authored internal layer order. A cropped 16-pixel crown from the current Scribe
+animation remains visible above the façade so the player is never lost; authored
+`chimney` elements still fully occlude that crown when they overlap it. Keep
+collision only where the Scribe's feet should actually be blocked: roof and
+chimney overhangs can extend beyond it without changing the building's art.
 
 For sheets whose pieces are separated by empty space, choose **Smart slice** and
 click a detected outline. Transparent sheets use their alpha channel. Opaque

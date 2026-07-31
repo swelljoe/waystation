@@ -35,8 +35,39 @@ const EMOJI_FONT_PATH: &str = "fonts/NotoEmoji-Variable.ttf";
 const SCRIBE_ATLAS_COLUMNS: u32 = 13;
 const SCRIBE_ATLAS_ROWS: u32 = 54;
 const SCRIBE_FRAME_SIZE: u32 = 64;
+const SCRIBE_FRAME_SIZE_F32: f32 = 64.0;
 const SCRIBE_WALK_FRAMES: usize = 9;
 const SCRIBE_WALK_SECONDS_PER_FRAME: f32 = 0.11;
+const SCRIBE_OCCLUSION_CROWN_WIDTH: f32 = 24.0;
+const SCRIBE_OCCLUSION_CROWN_HEIGHT: f32 = 16.0;
+const TREE_PLAYER_CLEARANCE: f32 = 10.0;
+// Top-down movement collides at the lower stance; the torso may overlap tall art.
+const PLAYER_COLLISION_OFFSET: Vec2 = Vec2::new(0.0, -18.0);
+const PLAYER_COLLISION_SIZE: Vec2 = Vec2::new(18.0, 16.0);
+const PLAYER_GROUND_OFFSET_Y: f32 = -30.0;
+const EXTERIOR_DEPTH_BASE: f32 = 5.0;
+const EXTERIOR_DEPTH_PER_Y: f32 = 0.001;
+const BUILDING_LAYER_DEPTH_STEP: f32 = 0.000_1;
+const DROP_SEARCH_STEP: f32 = terrain::TILE_SIZE;
+const DROP_SEARCH_RINGS: i16 = 72;
+
+const TREE_PLACEMENTS: [(f32, f32, f32); 15] = [
+    (-1_980.0, 1_160.0, 190.0),
+    (-1_650.0, 780.0, 150.0),
+    (-1_420.0, -980.0, 180.0),
+    (-1_050.0, 1_220.0, 200.0),
+    (-710.0, 420.0, 160.0),
+    (-300.0, 430.0, 180.0),
+    (100.0, 455.0, 150.0),
+    (520.0, 420.0, 200.0),
+    (735.0, 190.0, 150.0),
+    (700.0, -50.0, 180.0),
+    (-725.0, -120.0, 150.0),
+    (1_050.0, 920.0, 190.0),
+    (1_380.0, -760.0, 170.0),
+    (1_720.0, 1_100.0, 210.0),
+    (1_960.0, -1_080.0, 180.0),
+];
 
 fn main() {
     App::new()
@@ -80,7 +111,11 @@ fn main() {
             (
                 move_player,
                 handle_automatic_doorways,
+                update_exterior_depth,
                 animate_player,
+                sync_player_occlusion_crown
+                    .after(update_exterior_depth)
+                    .after(animate_player),
                 follow_player,
                 terrain::update_debug_overlay,
                 update_nearby_interaction,
@@ -122,6 +157,24 @@ const fn asset_root() -> &'static str {
 
 #[derive(Component)]
 struct Player;
+
+#[derive(Component, Clone, Copy, Debug)]
+struct ExteriorYSort {
+    ground_offset_y: f32,
+    depth_bias: f32,
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+struct ExteriorFixedDepth {
+    ground_y: f32,
+    depth_bias: f32,
+}
+
+#[derive(Component)]
+struct PlayerOcclusionCrown;
+
+#[derive(Component)]
+struct BuildingCrownOccluder;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Facing {
@@ -245,6 +298,8 @@ struct MovementEnvironment<'w, 's> {
     location: Res<'w, WorldLocation>,
     interior: Res<'w, interior::InteriorMap>,
     motel: Res<'w, interior::MotelExteriorMap>,
+    terrain: Res<'w, terrain::WorldGrid>,
+    obstacles: Res<'w, ExteriorObstacles>,
     doors: Query<
         'w,
         's,
@@ -256,6 +311,44 @@ struct MovementEnvironment<'w, 's> {
         Without<Player>,
     >,
     doorway_attempt: ResMut<'w, DoorwayAttempt>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct ExteriorRect {
+    center: Vec2,
+    size: Vec2,
+}
+
+impl ExteriorRect {
+    const fn new(center: Vec2, size: Vec2) -> Self {
+        Self { center, size }
+    }
+
+    fn overlaps(self, other: Self) -> bool {
+        let reach = (self.size + other.size) / 2.0;
+        (self.center.x - other.center.x).abs() < reach.x
+            && (self.center.y - other.center.y).abs() < reach.y
+    }
+}
+
+#[derive(Resource, Default, Debug)]
+struct ExteriorObstacles {
+    tree_trunks: Vec<ExteriorRect>,
+    tree_art: Vec<ExteriorRect>,
+}
+
+impl ExteriorObstacles {
+    fn player_can_stand(&self, bounds: ExteriorRect) -> bool {
+        self.tree_trunks
+            .iter()
+            .all(|obstacle| !obstacle.overlaps(bounds))
+    }
+
+    fn prop_is_clear(&self, bounds: ExteriorRect) -> bool {
+        self.tree_art
+            .iter()
+            .all(|obstacle| !obstacle.overlaps(bounds))
+    }
 }
 
 #[derive(Component)]
@@ -451,11 +544,20 @@ fn setup_world(
     ));
     let world_grid =
         terrain::spawn_terrain(&mut commands, &asset_server, &mut texture_atlas_layouts);
-    commands.insert_resource(world_grid);
+    commands.insert_resource(world_grid.clone());
     let tree = asset_server.load("world/tree.png");
     let scribe = asset_server.load("world/scribe.png");
     let motel = interior::MotelExteriorMap::load();
-    interior::spawn_building(&mut commands, &asset_server, &motel);
+    let building_ground_y = motel.depth_ground_y();
+    for (layer_index, entity) in interior::spawn_building(&mut commands, &asset_server, &motel)
+        .into_iter()
+        .enumerate()
+    {
+        commands.entity(entity).insert(ExteriorFixedDepth {
+            ground_y: building_ground_y,
+            depth_bias: building_layer_depth_bias(layer_index, false),
+        });
+    }
     let door_routes = motel_door_routes(&motel);
     for element in motel.mutable_elements() {
         let state_key = format!("{}/{}", motel.id(), element.id);
@@ -465,6 +567,13 @@ fn setup_world(
             .map_or(element.initial_state.as_str(), String::as_str);
         let entity =
             interior::spawn_building_mutable(&mut commands, &asset_server, &motel, element, state);
+        commands.entity(entity).insert(ExteriorFixedDepth {
+            ground_y: building_ground_y,
+            depth_bias: building_layer_depth_bias(authored_layer_index(&element.layer), true),
+        });
+        if element.kind == "chimney" {
+            commands.entity(entity).insert(BuildingCrownOccluder);
+        }
         let kind = if door_routes.contains_key(&element.id) {
             InteractableKind::MotelDoor
         } else {
@@ -511,31 +620,33 @@ fn setup_world(
     }
 
     // The motel court is only one clearing in a much larger, forageable valley.
-    for (x, y, size) in [
-        (-1_980.0, 1_160.0, 190.0),
-        (-1_650.0, 780.0, 150.0),
-        (-1_420.0, -980.0, 180.0),
-        (-1_050.0, 1_220.0, 200.0),
-        (-710.0, 420.0, 160.0),
-        (-300.0, 430.0, 180.0),
-        (100.0, 455.0, 150.0),
-        (520.0, 420.0, 200.0),
-        (735.0, 190.0, 150.0),
-        (700.0, -50.0, 180.0),
-        (-725.0, -120.0, 150.0),
-        (1_050.0, 920.0, 190.0),
-        (1_380.0, -760.0, 170.0),
-        (1_720.0, 1_100.0, 210.0),
-        (1_960.0, -1_080.0, 180.0),
-    ] {
+    // A tree's small ground footprint must be fully on land; its broad art bounds
+    // keep later forage placement from hiding objects beneath the canopy.
+    let mut exterior_obstacles = ExteriorObstacles::default();
+    for (x, y, size) in TREE_PLACEMENTS {
+        let position = resolve_tree_position(&world_grid, Vec2::new(x, y), size);
         commands.spawn((
             Sprite {
                 image: tree.clone(),
                 custom_size: Some(Vec2::splat(size)),
                 ..default()
             },
-            Transform::from_xyz(x, y, -6.0),
+            Transform::from_xyz(
+                position.x,
+                position.y,
+                exterior_depth(size.mul_add(-0.34, position.y)),
+            ),
+            ExteriorYSort {
+                ground_offset_y: -size * 0.34,
+                depth_bias: 0.0,
+            },
         ));
+        exterior_obstacles
+            .tree_trunks
+            .push(tree_trunk_rect(position, size));
+        exterior_obstacles
+            .tree_art
+            .push(ExteriorRect::new(position, Vec2::splat(size)));
     }
 
     spawn_interactable(
@@ -547,25 +658,63 @@ fn setup_world(
     );
     // Loose tinder is easy to gather. Fallen logs and sound boards become the
     // first useful stockpile once the Scribe begins restoring the motel.
-    for (index, (position, art)) in [
-        (Vec2::new(-390.0, -80.0), "world/kindling_logs.png"),
-        (Vec2::new(-285.0, 170.0), "world/kindling_branches.png"),
-        (Vec2::new(-80.0, 355.0), "world/kindling_tinder.png"),
-        (Vec2::new(-980.0, 610.0), "world/kindling_branches.png"),
-        (Vec2::new(-1_380.0, -420.0), "world/kindling_tinder.png"),
-        (Vec2::new(1_030.0, 690.0), "world/kindling_logs.png"),
-        (Vec2::new(1_510.0, -720.0), "world/kindling_branches.png"),
-        (Vec2::new(1_920.0, 880.0), "world/kindling_tinder.png"),
+    let mut pickup_bounds = Vec::new();
+    for (index, (position, art, size)) in [
+        (
+            Vec2::new(-390.0, -80.0),
+            "world/kindling_logs.png",
+            Vec2::new(48.0, 34.0),
+        ),
+        (
+            Vec2::new(-285.0, 170.0),
+            "world/kindling_branches.png",
+            Vec2::new(48.0, 32.0),
+        ),
+        (
+            Vec2::new(-80.0, 355.0),
+            "world/kindling_tinder.png",
+            Vec2::new(46.0, 30.0),
+        ),
+        (
+            Vec2::new(-980.0, 610.0),
+            "world/kindling_branches.png",
+            Vec2::new(48.0, 32.0),
+        ),
+        (
+            Vec2::new(-1_380.0, -420.0),
+            "world/kindling_tinder.png",
+            Vec2::new(46.0, 30.0),
+        ),
+        (
+            Vec2::new(1_030.0, 690.0),
+            "world/kindling_logs.png",
+            Vec2::new(48.0, 34.0),
+        ),
+        (
+            Vec2::new(1_510.0, -720.0),
+            "world/kindling_branches.png",
+            Vec2::new(48.0, 32.0),
+        ),
+        (
+            Vec2::new(1_920.0, 880.0),
+            "world/kindling_tinder.png",
+            Vec2::new(46.0, 30.0),
+        ),
     ]
     .into_iter()
     .enumerate()
     {
-        spawn_world_pickup(
+        spawn_safe_world_pickup(
             &mut commands,
             &progression,
+            &world_grid,
+            &motel,
+            &exterior_obstacles,
+            &mut pickup_bounds,
             format!("kindling-{index:02}"),
             InteractableKind::Kindling,
             position,
+            size,
             Sprite::from_image(asset_server.load(art)),
             PickupReward::Supply(SupplyId::Kindling, 1),
         );
@@ -581,12 +730,17 @@ fn setup_world(
     .into_iter()
     .enumerate()
     {
-        spawn_world_pickup(
+        spawn_safe_world_pickup(
             &mut commands,
             &progression,
+            &world_grid,
+            &motel,
+            &exterior_obstacles,
+            &mut pickup_bounds,
             format!("fallen-log-{index:02}"),
             InteractableKind::Log,
             position,
+            Vec2::new(64.0, 32.0),
             Sprite::from_image(asset_server.load("world/fallen_log.png")),
             PickupReward::Supply(SupplyId::Log, 1),
         );
@@ -599,25 +753,36 @@ fn setup_world(
     .into_iter()
     .enumerate()
     {
-        spawn_world_pickup(
+        spawn_safe_world_pickup(
             &mut commands,
             &progression,
+            &world_grid,
+            &motel,
+            &exterior_obstacles,
+            &mut pickup_bounds,
             format!("sound-plank-{index:02}"),
             InteractableKind::Plank,
             position,
+            Vec2::new(80.0, 24.0),
             Sprite::from_image(asset_server.load("world/plank.png")),
             PickupReward::Supply(SupplyId::Plank, 1),
         );
     }
-    spawn_world_pickup(
+    spawn_safe_world_pickup(
         &mut commands,
         &progression,
+        &world_grid,
+        &motel,
+        &exterior_obstacles,
+        &mut pickup_bounds,
         "fallen-ladder-01".to_owned(),
         InteractableKind::Tool,
         Vec2::new(-1_080.0, 1_010.0),
+        Vec2::new(44.0, 112.0),
         Sprite::from_image(asset_server.load("world/ladder.png")),
         PickupReward::Tool(ToolId::Ladder),
     );
+    commands.insert_resource(exterior_obstacles);
     let traveler = spawn_interactable(
         &mut commands,
         InteractableKind::Traveler,
@@ -644,21 +809,52 @@ fn setup_world(
     let facing = Facing::Down;
     commands.spawn((
         Sprite {
-            image: scribe,
+            image: scribe.clone(),
             texture_atlas: Some(TextureAtlas {
-                layout: scribe_layout,
+                layout: scribe_layout.clone(),
                 index: facing.walk_row() * SCRIBE_ATLAS_COLUMNS as usize,
             }),
             ..default()
         },
-        Transform::from_xyz(player_position.x, player_position.y, 5.0),
+        Transform::from_xyz(
+            player_position.x,
+            player_position.y,
+            exterior_depth(player_position.y + PLAYER_GROUND_OFFSET_Y),
+        ),
         Player,
+        ExteriorYSort {
+            ground_offset_y: PLAYER_GROUND_OFFSET_Y,
+            depth_bias: 0.0,
+        },
         PlayerAnimation {
             timer: Timer::from_seconds(SCRIBE_WALK_SECONDS_PER_FRAME, TimerMode::Repeating),
             facing,
             frame: 0,
             last_position: player_position,
         },
+    ));
+    commands.spawn((
+        Sprite {
+            image: scribe,
+            texture_atlas: Some(TextureAtlas {
+                layout: scribe_layout,
+                index: facing.walk_row() * SCRIBE_ATLAS_COLUMNS as usize,
+            }),
+            rect: Some(Rect::new(
+                0.0,
+                0.0,
+                SCRIBE_FRAME_SIZE_F32,
+                SCRIBE_OCCLUSION_CROWN_HEIGHT,
+            )),
+            ..default()
+        },
+        Transform::from_xyz(
+            player_position.x,
+            player_position.y + scribe_occlusion_crown_offset_y(),
+            building_occlusion_crown_depth(building_ground_y),
+        ),
+        PlayerOcclusionCrown,
+        Visibility::Hidden,
     ));
     commands.insert_resource(motel);
     commands.insert_resource(interior_map);
@@ -824,6 +1020,72 @@ fn spawn_interactable(
     spawn_interactable_sprite(commands, kind, position, Sprite::from_color(color, size))
 }
 
+fn nearest_valid_position(desired: Vec2, mut is_valid: impl FnMut(Vec2) -> bool) -> Option<Vec2> {
+    if is_valid(desired) {
+        return Some(desired);
+    }
+    for ring in 1..=DROP_SEARCH_RINGS {
+        for x in -ring..=ring {
+            for y in [-ring, ring] {
+                let candidate = desired + Vec2::new(f32::from(x), f32::from(y)) * DROP_SEARCH_STEP;
+                if is_valid(candidate) {
+                    return Some(candidate);
+                }
+            }
+        }
+        for y in (-ring + 1)..ring {
+            for x in [-ring, ring] {
+                let candidate = desired + Vec2::new(f32::from(x), f32::from(y)) * DROP_SEARCH_STEP;
+                if is_valid(candidate) {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn tree_ground_rect(position: Vec2, size: f32) -> ExteriorRect {
+    ExteriorRect::new(
+        position + Vec2::new(0.0, -size * 0.34),
+        Vec2::new(size * 0.28, size * 0.16),
+    )
+}
+
+fn tree_trunk_rect(position: Vec2, size: f32) -> ExteriorRect {
+    let ground = tree_ground_rect(position, size);
+    ExteriorRect::new(
+        ground.center,
+        ground.size + Vec2::splat(TREE_PLAYER_CLEARANCE * 2.0),
+    )
+}
+
+fn resolve_tree_position(grid: &terrain::WorldGrid, desired: Vec2, size: f32) -> Vec2 {
+    nearest_valid_position(desired, |candidate| {
+        let ground = tree_ground_rect(candidate, size);
+        grid.supports_land_footprint(ground.center, ground.size)
+    })
+    .expect("the generated exterior needs enough land for every tree")
+}
+
+fn safe_pickup_position(
+    grid: &terrain::WorldGrid,
+    motel: &interior::MotelExteriorMap,
+    obstacles: &ExteriorObstacles,
+    reserved: &[ExteriorRect],
+    desired: Vec2,
+    size: Vec2,
+) -> Vec2 {
+    nearest_valid_position(desired, |candidate| {
+        let bounds = ExteriorRect::new(candidate, size);
+        grid.supports_land_footprint(candidate, size)
+            && motel.is_area_walkable(candidate, size)
+            && obstacles.prop_is_clear(bounds)
+            && reserved.iter().all(|occupied| !occupied.overlaps(bounds))
+    })
+    .expect("the generated exterior needs enough clear land for every pickup")
+}
+
 fn spawn_interactable_sprite(
     commands: &mut Commands,
     kind: InteractableKind,
@@ -868,6 +1130,26 @@ fn spawn_world_pickup(
         });
     }
     entity
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_safe_world_pickup(
+    commands: &mut Commands,
+    progression: &Progression,
+    grid: &terrain::WorldGrid,
+    motel: &interior::MotelExteriorMap,
+    obstacles: &ExteriorObstacles,
+    reserved: &mut Vec<ExteriorRect>,
+    id: String,
+    kind: InteractableKind,
+    desired_position: Vec2,
+    size: Vec2,
+    sprite: Sprite,
+    reward: PickupReward,
+) -> Entity {
+    let position = safe_pickup_position(grid, motel, obstacles, reserved, desired_position, size);
+    reserved.push(ExteriorRect::new(position, size));
+    spawn_world_pickup(commands, progression, id, kind, position, sprite, reward)
 }
 
 fn load_ui_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -1044,56 +1326,201 @@ fn move_player(
         let delta = direction.normalize() * PLAYER_SPEED * time.delta_secs();
         let mut next = transform.translation.truncate();
         if *environment.location == WorldLocation::Exterior {
-            let next_x = Vec2::new(
-                (next.x + delta.x).clamp(-MAP_HALF_WIDTH, MAP_HALF_WIDTH),
-                next.y,
-            );
-            if environment.motel.is_walkable(next_x) {
-                next.x = next_x.x;
-            }
-            let next_y = Vec2::new(
-                next.x,
-                (next.y + delta.y).clamp(-MAP_HALF_HEIGHT, MAP_HALF_HEIGHT),
-            );
-            let head_probe = next_y + Vec2::Y * DOOR_HEAD_PROBE_OFFSET;
-            let doorway = if delta.y > 0.0 && !environment.motel.is_walkable(head_probe) {
-                environment
-                    .doors
-                    .iter()
-                    .filter(|(transform, sprite, _)| {
-                        player_inside_doorway(
-                            next_y,
-                            transform.translation.truncate(),
-                            sprite.custom_size.unwrap_or(Vec2::splat(64.0)),
-                        )
-                    })
-                    .min_by(|(left, _, _), (right, _, _)| {
-                        (next_y.x - left.translation.x)
-                            .abs()
-                            .total_cmp(&(next_y.x - right.translation.x).abs())
-                    })
-                    .map(|(_, _, destination)| *destination)
-            } else {
-                None
-            };
-            if let Some(destination) = doorway {
-                environment.doorway_attempt.0 = Some(destination);
-            } else if environment.motel.is_walkable(next_y) {
-                next.y = next_y.y;
-            }
+            next = move_player_outside(next, delta, &mut environment);
         } else {
             let next_x = Vec2::new(next.x + delta.x, next.y);
-            if environment.interior.is_walkable(next_x) {
+            if player_area_is_walkable_interior(next_x, &environment.interior) {
                 next.x = next_x.x;
             }
             let next_y = Vec2::new(next.x, next.y + delta.y);
-            if environment.interior.is_walkable(next_y) {
+            if player_area_is_walkable_interior(next_y, &environment.interior) {
                 next.y = next_y.y;
             }
         }
         transform.translation.x = next.x;
         transform.translation.y = next.y;
     }
+}
+
+fn move_player_outside(
+    mut next: Vec2,
+    delta: Vec2,
+    environment: &mut MovementEnvironment<'_, '_>,
+) -> Vec2 {
+    let next_x = Vec2::new(
+        (next.x + delta.x).clamp(-MAP_HALF_WIDTH, MAP_HALF_WIDTH),
+        next.y,
+    );
+    if exterior_position_is_walkable(
+        next_x,
+        &environment.terrain,
+        &environment.motel,
+        &environment.obstacles,
+    ) {
+        next.x = next_x.x;
+    }
+    let next_y = Vec2::new(
+        next.x,
+        (next.y + delta.y).clamp(-MAP_HALF_HEIGHT, MAP_HALF_HEIGHT),
+    );
+    let head_probe = next_y + Vec2::Y * DOOR_HEAD_PROBE_OFFSET;
+    let doorway = if delta.y > 0.0 && !environment.motel.is_walkable(head_probe) {
+        environment
+            .doors
+            .iter()
+            .filter(|(transform, sprite, _)| {
+                player_inside_doorway(
+                    next_y,
+                    transform.translation.truncate(),
+                    sprite.custom_size.unwrap_or(Vec2::splat(64.0)),
+                )
+            })
+            .min_by(|(left, _, _), (right, _, _)| {
+                (next_y.x - left.translation.x)
+                    .abs()
+                    .total_cmp(&(next_y.x - right.translation.x).abs())
+            })
+            .map(|(_, _, destination)| *destination)
+    } else {
+        None
+    };
+    if let Some(destination) = doorway {
+        environment.doorway_attempt.0 = Some(destination);
+    } else if exterior_position_is_walkable(
+        next_y,
+        &environment.terrain,
+        &environment.motel,
+        &environment.obstacles,
+    ) {
+        next.y = next_y.y;
+    }
+    next
+}
+
+fn exterior_position_is_walkable(
+    position: Vec2,
+    grid: &terrain::WorldGrid,
+    motel: &interior::MotelExteriorMap,
+    obstacles: &ExteriorObstacles,
+) -> bool {
+    let bounds = player_collision_rect(position);
+    grid.supports_land_footprint(bounds.center, bounds.size)
+        && motel.is_area_walkable(bounds.center, bounds.size)
+        && obstacles.player_can_stand(bounds)
+}
+
+fn player_area_is_walkable_interior(position: Vec2, interior: &interior::InteriorMap) -> bool {
+    let bounds = player_collision_rect(position);
+    interior.is_area_walkable(bounds.center, bounds.size)
+}
+
+fn player_collision_rect(position: Vec2) -> ExteriorRect {
+    ExteriorRect::new(position + PLAYER_COLLISION_OFFSET, PLAYER_COLLISION_SIZE)
+}
+
+fn exterior_depth(ground_y: f32) -> f32 {
+    ground_y.mul_add(-EXTERIOR_DEPTH_PER_Y, EXTERIOR_DEPTH_BASE)
+}
+
+fn authored_layer_index(layer: &str) -> usize {
+    match layer {
+        "floor" => 0,
+        "wall" => 1,
+        "object" => 2,
+        "overlay" => 3,
+        _ => panic!("unsupported authored scene layer: {layer}"),
+    }
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn building_layer_depth_bias(layer_index: usize, mutable: bool) -> f32 {
+    let sublayer = layer_index * 2 + usize::from(mutable) + 1;
+    sublayer as f32 * BUILDING_LAYER_DEPTH_STEP
+}
+
+fn building_occlusion_crown_depth(building_ground_y: f32) -> f32 {
+    9.0f32.mul_add(BUILDING_LAYER_DEPTH_STEP, exterior_depth(building_ground_y))
+}
+
+fn scribe_occlusion_crown_offset_y() -> f32 {
+    (SCRIBE_FRAME_SIZE_F32 - SCRIBE_OCCLUSION_CROWN_HEIGHT) / 2.0
+}
+
+fn update_exterior_depth(
+    location: Res<WorldLocation>,
+    mut sorted: Query<(&mut Transform, &ExteriorYSort), Without<ExteriorFixedDepth>>,
+    mut fixed: Query<(&mut Transform, &ExteriorFixedDepth), Without<ExteriorYSort>>,
+) {
+    if *location != WorldLocation::Exterior {
+        return;
+    }
+    for (mut transform, sorting) in &mut sorted {
+        transform.translation.z =
+            exterior_depth(transform.translation.y + sorting.ground_offset_y) + sorting.depth_bias;
+    }
+    for (mut transform, sorting) in &mut fixed {
+        transform.translation.z = exterior_depth(sorting.ground_y) + sorting.depth_bias;
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn sync_player_occlusion_crown(
+    location: Res<WorldLocation>,
+    motel: Res<interior::MotelExteriorMap>,
+    player: Query<(&Transform, &Sprite), With<Player>>,
+    mut crown: Query<
+        (&mut Transform, &mut Sprite, &mut Visibility),
+        (
+            With<PlayerOcclusionCrown>,
+            Without<Player>,
+            Without<BuildingCrownOccluder>,
+        ),
+    >,
+    full_occluders: Query<
+        (&Transform, &Sprite),
+        (With<BuildingCrownOccluder>, Without<PlayerOcclusionCrown>),
+    >,
+) {
+    let (Ok((player_transform, player_sprite)), Ok((mut transform, mut sprite, mut visibility))) =
+        (player.single(), crown.single_mut())
+    else {
+        return;
+    };
+    let player_ground = player_transform.translation.truncate() + Vec2::Y * PLAYER_GROUND_OFFSET_Y;
+    if *location != WorldLocation::Exterior || !motel.occludes_ground_point(player_ground) {
+        *visibility = Visibility::Hidden;
+        return;
+    }
+
+    let Some(player_atlas) = player_sprite.texture_atlas.as_ref() else {
+        *visibility = Visibility::Hidden;
+        return;
+    };
+    if let Some(crown_atlas) = sprite.texture_atlas.as_mut() {
+        crown_atlas.index = player_atlas.index;
+    }
+    let crown_position = Vec2::new(
+        player_transform.translation.x,
+        player_transform.translation.y + scribe_occlusion_crown_offset_y(),
+    );
+    let crown_bounds = ExteriorRect::new(
+        crown_position,
+        Vec2::new(SCRIBE_OCCLUSION_CROWN_WIDTH, SCRIBE_OCCLUSION_CROWN_HEIGHT),
+    );
+    let hidden_by_tall_structure = full_occluders.iter().any(|(occluder, sprite)| {
+        crown_bounds.overlaps(ExteriorRect::new(
+            occluder.translation.truncate(),
+            sprite.custom_size.unwrap_or(Vec2::ONE),
+        ))
+    });
+    if hidden_by_tall_structure {
+        *visibility = Visibility::Hidden;
+        return;
+    }
+    transform.translation.x = crown_position.x;
+    transform.translation.y = crown_position.y;
+    transform.translation.z = building_occlusion_crown_depth(motel.depth_ground_y());
+    *visibility = Visibility::Visible;
 }
 
 fn player_inside_doorway(player_position: Vec2, door_position: Vec2, door_size: Vec2) -> bool {
@@ -2174,5 +2601,107 @@ mod tests {
             &mut latch,
             interior::InteriorId::Room01
         ));
+    }
+
+    #[test]
+    fn every_tree_resolves_to_a_land_footprint_and_blocks_its_trunk() {
+        let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
+        for (x, y, size) in TREE_PLACEMENTS {
+            let position = resolve_tree_position(&grid, Vec2::new(x, y), size);
+            let ground = tree_ground_rect(position, size);
+            assert!(grid.supports_land_footprint(ground.center, ground.size));
+
+            let obstacles = ExteriorObstacles {
+                tree_trunks: vec![tree_trunk_rect(position, size)],
+                tree_art: vec![],
+            };
+            assert!(!obstacles.player_can_stand(player_collision_rect(ground.center)));
+        }
+    }
+
+    #[test]
+    fn player_feet_allow_natural_overlap_but_cannot_enter_water() {
+        let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
+        let water = (1..terrain::MAP_HEIGHT)
+            .flat_map(|y| (0..terrain::MAP_WIDTH).map(move |x| (x, y)))
+            .find(|&(x, y)| {
+                grid.get(x, y) == terrain::Terrain::Water
+                    && grid.get(x, y - 1) != terrain::Terrain::Water
+            })
+            .expect("generated water has a southern land edge");
+        let water_x = f32::from(u16::try_from(water.0).expect("world x fits u16"));
+        let water_y = f32::from(u16::try_from(water.1).expect("world y fits u16"));
+        let water_edge_y = water_y.mul_add(terrain::TILE_SIZE, -MAP_HALF_HEIGHT);
+        let x = (water_x + 0.5).mul_add(terrain::TILE_SIZE, -MAP_HALF_WIDTH);
+        let overlapping_body = Vec2::new(x, water_edge_y + 8.0);
+        let body_overlap_bounds = player_collision_rect(overlapping_body);
+        let feet_entering_water = Vec2::new(x, water_edge_y + 12.0);
+        let blocked_bounds = player_collision_rect(feet_entering_water);
+
+        assert_ne!(grid.get(water.0, water.1 - 1), terrain::Terrain::Water);
+        assert!(grid.supports_land_footprint(body_overlap_bounds.center, body_overlap_bounds.size));
+        assert!(!grid.supports_land_footprint(blocked_bounds.center, blocked_bounds.size));
+    }
+
+    #[test]
+    fn exterior_depth_sorts_by_ground_contact() {
+        let tree_ground_y = 100.0;
+        let player_behind_ground_y = 120.0;
+        let player_in_front_ground_y = 80.0;
+
+        assert!(exterior_depth(player_behind_ground_y) < exterior_depth(tree_ground_y));
+        assert!(exterior_depth(player_in_front_ground_y) > exterior_depth(tree_ground_y));
+    }
+
+    #[test]
+    fn building_layers_sort_together_around_their_collision_ground_line() {
+        let building_ground_y = 100.0;
+        let player_behind = exterior_depth(building_ground_y + 1.0);
+        let player_in_front = exterior_depth(building_ground_y - 1.0);
+        let floor_baked = exterior_depth(building_ground_y)
+            + building_layer_depth_bias(authored_layer_index("floor"), false);
+        let overlay_mutable = exterior_depth(building_ground_y)
+            + building_layer_depth_bias(authored_layer_index("overlay"), true);
+
+        assert!(player_behind < floor_baked);
+        assert!(floor_baked < overlay_mutable);
+        assert!(overlay_mutable < player_in_front);
+        assert!(building_occlusion_crown_depth(building_ground_y) > overlay_mutable);
+        assert!((scribe_occlusion_crown_offset_y() - 24.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn pickup_safety_moves_the_motel_wall_log_to_clear_land() {
+        let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
+        let motel = interior::MotelExteriorMap::load();
+        let obstacles = ExteriorObstacles::default();
+        let desired = Vec2::new(-390.0, -80.0);
+        let size = Vec2::new(48.0, 34.0);
+
+        assert!(!motel.is_area_walkable(desired, size));
+        let actual = safe_pickup_position(&grid, &motel, &obstacles, &[], desired, size);
+        assert_ne!(actual, desired);
+        assert!(grid.supports_land_footprint(actual, size));
+        assert!(motel.is_area_walkable(actual, size));
+    }
+
+    #[test]
+    fn pickup_safety_avoids_tree_art_and_other_drops() {
+        let desired = Vec2::new(1_200.0, 400.0);
+        let size = Vec2::new(48.0, 32.0);
+        let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
+        let motel = interior::MotelExteriorMap::load();
+        let occupied = ExteriorRect::new(desired, Vec2::splat(100.0));
+        let obstacles = ExteriorObstacles {
+            tree_trunks: vec![],
+            tree_art: vec![occupied],
+        };
+
+        let actual = safe_pickup_position(&grid, &motel, &obstacles, &[], desired, size);
+        assert!(!occupied.overlaps(ExteriorRect::new(actual, size)));
+
+        let reserved = [ExteriorRect::new(actual, size)];
+        let second = safe_pickup_position(&grid, &motel, &obstacles, &reserved, actual, size);
+        assert!(!reserved[0].overlaps(ExteriorRect::new(second, size)));
     }
 }

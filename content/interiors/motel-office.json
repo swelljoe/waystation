@@ -268,6 +268,54 @@
     {
       "x": 0,
       "y": 2
+    },
+    {
+      "x": 3,
+      "y": 5
+    },
+    {
+      "x": 3,
+      "y": 4
+    },
+    {
+      "x": 4,
+      "y": 4
+    },
+    {
+      "x": 4,
+      "y": 5
+    },
+    {
+      "x": 5,
+      "y": 5
+    },
+    {
+      "x": 5,
+      "y": 4
+    },
+    {
+      "x": 13,
+      "y": 4
+    },
+    {
+      "x": 14,
+      "y": 4
+    },
+    {
+      "x": 15,
+      "y": 4
+    },
+    {
+      "x": 12,
+      "y": 5
+    },
+    {
+      "x": 16,
+      "y": 5
+    },
+    {
+      "x": 2,
+      "y": 4
     }
   ],
   "placements": [
@@ -856,6 +904,24 @@
         "width": 1,
         "height": 2
       }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 13,
+        "y": 63
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "motel/Auto-tile-A4-walls-2.png",
+        "grid": 8,
+        "x": 73,
+        "y": 36,
+        "width": 10,
+        "height": 1
+      }
     }
   ],
   "templates": {},
@@ -977,34 +1043,6 @@
       "initial_state": "damaged",
       "transform": {
         "flip_x": true
-      }
-    },
-    {
-      "id": "stone-fireplace-chimney-extension-01",
-      "template": "stone-fireplace-chimney-extension",
-      "position": {
-        "grid": 1,
-        "x": 453,
-        "y": 0
-      },
-      "width": 2,
-      "height": 2,
-      "initial_state": "damaged"
-    },
-    {
-      "id": "stone-fireplace-1-01",
-      "template": "stone-fireplace-1",
-      "position": {
-        "grid": 1,
-        "x": 433,
-        "y": 35
-      },
-      "width": 2,
-      "height": 3,
-      "initial_state": "damaged",
-      "transform": {
-        "flip_x": true,
-        "flip_y": false
       }
     },
     {
