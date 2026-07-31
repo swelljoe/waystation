@@ -221,6 +221,84 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertEqual(layers["object"].getpixel((0, 0)), (255, 0, 0, 255))
         self.assertEqual(layers["overlay"].getpixel((0, 0)), (0, 255, 0, 255))
 
+    def test_interior_walk_behind_scenery_is_extracted_instead_of_baked(self) -> None:
+        sheet = Image.new("RGBA", (2, 1))
+        sheet.putpixel((0, 0), (255, 0, 0, 255))
+        sheet.putpixel((1, 0), (0, 255, 0, 255))
+        sheet.save(self.assets / "sheet.png")
+        stays_baked = {
+            "layer": "object",
+            "position": {"grid": 1, "x": 0, "y": 0},
+            "width": 1,
+            "height": 1,
+            "source": {
+                "path": "sheet.png",
+                "grid": 1,
+                "x": 0,
+                "y": 0,
+                "width": 1,
+                "height": 1,
+            },
+        }
+        walks_behind = {
+            **stays_baked,
+            "position": {"grid": 1, "x": 2, "y": 0},
+            "source": {**stays_baked["source"], "x": 1},
+            "occludes_player": True,
+        }
+        level = self.level_with(stays_baked)
+        level["placements"].append(walks_behind)
+        level["id"] = "test-room"
+        output = self.assets / "runtime"
+        interiors = output / "interiors"
+
+        layers = BUILD_ASSETS.render_scene_layers(
+            level, self.assets, interior=True, extract_occluders=True
+        )
+        records = BUILD_ASSETS.write_interior_occluder_art(
+            level, self.assets, output, interiors
+        )
+
+        # Buildings keep flagged art baked; only interiors re-sort it per frame.
+        baked = BUILD_ASSETS.render_scene_layers(level, self.assets, interior=False)
+        self.assertEqual(baked["object"].getpixel((2, 0)), (0, 255, 0, 255))
+        self.assertEqual(layers["object"].getpixel((0, 0)), (255, 0, 0, 255))
+        self.assertEqual(layers["object"].getpixel((2, 0)), (0, 0, 0, 0))
+        self.assertEqual(len(records), 1)
+        with Image.open(interiors / "test-room" / "occluder--00.png") as crop:
+            self.assertEqual(crop.size, (1, 1))
+            self.assertEqual(crop.getpixel((0, 0)), (0, 255, 0, 255))
+
+    def test_extracted_occluder_index_follows_authored_order(self) -> None:
+        Image.new("RGBA", (1, 1), "#ff0000").save(self.assets / "sheet.png")
+        source = {"path": "sheet.png", "grid": 1, "x": 0, "y": 0, "width": 1, "height": 1}
+        overlay = {
+            "layer": "overlay",
+            "position": {"grid": 1, "x": 0, "y": 0},
+            "width": 1,
+            "height": 1,
+            "source": source,
+            "occludes_player": True,
+        }
+        floor = {**overlay, "layer": "floor", "position": {"grid": 1, "x": 1, "y": 0}}
+        level = self.level_with(overlay)
+        level["placements"].append(floor)
+        level["id"] = "test-room"
+        output = self.assets / "runtime"
+
+        records = BUILD_ASSETS.write_interior_occluder_art(
+            level, self.assets, output, output / "interiors"
+        )
+
+        # The engine names crops by authored index, not by layer order.
+        self.assertEqual(
+            [record["path"] for record in records],
+            [
+                "interiors/test-room/occluder--00.png",
+                "interiors/test-room/occluder--01.png",
+            ],
+        )
+
     def test_scribe_sheet_keeps_the_complete_lpc_action_grid(self) -> None:
         custom = self.assets / "custom"
         custom.mkdir()

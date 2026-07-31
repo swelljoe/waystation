@@ -57,6 +57,12 @@ const PLAYER_GROUND_OFFSET_Y: f32 = -30.0;
 const EXTERIOR_DEPTH_BASE: f32 = 5.0;
 const EXTERIOR_DEPTH_PER_Y: f32 = 0.001;
 const BUILDING_LAYER_DEPTH_STEP: f32 = 0.000_1;
+// Interiors are authored as fixed layer bands rather than a Y-sorted field, so
+// the Scribe holds one depth above every band and only flagged scenery climbs
+// past them when they stand behind it.
+const INTERIOR_PLAYER_DEPTH: f32 = 5.0;
+const INTERIOR_OCCLUDER_COVER_DEPTH: f32 = 5.5;
+const INTERIOR_OCCLUDER_DEPTH_PER_Y: f32 = 0.000_1;
 const DROP_SEARCH_STEP: f32 = terrain::TILE_SIZE;
 const DROP_SEARCH_RINGS: i16 = 72;
 const BIBLE_STATE_KEY: &str = "motel-room-03/bible-nightstand";
@@ -84,6 +90,103 @@ const TREE_PLACEMENTS: [(f32, f32, f32); 18] = [
     (-1_180.0, 1_050.0, 150.0),
     (-910.0, 840.0, 150.0),
 ];
+
+// Loose tinder is easy to gather. Fallen logs and sound boards become the first
+// useful stockpile once the Scribe begins restoring the motel.
+const KINDLING_PICKUPS: [(Vec2, &str, Vec2); 8] = [
+    (
+        Vec2::new(-390.0, -80.0),
+        "world/kindling_logs.png",
+        Vec2::new(48.0, 34.0),
+    ),
+    (
+        Vec2::new(-285.0, 170.0),
+        "world/kindling_branches.png",
+        Vec2::new(48.0, 32.0),
+    ),
+    (
+        Vec2::new(-80.0, 355.0),
+        "world/kindling_tinder.png",
+        Vec2::new(46.0, 30.0),
+    ),
+    (
+        Vec2::new(-980.0, 610.0),
+        "world/kindling_branches.png",
+        Vec2::new(48.0, 32.0),
+    ),
+    (
+        Vec2::new(-1_380.0, -420.0),
+        "world/kindling_tinder.png",
+        Vec2::new(46.0, 30.0),
+    ),
+    (
+        Vec2::new(1_030.0, 690.0),
+        "world/kindling_logs.png",
+        Vec2::new(48.0, 34.0),
+    ),
+    (
+        Vec2::new(1_510.0, -720.0),
+        "world/kindling_branches.png",
+        Vec2::new(48.0, 32.0),
+    ),
+    (
+        Vec2::new(1_920.0, 880.0),
+        "world/kindling_tinder.png",
+        Vec2::new(46.0, 30.0),
+    ),
+];
+const LOG_PICKUPS: [Vec2; 6] = [
+    Vec2::new(-1_720.0, 930.0),
+    Vec2::new(-1_180.0, -920.0),
+    Vec2::new(-820.0, 820.0),
+    Vec2::new(920.0, -890.0),
+    Vec2::new(1_340.0, 1_070.0),
+    Vec2::new(1_840.0, -350.0),
+];
+const PLANK_PICKUPS: [Vec2; 3] = [
+    Vec2::new(625.0, -175.0),
+    Vec2::new(-1_260.0, 360.0),
+    Vec2::new(1_640.0, 520.0),
+];
+/// The office desk drawer holds the last nails anyone left behind; every nail
+/// after that is pulled back out of cleared debris.
+const DESK_DRAWER_NAILS: u16 = 12;
+/// The first fire the valley has seen in generations.
+const HEARTH_KINDLING: u16 = 3;
+
+/// Stone lies where the ash-scoured rim broke, away from the motel court, so
+/// masonry costs a walk out to the valley's edges and back.
+const STONE_OUTCROP_PLACEMENTS: [(f32, f32); 24] = [
+    (-2_060.0, 620.0),
+    (-1_880.0, -420.0),
+    (-1_640.0, 1_320.0),
+    (-1_530.0, -1_180.0),
+    (-1_240.0, 300.0),
+    (-980.0, -1_320.0),
+    (-760.0, 1_240.0),
+    (-460.0, -1_090.0),
+    (-240.0, 880.0),
+    (180.0, -1_240.0),
+    (430.0, 1_180.0),
+    (760.0, -1_060.0),
+    (1_020.0, 380.0),
+    (1_180.0, -1_300.0),
+    (1_460.0, 900.0),
+    (1_620.0, -560.0),
+    (1_880.0, 1_260.0),
+    (2_040.0, 240.0),
+    (2_120.0, -940.0),
+    (-2_140.0, -1_340.0),
+    (-1_320.0, -680.0),
+    (620.0, 1_360.0),
+    (1_360.0, 320.0),
+    (-560.0, -1_420.0),
+];
+const STONE_OUTCROP_SIZE: Vec2 = Vec2::new(96.0, 96.0);
+/// The sawbuck stands in the court where the Scribe can see both the road and
+/// the office door.
+const SAWBUCK_POSITION: Vec2 = Vec2::new(390.0, -300.0);
+const SAWBUCK_SIZE: Vec2 = Vec2::new(120.0, 96.0);
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -147,6 +250,7 @@ fn run_game() {
                 move_player,
                 handle_automatic_doorways,
                 update_exterior_depth,
+                update_interior_occlusion,
                 animate_player,
                 update_player_tree_occlusion,
                 sync_player_occlusion_crown
@@ -305,6 +409,8 @@ enum InteractableKind {
     InteriorRepairable,
     ExteriorRepairable,
     Tree,
+    Sawbuck,
+    StoneOutcrop,
 }
 
 #[derive(Component)]
@@ -316,6 +422,18 @@ struct WorldPickup {
 #[derive(Clone, Copy)]
 enum PickupReward {
     Supply(SupplyId, u16),
+}
+
+/// The court's sawbuck: a standing station rather than a pickup, so the valley's
+/// fallen wood can keep answering the motel's need for planks.
+#[derive(Component)]
+struct MillingBench;
+
+#[derive(Component)]
+struct StoneOutcrop {
+    id: String,
+    footprint: ExteriorRect,
+    art: ExteriorRect,
 }
 
 #[derive(Component)]
@@ -426,6 +544,7 @@ struct InteractionQueries<'w, 's> {
         ),
     >,
     choppable_trees: Query<'w, 's, &'static ChoppableTree>,
+    stone_outcrops: Query<'w, 's, &'static StoneOutcrop>,
     player_animation: Query<'w, 's, &'static mut PlayerAnimation, With<Player>>,
     mutable_elements: Query<
         'w,
@@ -506,21 +625,25 @@ fn same_exterior_rect(left: ExteriorRect, right: ExteriorRect) -> bool {
     left.center == right.center && left.size == right.size
 }
 
+/// Ground-level obstruction for everything the valley grows or the Scribe
+/// builds: tree trunks, the sawbuck, quarried outcrops. `solid_footprints`
+/// blocks movement; `prop_exclusions` is the wider art bound that keeps later
+/// pickups from spawning underneath something.
 #[derive(Resource, Default, Debug)]
 struct ExteriorObstacles {
-    tree_trunks: Vec<ExteriorRect>,
-    tree_art: Vec<ExteriorRect>,
+    solid_footprints: Vec<ExteriorRect>,
+    prop_exclusions: Vec<ExteriorRect>,
 }
 
 impl ExteriorObstacles {
     fn player_can_stand(&self, bounds: ExteriorRect) -> bool {
-        self.tree_trunks
+        self.solid_footprints
             .iter()
             .all(|obstacle| !obstacle.overlaps(bounds))
     }
 
     fn prop_is_clear(&self, bounds: ExteriorRect) -> bool {
-        self.tree_art
+        self.prop_exclusions
             .iter()
             .all(|obstacle| !obstacle.overlaps(bounds))
     }
@@ -1078,10 +1201,10 @@ fn setup_world(
             },
         ));
         exterior_obstacles
-            .tree_trunks
+            .solid_footprints
             .push(tree_trunk_rect(position, size));
         exterior_obstacles
-            .tree_art
+            .prop_exclusions
             .push(ExteriorRect::new(position, Vec2::splat(size)));
     }
 
@@ -1095,51 +1218,7 @@ fn setup_world(
     // Loose tinder is easy to gather. Fallen logs and sound boards become the
     // first useful stockpile once the Scribe begins restoring the motel.
     let mut pickup_bounds = Vec::new();
-    for (index, (position, art, size)) in [
-        (
-            Vec2::new(-390.0, -80.0),
-            "world/kindling_logs.png",
-            Vec2::new(48.0, 34.0),
-        ),
-        (
-            Vec2::new(-285.0, 170.0),
-            "world/kindling_branches.png",
-            Vec2::new(48.0, 32.0),
-        ),
-        (
-            Vec2::new(-80.0, 355.0),
-            "world/kindling_tinder.png",
-            Vec2::new(46.0, 30.0),
-        ),
-        (
-            Vec2::new(-980.0, 610.0),
-            "world/kindling_branches.png",
-            Vec2::new(48.0, 32.0),
-        ),
-        (
-            Vec2::new(-1_380.0, -420.0),
-            "world/kindling_tinder.png",
-            Vec2::new(46.0, 30.0),
-        ),
-        (
-            Vec2::new(1_030.0, 690.0),
-            "world/kindling_logs.png",
-            Vec2::new(48.0, 34.0),
-        ),
-        (
-            Vec2::new(1_510.0, -720.0),
-            "world/kindling_branches.png",
-            Vec2::new(48.0, 32.0),
-        ),
-        (
-            Vec2::new(1_920.0, 880.0),
-            "world/kindling_tinder.png",
-            Vec2::new(46.0, 30.0),
-        ),
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    for (index, (position, art, size)) in KINDLING_PICKUPS.into_iter().enumerate() {
         spawn_safe_world_pickup(
             &mut commands,
             &progression,
@@ -1156,17 +1235,7 @@ fn setup_world(
             PickupReward::Supply(SupplyId::Kindling, 1),
         );
     }
-    for (index, position) in [
-        Vec2::new(-1_720.0, 930.0),
-        Vec2::new(-1_180.0, -920.0),
-        Vec2::new(-820.0, 820.0),
-        Vec2::new(920.0, -890.0),
-        Vec2::new(1_340.0, 1_070.0),
-        Vec2::new(1_840.0, -350.0),
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    for (index, position) in LOG_PICKUPS.into_iter().enumerate() {
         spawn_safe_world_pickup(
             &mut commands,
             &progression,
@@ -1183,14 +1252,7 @@ fn setup_world(
             PickupReward::Supply(SupplyId::Log, 1),
         );
     }
-    for (index, position) in [
-        Vec2::new(625.0, -175.0),
-        Vec2::new(-1_260.0, 360.0),
-        Vec2::new(1_640.0, 520.0),
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    for (index, position) in PLANK_PICKUPS.into_iter().enumerate() {
         spawn_safe_world_pickup(
             &mut commands,
             &progression,
@@ -1207,6 +1269,61 @@ fn setup_world(
             PickupReward::Supply(SupplyId::Plank, 1),
         );
     }
+
+    // Standing work stations, not one-time props: the sawbuck answers every
+    // later call for planks, and each outcrop carries stone for the masonry the
+    // motel is full of.
+    let sawbuck_position = safe_pickup_position(
+        &world_grid,
+        &motel,
+        &tool_shed,
+        &exterior_obstacles,
+        &pickup_bounds,
+        SAWBUCK_POSITION,
+        SAWBUCK_SIZE,
+    );
+    pickup_bounds.push(ExteriorRect::new(sawbuck_position, SAWBUCK_SIZE));
+    spawn_worked_station(
+        &mut commands,
+        asset_server.load("world/sawbuck.png"),
+        InteractableKind::Sawbuck,
+        progression::TaskSpec::for_milling(),
+        sawbuck_position,
+        SAWBUCK_SIZE,
+        &mut exterior_obstacles,
+    )
+    .insert(MillingBench);
+    for (index, (x, y)) in STONE_OUTCROP_PLACEMENTS.into_iter().enumerate() {
+        let outcrop_id = format!("stone-outcrop-{index:02}");
+        if progression.pickup_collected(&outcrop_id) {
+            continue;
+        }
+        let position = safe_pickup_position(
+            &world_grid,
+            &motel,
+            &tool_shed,
+            &exterior_obstacles,
+            &pickup_bounds,
+            Vec2::new(x, y),
+            STONE_OUTCROP_SIZE,
+        );
+        pickup_bounds.push(ExteriorRect::new(position, STONE_OUTCROP_SIZE));
+        spawn_worked_station(
+            &mut commands,
+            asset_server.load("world/stone_outcrop.png"),
+            InteractableKind::StoneOutcrop,
+            progression::TaskSpec::for_quarrying(),
+            position,
+            STONE_OUTCROP_SIZE,
+            &mut exterior_obstacles,
+        )
+        .insert(StoneOutcrop {
+            id: outcrop_id,
+            footprint: station_footprint(position, STONE_OUTCROP_SIZE),
+            art: ExteriorRect::new(position, STONE_OUTCROP_SIZE),
+        });
+    }
+
     let tool_shed_interior = interior::InteriorMap::load(interior::InteriorId::ToolShed);
     let mut portable_tools = tool_shed_interior
         .portable_items()
@@ -1356,6 +1473,9 @@ fn spawn_interior_scene(
     interior_state: &InteriorState,
 ) {
     interior::spawn_interior(commands, asset_server, map);
+    for occluder in map.occluders() {
+        interior::spawn_interior_occluder(commands, asset_server, occluder);
+    }
     for element in map.mutable_elements() {
         let state_key = format!("{}/{}", map.id(), element.id);
         let state = interior_state
@@ -1852,6 +1972,56 @@ fn spawn_safe_world_pickup(
     );
     reserved.push(ExteriorRect::new(position, size));
     spawn_world_pickup(commands, progression, id, kind, position, sprite, reward)
+}
+
+/// The blocking part of a station is the lower half of its art, so the Scribe
+/// can stand close enough to work without walking through the piece itself.
+fn station_footprint(position: Vec2, size: Vec2) -> ExteriorRect {
+    ExteriorRect::new(position - Vec2::new(0.0, size.y / 4.0), size / 2.0)
+}
+
+/// A station the Scribe returns to rather than consumes. It stands on the
+/// ground like a tree, so it blocks movement and keeps loose props off itself.
+fn spawn_worked_station<'a>(
+    commands: &'a mut Commands,
+    image: Handle<Image>,
+    kind: InteractableKind,
+    task: progression::TaskSpec,
+    position: Vec2,
+    size: Vec2,
+    obstacles: &mut ExteriorObstacles,
+) -> bevy::ecs::system::EntityCommands<'a> {
+    let ground_offset_y = -size.y / 2.0;
+    obstacles
+        .solid_footprints
+        .push(station_footprint(position, size));
+    obstacles
+        .prop_exclusions
+        .push(ExteriorRect::new(position, size));
+    commands.spawn((
+        Sprite {
+            image,
+            custom_size: Some(size),
+            ..default()
+        },
+        Transform::from_xyz(
+            position.x,
+            position.y,
+            exterior_depth(position.y + ground_offset_y),
+        ),
+        ExteriorYSort {
+            ground_offset_y,
+            depth_bias: 0.0,
+        },
+        Interactable {
+            kind,
+            consumed: false,
+        },
+        TaskTarget {
+            action: task.action,
+            requirements: task.requirements_text(),
+        },
+    ))
 }
 
 fn spawn_portable_tool_entity(
@@ -2441,6 +2611,19 @@ fn building_occlusion_crown_depth(building_ground_y: f32) -> f32 {
     9.0f32.mul_add(BUILDING_LAYER_DEPTH_STEP, exterior_depth(building_ground_y))
 }
 
+/// Covering scenery keeps a narrow Y-sorted band of its own so two overlapping
+/// occluders in front of the player still stack southernmost-first.
+fn interior_occluder_cover_depth(ground_y: f32) -> f32 {
+    ground_y.mul_add(
+        -INTERIOR_OCCLUDER_DEPTH_PER_Y,
+        INTERIOR_OCCLUDER_COVER_DEPTH,
+    )
+}
+
+fn interior_occluder_covers_player(player_ground_y: f32, occluder_ground_y: f32) -> bool {
+    player_ground_y > occluder_ground_y
+}
+
 fn scribe_occlusion_crown_offset_y() -> f32 {
     (SCRIBE_FRAME_SIZE_F32 - SCRIBE_OCCLUSION_CROWN_HEIGHT) / 2.0
 }
@@ -2459,6 +2642,32 @@ fn update_exterior_depth(
     }
     for (mut transform, sorting) in &mut fixed {
         transform.translation.z = exterior_depth(sorting.ground_y) + sorting.depth_bias;
+    }
+}
+
+/// Interiors have no Y-sorted ground plane, so authored walk-behind scenery
+/// swaps between its layer depth and a band above the Scribe as they cross its
+/// floor line.
+fn update_interior_occlusion(
+    location: Res<WorldLocation>,
+    mut player: Query<&mut Transform, With<Player>>,
+    mut occluders: Query<(&mut Transform, &interior::InteriorOccluder), Without<Player>>,
+) {
+    if *location != WorldLocation::Interior {
+        return;
+    }
+    let Ok(mut player_transform) = player.single_mut() else {
+        return;
+    };
+    player_transform.translation.z = INTERIOR_PLAYER_DEPTH;
+    let player_ground_y = player_transform.translation.y + PLAYER_GROUND_OFFSET_Y;
+    for (mut transform, occluder) in &mut occluders {
+        transform.translation.z =
+            if interior_occluder_covers_player(player_ground_y, occluder.ground_y) {
+                interior_occluder_cover_depth(occluder.ground_y)
+            } else {
+                occluder.resting_depth
+            };
     }
 }
 
@@ -2875,7 +3084,9 @@ const fn interaction_key_matches(
     match kind {
         InteractableKind::InteriorRepairable
         | InteractableKind::ExteriorRepairable
-        | InteractableKind::Tree => repair_pressed,
+        | InteractableKind::Tree
+        | InteractableKind::Sawbuck
+        | InteractableKind::StoneOutcrop => repair_pressed,
         InteractableKind::Tool => interact_pressed || repair_pressed,
         InteractableKind::Desk if matches!(stage, StoryStage::RestoreDesk) => {
             interact_pressed || repair_pressed
@@ -2992,14 +3203,12 @@ fn handle_interaction(
                 return;
             }
         };
-        resources.progression.add_supply(SupplyId::Log, 2);
-        resources.progression.add_supply(SupplyId::Kindling, 2);
         resources.progression.collect_pickup(&tree.id);
         exterior_obstacles
-            .tree_trunks
+            .solid_footprints
             .retain(|area| !same_exterior_rect(*area, tree.trunk));
         exterior_obstacles
-            .tree_art
+            .prop_exclusions
             .retain(|area| !same_exterior_rect(*area, tree.art));
         if let Ok(mut animation) = queries.player_animation.single_mut() {
             start_tool_animation(&mut animation, ToolWorkAnimation::Axe);
@@ -3013,6 +3222,53 @@ fn handle_interaction(
             } else {
                 String::new()
             }
+        ));
+        return;
+    }
+    if target.kind == InteractableKind::Sawbuck {
+        let task = progression::TaskSpec::for_milling();
+        if let Err(reason) = resources.progression.attempt(&task) {
+            story.notice = Some(format!(
+                "You cannot mill a plank yet. {reason}\nRequires: {}.",
+                task.requirements_text()
+            ));
+            return;
+        }
+        if let Ok(mut animation) = queries.player_animation.single_mut() {
+            start_tool_animation(&mut animation, ToolWorkAnimation::Axe);
+        }
+        story.notice = Some(format!(
+            "You lay a log across the sawbuck and cut it down to {}. Planks: {}. Logs left: {}.",
+            task.yields_text(),
+            resources.progression.supply(SupplyId::Plank),
+            resources.progression.supply(SupplyId::Log)
+        ));
+        return;
+    }
+    if let Ok(outcrop) = queries.stone_outcrops.get(entity) {
+        let task = progression::TaskSpec::for_quarrying();
+        if let Err(reason) = resources.progression.attempt(&task) {
+            story.notice = Some(format!(
+                "You cannot work this stone yet. {reason}\nRequires: {}.",
+                task.requirements_text()
+            ));
+            return;
+        }
+        resources.progression.collect_pickup(&outcrop.id);
+        exterior_obstacles
+            .solid_footprints
+            .retain(|area| !same_exterior_rect(*area, outcrop.footprint));
+        exterior_obstacles
+            .prop_exclusions
+            .retain(|area| !same_exterior_rect(*area, outcrop.art));
+        if let Ok(mut animation) = queries.player_animation.single_mut() {
+            start_tool_animation(&mut animation, ToolWorkAnimation::Hammer);
+        }
+        commands.entity(entity).despawn();
+        story.notice = Some(format!(
+            "The pick rings and the seam gives. You carry off {}. Stone: {}.",
+            task.yields_text(),
+            resources.progression.supply(SupplyId::Stone)
         ));
         return;
     }
@@ -3088,9 +3344,12 @@ fn handle_interaction(
                 );
                 return;
             }
-            if !resources.progression.spend_supply(SupplyId::Kindling, 3) {
+            if !resources
+                .progression
+                .spend_supply(SupplyId::Kindling, HEARTH_KINDLING)
+            {
                 story.notice = Some(format!(
-                    "The hearth needs 3 kindling; you have {}.",
+                    "The hearth needs {HEARTH_KINDLING} kindling; you have {}.",
                     resources.progression.supply(SupplyId::Kindling)
                 ));
                 return;
@@ -3177,7 +3436,9 @@ fn handle_interaction(
             let mut discoveries = Vec::new();
             if !resources.motel_access.keys_found {
                 resources.motel_access.keys_found = true;
-                resources.progression.add_supply(SupplyId::Nails, 12);
+                resources
+                    .progression
+                    .add_supply(SupplyId::Nails, DESK_DRAWER_NAILS);
                 discoveries.push(
                     "A ring of numbered brass keys and twelve usable nails wait in the desk's shallow drawer. The other motel doors can now be opened."
                         .to_owned(),
@@ -3337,6 +3598,9 @@ fn task_success_notice(
         element.task.xp,
         element.task.skill.label()
     );
+    if !element.task.yields.is_empty() {
+        let _ = write!(notice, "\nSalvaged: {}.", element.task.yields_text());
+    }
     if outcome.new_level > outcome.old_level {
         let _ = write!(
             notice,
@@ -3670,11 +3934,15 @@ fn sync_ui(
             || "Move: WASD/arrows  ·  E interact  ·  R work  ·  Tab tool  ·  Q drop".to_owned(),
             |(entity, item)| {
                 if let Ok(task) = task_targets.get(entity) {
-                    return format!(
-                        "R — {} this item     [{}]",
-                        task.action.infinitive(),
-                        task.requirements
-                    );
+                    // Standing stations are named; anonymous scenery is not.
+                    let work = match item.kind {
+                        InteractableKind::Sawbuck => "saw a log into planks".to_owned(),
+                        InteractableKind::StoneOutcrop => {
+                            "work stone out of this outcrop".to_owned()
+                        }
+                        _ => format!("{} this item", task.action.infinitive()),
+                    };
+                    return format!("R — {work}     [{}]", task.requirements);
                 }
                 if item.kind == InteractableKind::BibleNightstand {
                     return interaction_details
@@ -3717,6 +3985,8 @@ fn sync_ui(
                     InteractableKind::InteriorRepairable => "R — restore this part of the room",
                     InteractableKind::ExteriorRepairable => "R — restore this part of the building",
                     InteractableKind::Tree => "R — chop this tree",
+                    InteractableKind::Sawbuck => "R — saw a log into planks",
+                    InteractableKind::StoneOutcrop => "R — work stone out of this outcrop",
                 }
                 .to_owned()
             },
@@ -3902,7 +4172,10 @@ fn selection_provenance(story: &Story) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::*;
+    use crate::progression::SkillId;
 
     #[test]
     fn replay_rotates_authored_travelers() {
@@ -4144,6 +4417,128 @@ mod tests {
         ));
     }
 
+    /// Every restoration job the content authors, with the supplies it spends
+    /// and the tools it asks for.
+    fn authored_restoration_tasks() -> Vec<progression::TaskSpec> {
+        let mut tasks = Vec::new();
+        for interior_id in interior::InteriorId::ALL {
+            let room = interior::InteriorMap::load(interior_id);
+            tasks.extend(room.mutable_elements().iter().map(|e| e.task.clone()));
+        }
+        let motel = interior::MotelExteriorMap::load();
+        let tool_shed = interior::ToolShedExteriorMap::load();
+        tasks.extend(motel.mutable_elements().iter().map(|e| e.task.clone()));
+        tasks.extend(tool_shed.mutable_elements().iter().map(|e| e.task.clone()));
+        tasks
+    }
+
+    fn total_demand(tasks: &[progression::TaskSpec], item: SupplyId) -> u32 {
+        tasks
+            .iter()
+            .flat_map(|task| &task.supplies)
+            .filter(|cost| cost.item == item)
+            .map(|cost| u32::from(cost.amount))
+            .sum()
+    }
+
+    fn total_yield(tasks: &[progression::TaskSpec], item: SupplyId) -> u32 {
+        tasks
+            .iter()
+            .flat_map(|task| &task.yields)
+            .filter(|gain| gain.item == item)
+            .map(|gain| u32::from(gain.amount))
+            .sum()
+    }
+
+    fn count(placements: usize) -> u32 {
+        u32::try_from(placements).expect("authored placement tables are small")
+    }
+
+    fn yield_per_task(task: &progression::TaskSpec, item: SupplyId) -> u32 {
+        task.yields
+            .iter()
+            .filter(|gain| gain.item == item)
+            .map(|gain| u32::from(gain.amount))
+            .sum()
+    }
+
+    /// The failure this guards against is silent: a task can be authored with a
+    /// supply or tool the valley never produces, and the skill it belongs to
+    /// then sits at zero forever with nothing in the UI to say why.
+    #[test]
+    fn the_valley_can_pay_for_every_authored_restoration_task() {
+        let tasks = authored_restoration_tasks();
+        let milling = progression::TaskSpec::for_milling();
+        let quarrying = progression::TaskSpec::for_quarrying();
+        let chopping = progression::TaskSpec::for_tree_chopping();
+
+        let logs = count(LOG_PICKUPS.len())
+            + count(TREE_PLACEMENTS.len()) * yield_per_task(&chopping, SupplyId::Log);
+        let planks = count(PLANK_PICKUPS.len())
+            + logs * yield_per_task(&milling, SupplyId::Plank)
+                / u32::from(milling.supplies[0].amount);
+        let stone =
+            count(STONE_OUTCROP_PLACEMENTS.len()) * yield_per_task(&quarrying, SupplyId::Stone);
+        let nails = u32::from(DESK_DRAWER_NAILS) + total_yield(&tasks, SupplyId::Nails);
+        let kindling = count(KINDLING_PICKUPS.len())
+            + count(TREE_PLACEMENTS.len()) * yield_per_task(&chopping, SupplyId::Kindling);
+
+        assert!(planks >= total_demand(&tasks, SupplyId::Plank));
+        assert!(stone >= total_demand(&tasks, SupplyId::Stone));
+        assert!(nails >= total_demand(&tasks, SupplyId::Nails));
+        assert!(kindling >= total_demand(&tasks, SupplyId::Kindling) + u32::from(HEARTH_KINDLING));
+        assert_eq!(total_demand(&tasks, SupplyId::Log), 0);
+    }
+
+    #[test]
+    fn every_tool_an_authored_task_asks_for_exists_in_the_valley() {
+        let mut obtainable: BTreeSet<ToolId> =
+            interior::InteriorMap::load(interior::InteriorId::ToolShed)
+                .portable_items()
+                .iter()
+                // A broken tool still counts: the Scribe can repair it in place.
+                .map(|item| item.tool)
+                .collect();
+        obtainable.insert(ToolId::Ladder);
+
+        let mut required: BTreeSet<ToolId> = authored_restoration_tasks()
+            .iter()
+            .flat_map(|task| task.tools.clone())
+            .collect();
+        for station in [
+            progression::TaskSpec::for_milling(),
+            progression::TaskSpec::for_quarrying(),
+            progression::TaskSpec::for_tree_chopping(),
+        ] {
+            required.extend(station.tools);
+        }
+
+        assert!(
+            required.is_subset(&obtainable),
+            "unobtainable tools: {:?}",
+            required.difference(&obtainable).collect::<Vec<_>>()
+        );
+    }
+
+    /// Reaching a skill's ceiling has to be possible from tasks whose own level
+    /// requirement is already met, or the tree deadlocks below the top.
+    #[test]
+    fn every_skill_has_enough_authored_work_to_reach_its_ceiling() {
+        let tasks = authored_restoration_tasks();
+        for skill in SkillId::ALL {
+            let reachable_xp: u16 = tasks
+                .iter()
+                .filter(|task| task.skill == skill && task.level == 0)
+                .map(|task| task.xp)
+                .sum();
+            assert!(
+                u32::from(reachable_xp) >= progression::xp_for_max_level(),
+                "{} cannot reach its ceiling: {reachable_xp} experience authored at level 0",
+                skill.label()
+            );
+        }
+    }
+
     #[test]
     fn every_tree_resolves_to_a_land_footprint_and_blocks_its_trunk() {
         let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
@@ -4158,8 +4553,8 @@ mod tests {
             assert!(tool_shed.is_area_walkable(trunk.center, trunk.size));
 
             let obstacles = ExteriorObstacles {
-                tree_trunks: vec![tree_trunk_rect(position, size)],
-                tree_art: vec![],
+                solid_footprints: vec![tree_trunk_rect(position, size)],
+                prop_exclusions: vec![],
             };
             assert!(!obstacles.player_can_stand(player_collision_rect(ground.center)));
         }
@@ -4260,6 +4655,32 @@ mod tests {
     }
 
     #[test]
+    fn interior_scenery_covers_only_a_player_standing_behind_its_floor_line() {
+        let lamp_ground_y = 104.0;
+        let player_behind = lamp_ground_y + 1.0;
+        let player_in_front = lamp_ground_y - 1.0;
+
+        assert!(interior_occluder_covers_player(
+            player_behind,
+            lamp_ground_y
+        ));
+        assert!(!interior_occluder_covers_player(
+            player_in_front,
+            lamp_ground_y
+        ));
+        assert!(interior_occluder_cover_depth(lamp_ground_y) > INTERIOR_PLAYER_DEPTH);
+    }
+
+    #[test]
+    fn overlapping_interior_occluders_keep_the_southernmost_in_front() {
+        let near = interior_occluder_cover_depth(0.0);
+        let far = interior_occluder_cover_depth(64.0);
+
+        assert!(near > far);
+        assert!(far > INTERIOR_PLAYER_DEPTH);
+    }
+
+    #[test]
     fn pickup_safety_moves_the_motel_wall_log_to_clear_land() {
         let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
         let motel = interior::MotelExteriorMap::load();
@@ -4285,8 +4706,8 @@ mod tests {
         let tool_shed = interior::ToolShedExteriorMap::load();
         let occupied = ExteriorRect::new(desired, Vec2::splat(100.0));
         let obstacles = ExteriorObstacles {
-            tree_trunks: vec![],
-            tree_art: vec![occupied],
+            solid_footprints: vec![],
+            prop_exclusions: vec![occupied],
         };
 
         let actual =

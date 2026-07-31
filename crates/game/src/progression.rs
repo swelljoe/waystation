@@ -9,6 +9,12 @@ const XP_PER_LEVEL: u16 = 3;
 const MAX_SKILL_LEVEL: u8 = 3;
 pub const MAX_CARRIED_TOOLS: usize = 3;
 
+/// Total experience in one skill from nothing to its ceiling.
+#[cfg_attr(not(test), allow(dead_code))]
+pub const fn xp_for_max_level() -> u32 {
+    XP_PER_LEVEL as u32 * MAX_SKILL_LEVEL as u32
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SkillId {
@@ -131,6 +137,20 @@ impl SupplyId {
             Self::Cloth => "cloth",
         }
     }
+
+    /// Requirement lines read as sentences, so a single board is a board.
+    pub const fn label_for(self, amount: u16) -> &'static str {
+        if amount == 1 {
+            match self {
+                Self::Log => "fallen log",
+                Self::Plank => "sound plank",
+                Self::Nails => "nail",
+                _ => self.label(),
+            }
+        } else {
+            self.label()
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -141,6 +161,8 @@ pub enum TaskAction {
     Clear,
     Restore,
     Light,
+    Mill,
+    Quarry,
 }
 
 impl TaskAction {
@@ -151,6 +173,8 @@ impl TaskAction {
             Self::Clear => "clear",
             Self::Restore => "restore",
             Self::Light => "light",
+            Self::Mill => "mill",
+            Self::Quarry => "quarry",
         }
     }
 
@@ -161,6 +185,8 @@ impl TaskAction {
             Self::Clear => "cleared",
             Self::Restore => "restored",
             Self::Light => "lit",
+            Self::Mill => "milled",
+            Self::Quarry => "quarried",
         }
     }
 }
@@ -181,6 +207,11 @@ pub struct TaskSpec {
     pub tools: Vec<ToolId>,
     #[serde(default)]
     pub supplies: Vec<SupplyCost>,
+    /// Materials the work gives back: nails pulled from cleared debris, planks
+    /// cut from a log, stone broken out of an outcrop. This is what keeps the
+    /// restoration economy circulating instead of draining one-time props.
+    #[serde(default)]
+    pub yields: Vec<SupplyCost>,
     #[serde(default = "default_xp")]
     pub xp: u16,
 }
@@ -194,7 +225,9 @@ impl TaskSpec {
     /// more specific requirements are authored in the editor.
     pub fn for_kind(kind: &str) -> Self {
         match kind {
-            "debris" => Self::new(TaskAction::Clean, SkillId::Upkeep, 0),
+            "debris" => {
+                Self::new(TaskAction::Clean, SkillId::Upkeep, 0).with_yield(SupplyId::Nails, 1)
+            }
             "floor" => Self::new(TaskAction::Repair, SkillId::Carpentry, 0)
                 .with_tools(&[ToolId::Hammer])
                 .with_supply(SupplyId::Plank, 1),
@@ -203,8 +236,9 @@ impl TaskSpec {
                     .with_tools(&[ToolId::Hammer])
                     .with_supply(SupplyId::Plank, 1)
             }
+            // Mortar and rubble are shovel work; no trowel survives in the valley.
             "wall" | "fireplace" => Self::new(TaskAction::Repair, SkillId::Masonry, 0)
-                .with_tools(&[ToolId::Trowel])
+                .with_tools(&[ToolId::Shovel])
                 .with_supply(SupplyId::Stone, 1),
             "chimney" => {
                 Self::new(TaskAction::Clear, SkillId::Upkeep, 1).with_tools(&[ToolId::Ladder])
@@ -228,6 +262,7 @@ impl TaskSpec {
             level,
             tools: Vec::new(),
             supplies: Vec::new(),
+            yields: Vec::new(),
             xp: 1,
         }
     }
@@ -242,6 +277,16 @@ impl TaskSpec {
         self
     }
 
+    fn with_yield(mut self, item: SupplyId, amount: u16) -> Self {
+        self.yields.push(SupplyCost { item, amount });
+        self
+    }
+
+    const fn without_experience(mut self) -> Self {
+        self.xp = 0;
+        self
+    }
+
     pub fn requirements_text(&self) -> String {
         let mut parts = Vec::new();
         if self.level > 0 {
@@ -251,13 +296,41 @@ impl TaskSpec {
         parts.extend(
             self.supplies
                 .iter()
-                .map(|cost| format!("{} {}", cost.amount, cost.item.label())),
+                .map(|cost| format!("{} {}", cost.amount, cost.item.label_for(cost.amount))),
         );
         if parts.is_empty() {
             "no prerequisites".to_owned()
         } else {
             parts.join(" · ")
         }
+    }
+
+    pub fn yields_text(&self) -> String {
+        self.yields
+            .iter()
+            .map(|gain| format!("{} {}", gain.amount, gain.item.label_for(gain.amount)))
+            .collect::<Vec<_>>()
+            .join(" · ")
+    }
+
+    /// The sawbuck turns the valley's fallen wood into the planks every
+    /// carpentry and roofing repair asks for. Milling is craft, not restoration,
+    /// so it teaches nothing on its own.
+    pub fn for_milling() -> Self {
+        Self::new(TaskAction::Mill, SkillId::Carpentry, 0)
+            .with_tools(&[ToolId::Hatchet])
+            .with_supply(SupplyId::Log, 1)
+            .with_yield(SupplyId::Plank, 2)
+            .without_experience()
+    }
+
+    /// Stone comes out of the valley's own outcrops, which is why the shed's
+    /// broken pickaxe has to be made serviceable before any masonry can begin.
+    pub fn for_quarrying() -> Self {
+        Self::new(TaskAction::Quarry, SkillId::Masonry, 0)
+            .with_tools(&[ToolId::Pickaxe])
+            .with_yield(SupplyId::Stone, 3)
+            .without_experience()
     }
 
     pub fn for_tool_repair(tool: ToolId) -> Self {
@@ -270,7 +343,10 @@ impl TaskSpec {
     }
 
     pub fn for_tree_chopping() -> Self {
-        Self::new(TaskAction::Clear, SkillId::Upkeep, 0).with_tools(&[ToolId::Hatchet])
+        Self::new(TaskAction::Clear, SkillId::Upkeep, 0)
+            .with_tools(&[ToolId::Hatchet])
+            .with_yield(SupplyId::Log, 2)
+            .with_yield(SupplyId::Kindling, 2)
     }
 }
 
@@ -487,12 +563,15 @@ impl Progression {
             return Err(format!(
                 "Needs {} {}; you have {}.",
                 cost.amount,
-                cost.item.label(),
+                cost.item.label_for(cost.amount),
                 self.supply(cost.item)
             ));
         }
         for cost in &task.supplies {
             *self.supplies.entry(cost.item).or_default() -= cost.amount;
+        }
+        for gain in &task.yields {
+            *self.supplies.entry(gain.item).or_default() += gain.amount;
         }
         let old_level = level;
         self.skills.entry(task.skill).or_default().xp += task.xp;
@@ -608,11 +687,164 @@ mod tests {
         progression.add_tool(ToolId::Hammer);
         assert_eq!(
             progression.attempt(&floor),
-            Err("Needs 1 sound planks; you have 0.".to_owned())
+            Err("Needs 1 sound plank; you have 0.".to_owned())
         );
         progression.add_supply(SupplyId::Plank, 1);
         progression.attempt(&floor).expect("requirements met");
         assert_eq!(progression.supply(SupplyId::Plank), 0);
+    }
+
+    #[test]
+    fn cleared_debris_gives_back_the_nails_it_was_built_with() {
+        let mut progression = Progression::default();
+        progression
+            .attempt(&TaskSpec::for_kind("debris"))
+            .expect("cleaning has no requirements");
+
+        assert_eq!(progression.supply(SupplyId::Nails), 1);
+    }
+
+    #[test]
+    fn the_sawbuck_turns_valley_logs_into_carpentry_planks() {
+        let mut progression = Progression::default();
+        let milling = TaskSpec::for_milling();
+        progression.add_tool(ToolId::Hatchet);
+        progression.add_supply(SupplyId::Log, 1);
+
+        // Milling is carpentry work, so it waits on the same Upkeep 1 unlock.
+        assert_eq!(
+            progression.attempt(&milling),
+            Err("Carpentry is not unlocked. Reach Upkeep 1 first.".to_owned())
+        );
+        for _ in 0..3 {
+            progression
+                .attempt(&TaskSpec::for_kind("debris"))
+                .expect("cleaning");
+        }
+        progression.attempt(&milling).expect("a log and a hatchet");
+
+        assert_eq!(progression.supply(SupplyId::Log), 0);
+        assert_eq!(progression.supply(SupplyId::Plank), 2);
+        // Craft, not restoration: the plank is the reward, not the lesson.
+        assert_eq!(progression.skill_level(SkillId::Carpentry), 0);
+    }
+
+    #[test]
+    fn quarrying_stone_waits_on_a_serviceable_pickaxe() {
+        let mut progression = Progression::default();
+        progression.register_tool_instance("pickaxe-01", ToolId::Pickaxe, ToolCondition::Broken);
+        progression.pick_up_tool("pickaxe-01").expect("carried");
+        progression.add_tool(ToolId::Hammer);
+        for _ in 0..3 {
+            progression
+                .attempt(&TaskSpec::for_kind("debris"))
+                .expect("cleaning");
+        }
+        let quarrying = TaskSpec::for_quarrying();
+
+        assert_eq!(
+            progression.attempt(&quarrying),
+            Err("Needs a pickaxe.".to_owned())
+        );
+        progression
+            .attempt(&TaskSpec::for_tool_repair(ToolId::Pickaxe))
+            .expect("Upkeep 1 and a hammer");
+        progression.set_tool_condition("pickaxe-01", ToolCondition::Serviceable);
+        progression.attempt(&quarrying).expect("a working pickaxe");
+
+        assert_eq!(progression.supply(SupplyId::Stone), 3);
+    }
+
+    #[test]
+    fn masonry_becomes_reachable_once_stone_can_be_quarried() {
+        let mut progression = Progression::default();
+        progression.add_tool(ToolId::Pickaxe);
+        progression.add_tool(ToolId::Shovel);
+        for _ in 0..3 {
+            progression
+                .attempt(&TaskSpec::for_kind("debris"))
+                .expect("cleaning");
+        }
+        let wall = TaskSpec::for_kind("wall");
+        assert_eq!(
+            progression.attempt(&wall),
+            Err("Needs 1 stone; you have 0.".to_owned())
+        );
+
+        for _ in 0..3 {
+            progression
+                .attempt(&TaskSpec::for_quarrying())
+                .expect("an outcrop");
+        }
+        for _ in 0..3 {
+            progression.attempt(&wall).expect("stone in hand");
+        }
+
+        assert_eq!(progression.skill_level(SkillId::Masonry), 1);
+    }
+
+    /// The whole chain the restoration depends on, walked end to end: clean to
+    /// unlock, salvage the nails, chop and mill for planks, repair the pickaxe,
+    /// quarry the stone, and put every specialty to work.
+    #[test]
+    fn one_valley_loop_carries_every_skill_to_its_ceiling() {
+        let mut progression = Progression::default();
+        // The shed's pickaxe is the one tool that starts broken; the rest stand
+        // in for trips the Scribe makes inside the three-tool carry limit.
+        progression.register_tool_instance("pickaxe-01", ToolId::Pickaxe, ToolCondition::Broken);
+        progression.pick_up_tool("pickaxe-01").expect("carried");
+        progression.add_tool(ToolId::Hammer);
+        progression.add_tool(ToolId::Hatchet);
+        progression.add_tool(ToolId::Shovel);
+        progression.add_tool(ToolId::Ladder);
+
+        let clean = TaskSpec::for_kind("debris");
+        let floor = TaskSpec::for_kind("floor");
+        let wall = TaskSpec::for_kind("wall");
+        let roof = TaskSpec::for_kind("roof");
+        for _ in 0..9 {
+            progression.attempt(&clean).expect("debris needs nothing");
+        }
+        assert_eq!(progression.skill_level(SkillId::Upkeep), MAX_SKILL_LEVEL);
+
+        progression
+            .attempt(&TaskSpec::for_tool_repair(ToolId::Pickaxe))
+            .expect("Upkeep 1 and a hammer");
+        progression.set_tool_condition("pickaxe-01", ToolCondition::Serviceable);
+
+        for _ in 0..9 {
+            progression
+                .attempt(&TaskSpec::for_tree_chopping())
+                .expect("a hatchet and a standing tree");
+        }
+        for _ in 0..18 {
+            progression
+                .attempt(&TaskSpec::for_milling())
+                .expect("a log on the sawbuck");
+        }
+        for _ in 0..3 {
+            progression
+                .attempt(&TaskSpec::for_quarrying())
+                .expect("a working pickaxe");
+        }
+
+        for _ in 0..9 {
+            progression.attempt(&floor).expect("planks for carpentry");
+            progression.attempt(&wall).expect("stone for masonry");
+        }
+        // Roofing opens only behind Carpentry, which the floorboards just paid for.
+        for _ in 0..9 {
+            progression.attempt(&roof).expect("planks and a ladder");
+        }
+
+        for skill in SkillId::ALL {
+            assert_eq!(
+                progression.skill_level(skill),
+                MAX_SKILL_LEVEL,
+                "{} stalled below its ceiling",
+                skill.label()
+            );
+        }
     }
 
     #[test]

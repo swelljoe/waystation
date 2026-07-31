@@ -74,7 +74,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -116,7 +116,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -158,7 +158,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -200,7 +200,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -326,7 +326,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -368,7 +368,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -410,7 +410,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -452,7 +452,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -494,7 +494,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -536,7 +536,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -578,7 +578,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -620,7 +620,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -662,7 +662,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -704,7 +704,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -746,7 +746,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -788,7 +788,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -1843,7 +1843,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -1963,7 +1963,13 @@
         "level": 0,
         "tools": [],
         "supplies": [],
-        "xp": 1
+        "xp": 1,
+        "yields": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ]
       }
     },
     "tiny-trash-2": {
@@ -1991,7 +1997,13 @@
         "level": 0,
         "tools": [],
         "supplies": [],
-        "xp": 1
+        "xp": 1,
+        "yields": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ]
       }
     },
     "tiny-trash-3": {
@@ -2019,7 +2031,13 @@
         "level": 0,
         "tools": [],
         "supplies": [],
-        "xp": 1
+        "xp": 1,
+        "yields": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ]
       }
     },
     "tiny-trash-4": {
@@ -2047,7 +2065,13 @@
         "level": 0,
         "tools": [],
         "supplies": [],
-        "xp": 1
+        "xp": 1,
+        "yields": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ]
       }
     },
     "tiny-trash-5": {
@@ -2075,7 +2099,13 @@
         "level": 0,
         "tools": [],
         "supplies": [],
-        "xp": 1
+        "xp": 1,
+        "yields": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ]
       }
     },
     "broken-lamp-1": {
@@ -2277,7 +2307,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {
@@ -2292,84 +2322,42 @@
       "label": "Stone Fireplace 1",
       "kind": "fireplace",
       "layer": "object",
+      "task": {
+        "action": "repair",
+        "skill": "masonry",
+        "level": 0,
+        "tools": [
+          "shovel"
+        ],
+        "supplies": [
+          {
+            "item": "stone",
+            "amount": 1
+          }
+        ],
+        "xp": 1
+      },
       "states": {
         "damaged": {
           "source": {
             "path": "components/fireplaces.png",
             "grid": 1,
-            "x": 14,
-            "y": 14,
+            "x": 16,
+            "y": 24,
             "width": 62,
-            "height": 74
+            "height": 104
           }
         },
         "repaired": {
           "source": {
             "path": "components/fireplaces.png",
             "grid": 1,
-            "x": 19,
-            "y": 172,
-            "width": 61,
-            "height": 75
+            "x": 96,
+            "y": 24,
+            "width": 62,
+            "height": 104
           }
         }
-      },
-      "task": {
-        "action": "repair",
-        "skill": "masonry",
-        "level": 0,
-        "tools": [
-          "trowel"
-        ],
-        "supplies": [
-          {
-            "item": "stone",
-            "amount": 1
-          }
-        ],
-        "xp": 1
-      }
-    },
-    "stone-fireplace-chimney-extension": {
-      "label": "Stone Fireplace Chimney Extension",
-      "kind": "fireplace",
-      "layer": "object",
-      "states": {
-        "damaged": {
-          "source": {
-            "path": "components/scaled-damaged-TX Village House.png",
-            "grid": 8,
-            "x": 55,
-            "y": 106,
-            "width": 5,
-            "height": 5
-          }
-        },
-        "repaired": {
-          "source": {
-            "path": "components/Pixel Art Platformer - Village House v2.4.4/Texture/TX Village House.png",
-            "grid": 8,
-            "x": 55,
-            "y": 113,
-            "width": 5,
-            "height": 6
-          }
-        }
-      },
-      "task": {
-        "action": "repair",
-        "skill": "masonry",
-        "level": 0,
-        "tools": [
-          "trowel"
-        ],
-        "supplies": [
-          {
-            "item": "stone",
-            "amount": 1
-          }
-        ],
-        "xp": 1
       }
     },
     "trash-pile-1": {
@@ -2397,7 +2385,13 @@
         "level": 0,
         "tools": [],
         "supplies": [],
-        "xp": 1
+        "xp": 1,
+        "yields": [
+          {
+            "item": "nails",
+            "amount": 1
+          }
+        ]
       }
     },
     "old-desk": {
@@ -2493,7 +2487,7 @@
         "skill": "masonry",
         "level": 0,
         "tools": [
-          "trowel"
+          "shovel"
         ],
         "supplies": [
           {

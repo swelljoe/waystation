@@ -597,11 +597,64 @@ def draw_forage_and_tool_props() -> dict[str, Image.Image]:
         px(ladder_draw, (9, y, 34, y + 4), "#9d7748")
         px(ladder_draw, (11, y, 32, y + 1), "#c39a5b")
 
+    sawbuck = Image.new("RGBA", (120, 96), (0, 0, 0, 0))
+    saw_draw = ImageDraw.Draw(sawbuck)
+    px(saw_draw, (6, 40, 114, 56), "#77543b")
+    px(saw_draw, (6, 40, 114, 44), "#9d7748")
+    for leg in (16, 96):
+        px(saw_draw, (leg, 56, leg + 8, 90), "#77543b")
+        px(saw_draw, (leg + 2, 56, leg + 4, 90), "#c39a5b")
+    saw_draw.line([(24, 40), (58, 22)], fill="#c39a5b", width=5)
+    saw_draw.line([(62, 24), (100, 34)], fill="#8b8f96", width=3)
+    px(saw_draw, (58, 20, 66, 30), "#34322a")
+
+    outcrop = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
+    rock_draw = ImageDraw.Draw(outcrop)
+    rock_draw.polygon([(16, 88), (28, 30), (50, 16), (70, 34), (80, 88)], fill="#6c6a63")
+    rock_draw.polygon([(28, 32), (49, 19), (60, 42), (36, 50)], fill="#8b8880")
+    rock_draw.polygon([(54, 50), (76, 44), (80, 86), (56, 86)], fill="#55534d")
+    px(rock_draw, (10, 84, 88, 92), "#4a4842")
+
     return {
         "fallen_log.png": fallen_log,
         "plank.png": plank,
         "ladder.png": ladder,
+        "sawbuck.png": sawbuck,
+        "stone_outcrop.png": outcrop,
     }
+
+
+WORKED_STATION_ART = {
+    # The Scribe returns to these, so they use pack art at the runtime size when
+    # the licensed source is present and fall back to the drawn props otherwise.
+    "sawbuck.png": (
+        "Modern_Farm_v1.2/48x48/Single_Files_48x48/"
+        "0_Complete_Tileset_48x48/Woodwork_Crafting_Table_Full_48x48.png",
+        (120, 96),
+    ),
+    "stone_outcrop.png": (
+        "Modern_Farm_v1.2/48x48/Single_Files_48x48/"
+        "0_Complete_Tileset_48x48/Rock_Big_48x48.png",
+        (96, 96),
+    ),
+}
+
+
+def build_worked_stations(source: Path) -> list[tuple[str, Image.Image, str]]:
+    """Prefer licensed station art, keeping the drawn prop as the open build."""
+    stations = []
+    drawn = draw_forage_and_tool_props()
+    for name, (relative, size) in WORKED_STATION_ART.items():
+        licensed = source / relative
+        if licensed.is_file():
+            with Image.open(licensed) as sheet:
+                image = sheet.convert("RGBA")
+            if image.size != size:
+                image = image.resize(size, Image.Resampling.NEAREST)
+            stations.append((name, image, "licensed Modern Farm runtime extraction"))
+        else:
+            stations.append((name, drawn[name], "project-authored procedural fallback"))
+    return stations
 
 
 def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
@@ -639,6 +692,9 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     for name, image in draw_forage_and_tool_props().items():
         image.save(world / name, optimize=False)
         sources[name] = fallback
+    for name, image, station_source in build_worked_stations(source):
+        image.save(world / name, optimize=False)
+        sources[name] = station_source
 
     private_tree = source / "THE NATURAL/Props/Tree 08.png"
     tree = Image.open(private_tree).convert("RGBA") if private_tree.is_file() else draw_tree()
@@ -757,17 +813,19 @@ def interior_pixel_position(item: dict[str, object], tile_size: int) -> tuple[in
     return (int(item["x"]) * tile_size, int(item["y"]) * tile_size)
 
 
-def composite_scene_placements(
-    image: Image.Image,
+def placement_occludes_player(placement: dict[str, object]) -> bool:
+    return placement.get("occludes_player") is True
+
+
+def scene_placement_stamps(
     level: dict[str, object],
     source: Path,
     tile_size: int,
     layer: str | None = None,
-) -> Image.Image:
-    placements = sorted(
-        level["placements"], key=lambda item: INTERIOR_LAYER_ORDER[item["layer"]]
-    )
-    for placement in placements:
+) -> list[tuple[dict[str, object], Image.Image, tuple[int, int]]]:
+    """Resolve authored placements to their final stamps, in authored order."""
+    stamps = []
+    for placement in level["placements"]:
         if layer is not None and placement["layer"] != layer:
             continue
         source_spec = placement["source"]
@@ -785,6 +843,25 @@ def composite_scene_placements(
                 for x in range(0, placement_size[0], stamp.width):
                     repeated.alpha_composite(stamp, (x, y))
             stamp = repeated
+        stamps.append((placement, stamp, position))
+    return stamps
+
+
+def composite_scene_placements(
+    image: Image.Image,
+    level: dict[str, object],
+    source: Path,
+    tile_size: int,
+    layer: str | None = None,
+    skip_occluders: bool = False,
+) -> Image.Image:
+    stamps = sorted(
+        scene_placement_stamps(level, source, tile_size, layer),
+        key=lambda entry: INTERIOR_LAYER_ORDER[entry[0]["layer"]],
+    )
+    for placement, stamp, position in stamps:
+        if skip_occluders and placement_occludes_player(placement):
+            continue
         image.alpha_composite(stamp, position)
     return image
 
@@ -806,7 +883,11 @@ def render_building(level: dict[str, object], source: Path) -> Image.Image:
 
 
 def render_scene_layers(
-    level: dict[str, object], source: Path, *, interior: bool
+    level: dict[str, object],
+    source: Path,
+    *,
+    interior: bool,
+    extract_occluders: bool = False,
 ) -> dict[str, Image.Image]:
     """Render independent caches so baked and mutable art can share layer order."""
     grid = level["grid"]
@@ -833,8 +914,41 @@ def render_scene_layers(
                     width=1,
                 )
     for layer, image in layers.items():
-        composite_scene_placements(image, level, source, tile_size, layer)
+        composite_scene_placements(
+            image, level, source, tile_size, layer, skip_occluders=extract_occluders
+        )
     return layers
+
+
+def write_interior_occluder_art(
+    level: dict[str, object], source: Path, output: Path, interiors: Path
+) -> list[dict[str, object]]:
+    """Extract walk-behind scenery so the runtime can re-sort it against the player.
+
+    Authored order is the shared index between this writer and the engine, so
+    the crop never has to be recovered from the flattened layer at runtime.
+    """
+    records = []
+    tile_size = int(level["grid"]["tile_size"])
+    room_directory = interiors / str(level["id"])
+    room_directory.mkdir(parents=True, exist_ok=True)
+    occluders = [
+        (placement, stamp)
+        for placement, stamp, _ in scene_placement_stamps(level, source, tile_size)
+        if placement_occludes_player(placement)
+    ]
+    for index, (_, stamp) in enumerate(occluders):
+        destination = room_directory / f"occluder--{index:02d}.png"
+        stamp.save(destination, optimize=False)
+        records.append(
+            {
+                "path": str(destination.relative_to(output)),
+                "sha256": sha256(destination),
+                "size": list(stamp.size),
+                "source": "authored walk-behind placement extracted from its scene layer",
+            }
+        )
+    return records
 
 
 def write_mutable_interior_art(
@@ -926,7 +1040,10 @@ def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
         level = json.loads(level_path.read_text(encoding="utf-8"))
         if level.get("schema_version") not in {1, 2, 3, 4, 5} or level.get("id") != level_path.stem:
             raise SystemExit(f"invalid interior identity in {level_path}")
-        for layer, image in render_scene_layers(level, source, interior=True).items():
+        layers = render_scene_layers(
+            level, source, interior=True, extract_occluders=True
+        )
+        for layer, image in layers.items():
             destination = interiors / f"{level['id']}--{layer}.png"
             image.save(destination, optimize=False)
             records.append(
@@ -940,6 +1057,7 @@ def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
         records.extend(
             write_mutable_interior_art(level, source, output, interiors, repair_pairs)
         )
+        records.extend(write_interior_occluder_art(level, source, output, interiors))
     return records
 
 

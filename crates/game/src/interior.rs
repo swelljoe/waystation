@@ -14,6 +14,21 @@ pub const TOOL_SHED_EXTERIOR_ORIGIN: Vec2 = Vec2::new(-1_180.0, 820.0);
 #[derive(Component)]
 pub struct InteriorSceneEntity;
 
+/// Interior scenery the Scribe can walk behind. The runtime re-sorts these
+/// entities against the player every frame instead of leaving them in their
+/// authored layer band.
+#[derive(Component, Clone, Copy, Debug)]
+pub struct InteriorOccluder {
+    /// Southern edge of the art, treated as where the object meets the floor.
+    pub ground_y: f32,
+    /// Authored depth used whenever the player stands in front of the object.
+    pub resting_depth: f32,
+}
+
+/// Interior occluders sit just above the rest of their baked layer, which is
+/// where their pixels were composited before the build extracted them.
+const INTERIOR_OCCLUDER_RESTING_BIAS: f32 = 0.1;
+
 const MOTEL_OFFICE_JSON: &str = include_str!("../../../content/interiors/motel-office.json");
 const MOTEL_ROOM_01_JSON: &str = include_str!("../../../content/interiors/motel-room-01.json");
 const MOTEL_ROOM_02_JSON: &str = include_str!("../../../content/interiors/motel-room-02.json");
@@ -218,6 +233,8 @@ pub struct SceneInteraction {
 
 #[derive(Debug, Deserialize)]
 struct BakedPlacementDefinition {
+    #[serde(default = "default_placement_layer")]
+    layer: String,
     #[serde(default)]
     x: Option<i16>,
     #[serde(default)]
@@ -231,6 +248,10 @@ struct BakedPlacementDefinition {
     #[serde(default)]
     occludes_player: bool,
     source: SourceDefinition,
+}
+
+fn default_placement_layer() -> String {
+    "object".to_owned()
 }
 
 impl BakedPlacementDefinition {
@@ -266,22 +287,42 @@ impl BakedPlacementDefinition {
         }
     }
 
-    fn resolve_occlusion_area(
+    fn resolve_occluder(
         &self,
         tile_size: f32,
         world_size: Vec2,
         origin: Vec2,
-    ) -> CollisionArea {
+        image_path: String,
+    ) -> SceneOccluder {
         let size = self.pixel_size(tile_size);
         let pixel_position = self.pixel_position(tile_size);
         let top_left = Vec2::new(
             pixel_position.x + origin.x - world_size.x / 2.0,
             -pixel_position.y + origin.y + world_size.y / 2.0,
         );
-        CollisionArea {
+        SceneOccluder {
+            layer: self.layer.clone(),
+            image_path,
             center: top_left + Vec2::new(size.x / 2.0, -size.y / 2.0),
             size,
         }
+    }
+}
+
+/// A baked placement flagged `occludes_player`. Buildings use only its bounds,
+/// to decide whether the Scribe's crown still shows above the roofline;
+/// interiors additionally spawn the extracted crop as its own sprite.
+#[derive(Clone, Debug)]
+pub struct SceneOccluder {
+    pub layer: String,
+    pub image_path: String,
+    pub center: Vec2,
+    pub size: Vec2,
+}
+
+impl SceneOccluder {
+    fn ground_y(&self) -> f32 {
+        self.center.y - self.size.y / 2.0
     }
 }
 
@@ -525,7 +566,7 @@ struct SceneMap {
     origin: Vec2,
     art_directory: &'static str,
     collision: Vec<CollisionArea>,
-    crown_occluders: Vec<CollisionArea>,
+    occluders: Vec<SceneOccluder>,
     interactions: Vec<SceneInteraction>,
     mutable_elements: Vec<MutableElement>,
     portable_items: Vec<PortableItem>,
@@ -535,25 +576,62 @@ fn resolve_scene_areas(
     definition: &SceneDefinition,
     world_size: Vec2,
     origin: Vec2,
-) -> (Vec<CollisionArea>, Vec<CollisionArea>) {
+    art_directory: &str,
+) -> (Vec<CollisionArea>, Vec<SceneOccluder>) {
     let collision = definition
         .collision
         .iter()
         .map(|&area| area.resolve(definition.grid.tile_size, world_size, origin))
         .collect();
-    let crown_occluders = definition
+    // The build writes one crop per occluding placement in authored order, so
+    // the filtered index here names the extracted file.
+    let occluders = definition
         .placements
         .iter()
         .filter(|placement| placement.occludes_player)
-        .map(|placement| {
-            placement.resolve_occlusion_area(
+        .enumerate()
+        .map(|(index, placement)| {
+            placement.resolve_occluder(
                 f32::from(definition.grid.tile_size),
                 world_size,
                 origin,
+                format!("{art_directory}/{}/occluder--{index:02}.png", definition.id),
             )
         })
         .collect();
-    (collision, crown_occluders)
+    (collision, occluders)
+}
+
+fn resolve_element_states(
+    template: &ElementTemplateDefinition,
+    art_directory: &str,
+    room_id: &str,
+    template_id: &str,
+) -> HashMap<String, ElementVisual> {
+    template
+        .states
+        .iter()
+        .map(|(state_name, visual)| {
+            let size = visual.source.as_ref().map_or(Vec2::ZERO, |source| {
+                Vec2::new(
+                    f32::from(source.width) * f32::from(source.grid),
+                    f32::from(source.height) * f32::from(source.grid),
+                )
+            });
+            let image_path = visual
+                .source
+                .as_ref()
+                .map(|_| format!("{art_directory}/{room_id}/{template_id}--{state_name}.png"));
+            (
+                state_name.clone(),
+                ElementVisual {
+                    image_path,
+                    size,
+                    visible: visual.visible,
+                },
+            )
+        })
+        .collect()
 }
 
 impl SceneMap {
@@ -578,7 +656,8 @@ impl SceneMap {
         let templates = &definition.templates;
         let tile_size = f32::from(definition.grid.tile_size);
         let world_size = definition.grid.world_size();
-        let (collision, crown_occluders) = resolve_scene_areas(&definition, world_size, origin);
+        let (collision, occluders) =
+            resolve_scene_areas(&definition, world_size, origin, art_directory);
         let interactions = resolve_interactions(definition.interactions, world_size, origin);
         let mutable_elements = definition
             .structures
@@ -613,32 +692,12 @@ impl SceneMap {
                     flip_x: instance.transform.flip_x,
                     flip_y: instance.transform.flip_y,
                     occludes_player: instance.occludes_player,
-                    states: template
-                        .states
-                        .iter()
-                        .map(|(state_name, visual)| {
-                            let size = visual.source.as_ref().map_or(Vec2::ZERO, |source| {
-                                Vec2::new(
-                                    f32::from(source.width) * f32::from(source.grid),
-                                    f32::from(source.height) * f32::from(source.grid),
-                                )
-                            });
-                            let image_path = visual.source.as_ref().map(|_| {
-                                format!(
-                                    "{art_directory}/{room_id}/{}--{state_name}.png",
-                                    instance.template
-                                )
-                            });
-                            (
-                                state_name.clone(),
-                                ElementVisual {
-                                    image_path,
-                                    size,
-                                    visible: visual.visible,
-                                },
-                            )
-                        })
-                        .collect(),
+                    states: resolve_element_states(
+                        template,
+                        art_directory,
+                        &room_id,
+                        &instance.template,
+                    ),
                 }
             })
             .collect();
@@ -656,7 +715,7 @@ impl SceneMap {
                 origin,
                 art_directory,
                 collision,
-                crown_occluders,
+                occluders,
                 interactions,
                 mutable_elements,
                 portable_items,
@@ -730,7 +789,7 @@ impl SceneMap {
 
     fn crown_is_fully_occluded(&self, center: Vec2, size: Vec2) -> bool {
         let half_size = size / 2.0;
-        self.crown_occluders.iter().any(|area| {
+        self.occluders.iter().any(|area| {
             let area_half_size = area.size / 2.0;
             (center.x - area.center.x).abs() < half_size.x + area_half_size.x
                 && (center.y - area.center.y).abs() < half_size.y + area_half_size.y
@@ -817,6 +876,10 @@ impl InteriorMap {
 
     pub fn interactions(&self) -> &[SceneInteraction] {
         &self.scene.interactions
+    }
+
+    pub fn occluders(&self) -> &[SceneOccluder] {
+        &self.scene.occluders
     }
 
     pub fn portable_items(&self) -> &[PortableItem] {
@@ -1040,6 +1103,31 @@ fn spawn_scene_backgrounds(
         .collect()
 }
 
+/// Spawn one extracted walk-behind crop back where its baked pixels used to be.
+pub fn spawn_interior_occluder(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    occluder: &SceneOccluder,
+) -> Entity {
+    let resting_depth =
+        scene_layer_z(&occluder.layer, true, false) + INTERIOR_OCCLUDER_RESTING_BIAS;
+    commands
+        .spawn((
+            Sprite {
+                image: asset_server.load(occluder.image_path.clone()),
+                custom_size: Some(occluder.size),
+                ..default()
+            },
+            Transform::from_xyz(occluder.center.x, occluder.center.y, resting_depth),
+            InteriorOccluder {
+                ground_y: occluder.ground_y(),
+                resting_depth,
+            },
+            InteriorSceneEntity,
+        ))
+        .id()
+}
+
 pub fn spawn_interior_mutable(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -1105,6 +1193,12 @@ fn spawn_mutable(
         .id();
     if interior {
         commands.entity(entity).insert(InteriorSceneEntity);
+        if element.occludes_player {
+            commands.entity(entity).insert(InteriorOccluder {
+                ground_y: center.y - visual.size.y / 2.0,
+                resting_depth: z,
+            });
+        }
     }
     entity
 }
@@ -1271,9 +1365,9 @@ mod tests {
     #[test]
     fn motel_gable_and_chimneys_are_authored_full_occluders() {
         let motel = MotelExteriorMap::load();
-        assert_eq!(motel.scene.crown_occluders.len(), 4);
+        assert_eq!(motel.scene.occluders.len(), 4);
 
-        let gable = motel.scene.crown_occluders[0];
+        let gable = &motel.scene.occluders[0];
         assert!(motel.fully_occludes_crown(gable.center, Vec2::new(24.0, 16.0)));
         assert!(!motel.fully_occludes_crown(
             MOTEL_EXTERIOR_ORIGIN + Vec2::new(600.0, -250.0),
@@ -1289,6 +1383,33 @@ mod tests {
         assert!(chimneys
             .iter()
             .all(|element| element.fully_occludes_player()));
+    }
+
+    #[test]
+    fn office_walk_behind_scenery_resolves_to_extracted_crops() {
+        let office = InteriorMap::load(InteriorId::Office);
+        let [couch, lamp] = office.occluders() else {
+            panic!("the office authors exactly two walk-behind placements");
+        };
+
+        // Authored order names the crop the asset build extracted.
+        assert_eq!(couch.image_path, "interiors/motel-office/occluder--00.png");
+        assert_eq!(lamp.image_path, "interiors/motel-office/occluder--01.png");
+        assert_eq!(lamp.layer, "object");
+        assert_eq!(lamp.size, Vec2::new(48.0, 96.0));
+        assert_eq!(lamp.center, INTERIOR_ORIGIN + Vec2::new(-248.0, 152.0));
+        assert!((lamp.ground_y() - (INTERIOR_ORIGIN.y + 104.0)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn extracted_occluders_rest_inside_their_authored_layer_band() {
+        for layer in ["floor", "wall", "object", "overlay"] {
+            let baked = scene_layer_z(layer, true, false);
+            let resting = baked + INTERIOR_OCCLUDER_RESTING_BIAS;
+
+            assert!(resting > baked);
+            assert!(resting < scene_layer_z(layer, true, true));
+        }
     }
 
     #[test]

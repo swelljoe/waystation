@@ -142,6 +142,32 @@ system shows an item only when its saved location belongs to the active scene.
 Save version 6 therefore moves tools between scenes without mutating authored
 JSON or flattened art.
 
+## The restoration economy
+
+A `TaskSpec` states what a job asks for (skill, level, tools, supplies) and what
+it gives back (`yields`). Yields are what keep the valley circulating rather than
+draining: cleared debris returns nails, a chopped tree returns logs and kindling,
+and two standing stations convert raw material into the two currencies every
+repair is priced in. The sawbuck in the motel court takes a hatchet and one log
+and returns two planks; the outcrops along the valley rim take a pickaxe and
+return stone. Both are worked in place instead of collected, so their entities
+carry a task rather than a pickup reward, and the outcrop's `collected_pickups`
+entry is what keeps it quarried across a save.
+
+Conversion teaches nothing — milling and quarrying award no experience — so a
+skill level still measures restoration done rather than material gathered. The
+gates are deliberate and each one uses a mechanism that already existed: milling
+is Carpentry work, so it waits on the Upkeep 1 unlock; quarrying needs the shed's
+pickaxe, which starts broken, so masonry begins with a tool repair. Masonry lays
+stone with a shovel because no trowel art exists in any licensed pack; `Trowel`
+remains in `ToolId` for whenever one does.
+
+Two tests hold the economy together, because its failure mode is silent — a task
+authored with a supply or tool the valley never produces simply leaves its skill
+at zero with nothing in the UI to explain why. One walks the full chain from the
+first cleaned debris to every skill at its ceiling; the other checks all authored
+tasks in every scene against what the world can actually produce.
+
 New placements store `position: {grid, x, y}`. Multiplying the signed integer
 coordinates by that placement's grid yields its exact native-pixel offset from
 the room's top-left corner. Because the grid travels with each placement, one
@@ -206,3 +232,16 @@ apply one latched recoil per held approach while explaining where to seek a key.
 scale changes to frame the room against a near-black brown backdrop. Interior
 movement checks the room collision grid; exterior movement checks the authored
 motel grid while treating terrain beyond its canvas as walkable.
+
+Interiors are drawn as fixed layer bands rather than a Y-sorted field, so the
+Scribe holds one depth above every band. Scenery authored with
+`occludes_player: true` opts out of that: the asset build extracts each flagged
+interior placement into `runtime-assets/interiors/<scene>/occluder--NN.png`
+instead of baking it into its layer cache, indexed by authored order so the
+engine can name the crop without recovering it from flattened pixels. Mutable
+instances carrying the flag need no extraction — they are already their own
+entities. Either way the runtime compares the Scribe's ground contact against
+the art's southern edge each frame and lifts the object above them only while
+they stand behind it, so art transparency does the rest and walk-behind depth no
+longer has to be faked with collision. The flag keeps its exterior meaning on
+buildings, where it still governs the crown reveal.

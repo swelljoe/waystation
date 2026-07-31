@@ -483,6 +483,27 @@ function setPlacementOcclusion(element, enabled) {
   return element;
 }
 
+// The flag means "this art passes in front of the Scribe" in both scene types,
+// but a building already covers them wholesale, so only the crown is at stake.
+const OCCLUSION_COPY = {
+  building: {
+    label: "Fully hides player",
+    title: "Completely hide the Scribe, including the crown reveal, when this building component overlaps them",
+    enabled: "The selected building component now fully hides the player when overlapping.",
+    disabled: "The selected building component now uses the ordinary crown reveal.",
+  },
+  interior: {
+    label: "Player walks behind",
+    title: "Draw this scenery in front of the Scribe whenever they stand behind its floor line",
+    enabled: "The player now walks behind the selected scenery.",
+    disabled: "The player now walks over the selected scenery.",
+  },
+};
+
+function occlusionCopy() {
+  return OCCLUSION_COPY[state.sceneType === "building" ? "building" : "interior"];
+}
+
 function selectedElement() {
   if (!state.selectedPlaced) return null;
   return state.room[state.selectedPlaced.collection]?.[state.selectedPlaced.index] || null;
@@ -1927,6 +1948,9 @@ function updatePlacedSelectionInspector() {
   const previewButtons = document.querySelectorAll("[data-placement-preview]");
   const occlusionControl = $("#placement-occludes-player");
   const portableButton = $("#toggle-portable");
+  const copy = occlusionCopy();
+  $("#placement-occludes-player-label").textContent = copy.label;
+  occlusionControl.closest("label").title = copy.title;
   if (!element) {
     title.textContent = "None";
     details.textContent = "Choose Select, then click an item in the scene.";
@@ -2071,9 +2095,8 @@ function bindEvents() {
     pushUndo();
     setPlacementOcclusion(element, event.target.checked);
     updatePlacedSelectionInspector();
-    setStatus(event.target.checked
-      ? "The selected building component now fully hides the player when overlapping."
-      : "The selected building component now uses the ordinary crown reveal.");
+    const copy = occlusionCopy();
+    setStatus(event.target.checked ? copy.enabled : copy.disabled);
   });
   $("#behavior").addEventListener("change", drawRoom);
   $("#toggle-portable").addEventListener("click", toggleSelectedPortable);
