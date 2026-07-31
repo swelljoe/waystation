@@ -175,8 +175,9 @@ Use **Flip H** and **Flip V** before stamping to mirror baked scenery or a
 repairable instance without creating another source asset. Repair-pair instances
 apply one stored orientation to both damaged and repaired states.
 
-Baked scenery goes into the cached room background. Repair-pair states are
-extracted as separate native-size sprites and are never baked into that image.
+Baked scenery goes into separate cached images for the floor, wall, object, and
+overlay layers. Repair-pair states are extracted as separate native-size sprites
+and interleaved with those caches according to the same layer order.
 Approach an authored item and press `E`; the game reports missing skills, tools,
 or supplies before changing the sprite and persisting `room-id/instance-id`.
 

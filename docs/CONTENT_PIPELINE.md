@@ -17,8 +17,8 @@ Shared-crate tests enforce that invariant.
   runtime room images at their native pixel dimensions, with procedural
   stand-ins when private art is absent, applying authored horizontal/vertical
   flips and per-placement pixel snap offsets without resampling;
-- flattens transparent building caches and extracts their mutable repair states
-  through the same native-pixel path;
+- flattens a transparent building cache for each authored layer and extracts its
+  mutable repair states through the same native-pixel path;
 - extracts reusable repair-pair states as separate native-size runtime
   sprites so repaired structures and fixtures are not baked into room caches;
 - verifies and copies bundled open fonts and their license files;

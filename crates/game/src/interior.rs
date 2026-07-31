@@ -429,6 +429,12 @@ impl InteriorMap {
             .is_some_and(|cell| !self.scene.collision.contains(&cell))
     }
 
+    pub fn is_exit(&self, position: Vec2) -> bool {
+        self.scene
+            .cell_at(position)
+            .is_some_and(|cell| self.exits.contains(&cell))
+    }
+
     pub fn camera_position(&self, player: Vec2, camera_half_size: Vec2) -> Vec2 {
         let room_half_size = self.world_size() / 2.0;
         let travel = (room_half_size - camera_half_size).max(Vec2::ZERO);
@@ -493,6 +499,12 @@ impl MotelExteriorMap {
     pub fn element_center(&self, element: &MutableElement, visual_size: Vec2) -> Vec2 {
         self.scene.element_center(element, visual_size)
     }
+
+    pub fn is_walkable(&self, position: Vec2) -> bool {
+        self.scene
+            .cell_at(position)
+            .is_none_or(|cell| !self.scene.collision.contains(&cell))
+    }
 }
 
 pub fn spawn_interior(commands: &mut Commands, asset_server: &AssetServer, map: &InteriorMap) {
@@ -501,30 +513,66 @@ pub fn spawn_interior(commands: &mut Commands, asset_server: &AssetServer, map: 
         Transform::from_xyz(INTERIOR_ORIGIN.x, INTERIOR_ORIGIN.y, -20.0),
         InteriorSceneEntity,
     ));
-    let background = spawn_scene_background(commands, asset_server, &map.scene, -10.0);
-    commands.entity(background).insert(InteriorSceneEntity);
+    for background in spawn_scene_backgrounds(commands, asset_server, &map.scene, true) {
+        commands.entity(background).insert(InteriorSceneEntity);
+    }
 }
 
 pub fn spawn_building(commands: &mut Commands, asset_server: &AssetServer, map: &MotelExteriorMap) {
-    spawn_scene_background(commands, asset_server, &map.scene, -4.5);
+    spawn_scene_backgrounds(commands, asset_server, &map.scene, false);
 }
 
-fn spawn_scene_background(
+fn scene_layer_z(layer: &str, interior: bool, mutable: bool) -> f32 {
+    let z = if interior {
+        match layer {
+            "floor" => -10.0,
+            "wall" => -8.0,
+            "object" => -3.0,
+            "overlay" => 4.0,
+            _ => panic!("unsupported authored scene layer: {layer}"),
+        }
+    } else {
+        match layer {
+            "floor" => -4.5,
+            "wall" => -3.5,
+            "object" => -1.5,
+            "overlay" => 0.0,
+            _ => panic!("unsupported authored scene layer: {layer}"),
+        }
+    };
+    if mutable {
+        z + 0.25
+    } else {
+        z
+    }
+}
+
+fn spawn_scene_backgrounds(
     commands: &mut Commands,
     asset_server: &AssetServer,
     scene: &SceneMap,
-    z: f32,
-) -> Entity {
-    commands
-        .spawn((
-            Sprite {
-                image: asset_server.load(format!("{}/{}.png", scene.art_directory, scene.id)),
-                custom_size: Some(scene.world_size()),
-                ..default()
-            },
-            Transform::from_xyz(scene.origin.x, scene.origin.y, z),
-        ))
-        .id()
+    interior: bool,
+) -> Vec<Entity> {
+    ["floor", "wall", "object", "overlay"]
+        .into_iter()
+        .map(|layer| {
+            commands
+                .spawn((
+                    Sprite {
+                        image: asset_server
+                            .load(format!("{}/{}--{layer}.png", scene.art_directory, scene.id)),
+                        custom_size: Some(scene.world_size()),
+                        ..default()
+                    },
+                    Transform::from_xyz(
+                        scene.origin.x,
+                        scene.origin.y,
+                        scene_layer_z(layer, interior, false),
+                    ),
+                ))
+                .id()
+        })
+        .collect()
 }
 
 pub fn spawn_interior_mutable(
@@ -567,21 +615,7 @@ fn spawn_mutable(
     sprite.custom_size = Some(visual.size.max(Vec2::ONE));
     sprite.flip_x = element.flip_x;
     sprite.flip_y = element.flip_y;
-    let z = if interior {
-        match element.layer.as_str() {
-            "floor" => -9.0,
-            "wall" => -8.0,
-            "overlay" => 4.0,
-            _ => -3.0,
-        }
-    } else {
-        match element.layer.as_str() {
-            "floor" => -4.0,
-            "wall" => -3.0,
-            "overlay" => 0.0,
-            _ => -1.0,
-        }
-    };
+    let z = scene_layer_z(&element.layer, interior, true);
     let center = scene.element_center(element, visual.size);
     let entity = commands
         .spawn((
@@ -648,6 +682,29 @@ mod tests {
     }
 
     #[test]
+    fn motel_exterior_enforces_authored_collision_only_inside_its_canvas() {
+        let motel = MotelExteriorMap::load();
+        let blocked = motel
+            .scene
+            .collision
+            .iter()
+            .next()
+            .copied()
+            .expect("motel exterior has collision cells");
+
+        assert!(!motel.is_walkable(motel.scene.cell_center(blocked)));
+        assert!(motel.is_walkable(MOTEL_EXTERIOR_ORIGIN + motel.scene.world_size()));
+    }
+
+    #[test]
+    fn authored_interior_exit_cells_are_detectable_as_thresholds() {
+        let room = InteriorMap::load(InteriorId::Office);
+
+        assert!(room.is_exit(room.cell_center(room.exits[0])));
+        assert!(!room.is_exit(room.cell_center(room.entry)));
+    }
+
+    #[test]
     fn mutable_instance_deserializes_shared_state_flips() {
         let instance: MutableInstanceDefinition = serde_json::from_str(
             r#"{
@@ -666,6 +723,20 @@ mod tests {
         assert_eq!(instance.layer.as_deref(), Some("overlay"));
         assert_eq!(instance.resolved_layer("object"), "overlay");
         assert_eq!(instance.pixel_position(32.0), Vec2::new(48.0, 80.0));
+    }
+
+    #[test]
+    fn baked_and_mutable_art_share_the_authored_layer_order() {
+        for interior in [false, true] {
+            let floor_mutable = scene_layer_z("floor", interior, true);
+            let object_baked = scene_layer_z("object", interior, false);
+            let object_mutable = scene_layer_z("object", interior, true);
+            let overlay_baked = scene_layer_z("overlay", interior, false);
+
+            assert!(floor_mutable < object_baked);
+            assert!(object_baked < object_mutable);
+            assert!(object_mutable < overlay_baked);
+        }
     }
 
     #[test]

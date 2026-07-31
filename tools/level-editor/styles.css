@@ -129,6 +129,12 @@ h1, h2 { font-size: 20px; line-height: 1; margin: 2px 0 0; font-weight: 500; }
 .pair-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .capture-row { display: grid; grid-template-columns: 1fr; gap: 3px; }
 .capture-row small { color: var(--muted); font: 10px/1.3 system-ui, sans-serif; overflow-wrap: anywhere; }
+.task-editor { display: grid; gap: 7px; margin: 2px 0; padding: 8px; border: 1px solid var(--line); }
+.task-editor legend, .field-label { color: var(--gold); font: 11px system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.task-grid, .check-grid, .supply-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.check-grid label, .inline-check { display: flex; flex-direction: row; align-items: center; gap: 5px; }
+.check-grid input, .inline-check input { width: auto; }
+.supply-grid input { min-width: 0; width: 100%; }
 details { border-top: 1px solid var(--line); padding-top: 8px; }
 summary { cursor: pointer; color: var(--gold); font-size: 13px; }
 

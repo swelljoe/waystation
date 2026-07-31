@@ -23,6 +23,8 @@ use waystation_shared::{
 
 const PLAYER_SPEED: f32 = 210.0;
 const INTERACT_DISTANCE: f32 = 72.0;
+const DOOR_HEAD_PROBE_OFFSET: f32 = 32.0;
+const LOCKED_DOOR_BUMP_DISTANCE: f32 = 4.0;
 const DEVELOPMENT_PRESENTATION_SCALE: f32 = 2.0;
 const INTERIOR_CAMERA_SCALE: f32 = 0.72;
 const CAMERA_HALF_WIDTH: f32 = 480.0 / DEVELOPMENT_PRESENTATION_SCALE;
@@ -45,6 +47,8 @@ fn main() {
         .insert_resource(MotelAccess::default())
         .insert_resource(Progression::default())
         .insert_resource(ExteriorReturn::default())
+        .init_resource::<DoorwayAttempt>()
+        .init_resource::<DoorBumpLatch>()
         .init_resource::<terrain::TerrainDebugOverlay>()
         .init_resource::<InteriorState>()
         .add_plugins(
@@ -73,6 +77,7 @@ fn main() {
             Update,
             (
                 move_player,
+                handle_automatic_doorways,
                 animate_player,
                 follow_player,
                 terrain::update_debug_overlay,
@@ -218,6 +223,12 @@ impl Default for ExteriorReturn {
 }
 
 #[derive(Resource, Default)]
+struct DoorwayAttempt(Option<MotelDoorDestination>);
+
+#[derive(Resource, Default)]
+struct DoorBumpLatch(Option<interior::InteriorId>);
+
+#[derive(Resource, Default)]
 struct InteriorState(HashMap<String, String>);
 
 #[derive(SystemParam)]
@@ -225,7 +236,24 @@ struct InteractionResources<'w> {
     interior_state: ResMut<'w, InteriorState>,
     motel_access: ResMut<'w, MotelAccess>,
     progression: ResMut<'w, Progression>,
-    exterior_return: ResMut<'w, ExteriorReturn>,
+}
+
+#[derive(SystemParam)]
+struct MovementEnvironment<'w, 's> {
+    location: Res<'w, WorldLocation>,
+    interior: Res<'w, interior::InteriorMap>,
+    motel: Res<'w, interior::MotelExteriorMap>,
+    doors: Query<
+        'w,
+        's,
+        (
+            &'static Transform,
+            &'static Sprite,
+            &'static MotelDoorDestination,
+        ),
+        Without<Player>,
+    >,
+    doorway_attempt: ResMut<'w, DoorwayAttempt>,
 }
 
 #[derive(Component)]
@@ -961,10 +989,10 @@ fn move_player(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     story: Res<Story>,
-    location: Res<WorldLocation>,
-    interior: Res<interior::InteriorMap>,
+    mut environment: MovementEnvironment,
     mut player: Query<(&mut Transform, &mut PlayerAnimation), With<Player>>,
 ) {
+    environment.doorway_attempt.0 = None;
     if matches!(
         story.stage,
         StoryStage::Night
@@ -1007,24 +1035,147 @@ fn move_player(
             Facing::Down
         };
         let delta = direction.normalize() * PLAYER_SPEED * time.delta_secs();
-        if *location == WorldLocation::Exterior {
-            transform.translation.x =
-                (transform.translation.x + delta.x).clamp(-MAP_HALF_WIDTH, MAP_HALF_WIDTH);
-            transform.translation.y =
-                (transform.translation.y + delta.y).clamp(-MAP_HALF_HEIGHT, MAP_HALF_HEIGHT);
+        let mut next = transform.translation.truncate();
+        if *environment.location == WorldLocation::Exterior {
+            let next_x = Vec2::new(
+                (next.x + delta.x).clamp(-MAP_HALF_WIDTH, MAP_HALF_WIDTH),
+                next.y,
+            );
+            if environment.motel.is_walkable(next_x) {
+                next.x = next_x.x;
+            }
+            let next_y = Vec2::new(
+                next.x,
+                (next.y + delta.y).clamp(-MAP_HALF_HEIGHT, MAP_HALF_HEIGHT),
+            );
+            let head_probe = next_y + Vec2::Y * DOOR_HEAD_PROBE_OFFSET;
+            let doorway = if delta.y > 0.0 && !environment.motel.is_walkable(head_probe) {
+                environment
+                    .doors
+                    .iter()
+                    .filter(|(transform, sprite, _)| {
+                        player_inside_doorway(
+                            next_y,
+                            transform.translation.truncate(),
+                            sprite.custom_size.unwrap_or(Vec2::splat(64.0)),
+                        )
+                    })
+                    .min_by(|(left, _, _), (right, _, _)| {
+                        (next_y.x - left.translation.x)
+                            .abs()
+                            .total_cmp(&(next_y.x - right.translation.x).abs())
+                    })
+                    .map(|(_, _, destination)| *destination)
+            } else {
+                None
+            };
+            if let Some(destination) = doorway {
+                environment.doorway_attempt.0 = Some(destination);
+            } else if environment.motel.is_walkable(next_y) {
+                next.y = next_y.y;
+            }
         } else {
-            let mut next = transform.translation.truncate();
             let next_x = Vec2::new(next.x + delta.x, next.y);
-            if interior.is_walkable(next_x) {
+            if environment.interior.is_walkable(next_x) {
                 next.x = next_x.x;
             }
             let next_y = Vec2::new(next.x, next.y + delta.y);
-            if interior.is_walkable(next_y) {
+            if environment.interior.is_walkable(next_y) {
                 next.y = next_y.y;
             }
-            transform.translation.x = next.x;
-            transform.translation.y = next.y;
         }
+        transform.translation.x = next.x;
+        transform.translation.y = next.y;
+    }
+}
+
+fn player_inside_doorway(player_position: Vec2, door_position: Vec2, door_size: Vec2) -> bool {
+    let half_size = door_size / 2.0;
+    (player_position.x - door_position.x).abs() <= half_size.x
+        && player_position.y >= door_position.y - half_size.y
+        && player_position.y <= door_position.y + half_size.y
+}
+
+fn latch_locked_door_bump(
+    latched_door: &mut Option<interior::InteriorId>,
+    door: interior::InteriorId,
+) -> bool {
+    if *latched_door == Some(door) {
+        false
+    } else {
+        *latched_door = Some(door);
+        true
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_automatic_doorways(
+    mut commands: Commands,
+    mut story: ResMut<Story>,
+    mut location: ResMut<WorldLocation>,
+    interior: Res<interior::InteriorMap>,
+    motel_access: Res<MotelAccess>,
+    interior_state: Res<InteriorState>,
+    keys: Res<ButtonInput<KeyCode>>,
+    asset_server: Res<AssetServer>,
+    mut exterior_return: ResMut<ExteriorReturn>,
+    mut doorway_attempt: ResMut<DoorwayAttempt>,
+    mut door_bump_latch: ResMut<DoorBumpLatch>,
+    mut player: Query<&mut Transform, With<Player>>,
+    interior_entities: Query<Entity, With<interior::InteriorSceneEntity>>,
+) {
+    let Ok(mut player_transform) = player.single_mut() else {
+        return;
+    };
+    let player_position = player_transform.translation.truncate();
+    if *location == WorldLocation::Exterior {
+        let pushing_up = keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp);
+        if !pushing_up {
+            door_bump_latch.0 = None;
+        }
+        let Some(destination) = doorway_attempt.0.take() else {
+            return;
+        };
+        if !motel_door_is_unlocked(destination, &motel_access) {
+            if latch_locked_door_bump(&mut door_bump_latch.0, destination.interior_id) {
+                player_transform.translation.y -= LOCKED_DOOR_BUMP_DISTANCE;
+                story.notice = Some(format!(
+                    "The door to {} is locked. The office may still hold its key.",
+                    destination.interior_id.door_label()
+                ));
+            }
+            return;
+        }
+
+        door_bump_latch.0 = None;
+        for entity in &interior_entities {
+            commands.entity(entity).despawn();
+        }
+        let next_interior = interior::InteriorMap::load(destination.interior_id);
+        spawn_interior_scene(
+            &mut commands,
+            &asset_server,
+            &next_interior,
+            &interior_state,
+        );
+        let position = next_interior.cell_center(next_interior.entry);
+        player_transform.translation.x = position.x;
+        player_transform.translation.y = position.y;
+        exterior_return.0 = destination.doorstep;
+        *location = WorldLocation::Interior;
+        story.notice = Some(format!(
+            "Inside {}, the valley light falls away behind you.",
+            next_interior.name()
+        ));
+        commands.insert_resource(next_interior);
+    } else if interior.is_exit(player_position) {
+        player_transform.translation.x = exterior_return.0.x;
+        player_transform.translation.y = exterior_return.0.y;
+        *location = WorldLocation::Exterior;
+        for entity in &interior_entities {
+            commands.entity(entity).despawn();
+        }
+        story.notice = Some("You step back into the valley air.".to_owned());
     }
 }
 
@@ -1106,6 +1257,12 @@ fn update_nearby_interaction(
         if interactable.consumed || *visibility == Visibility::Hidden {
             continue;
         }
+        if matches!(
+            interactable.kind,
+            InteractableKind::MotelDoor | InteractableKind::InteriorExit
+        ) {
+            continue;
+        }
         let distance = player
             .translation
             .truncate()
@@ -1124,16 +1281,12 @@ fn handle_interaction(
     keys: Res<ButtonInput<KeyCode>>,
     nearby: Res<Nearby>,
     mut story: ResMut<Story>,
-    mut location: ResMut<WorldLocation>,
     interior: Res<interior::InteriorMap>,
     motel: Res<interior::MotelExteriorMap>,
     asset_server: Res<AssetServer>,
     mut resources: InteractionResources,
-    mut player: Query<&mut Transform, With<Player>>,
     mut interactables: Query<&mut Interactable>,
-    door_destinations: Query<&MotelDoorDestination>,
     pickups: Query<&WorldPickup>,
-    interior_entities: Query<Entity, With<interior::InteriorSceneEntity>>,
     mut mutable_elements: Query<
         (
             &mut MutableSceneElement,
@@ -1332,51 +1485,7 @@ fn handle_interaction(
             story.dialogue_line = 0;
             story.notice = None;
         }
-        InteractableKind::MotelDoor => {
-            let Ok(destination) = door_destinations.get(entity) else {
-                return;
-            };
-            if !motel_door_is_unlocked(*destination, &resources.motel_access) {
-                story.notice = Some(format!(
-                    "The door to {} is locked. The office may still hold its key.",
-                    destination.interior_id.door_label()
-                ));
-                return;
-            }
-            if let Ok(mut transform) = player.single_mut() {
-                for entity in &interior_entities {
-                    commands.entity(entity).despawn();
-                }
-                let next_interior = interior::InteriorMap::load(destination.interior_id);
-                spawn_interior_scene(
-                    &mut commands,
-                    &asset_server,
-                    &next_interior,
-                    &resources.interior_state,
-                );
-                let position = next_interior.cell_center(next_interior.entry);
-                transform.translation.x = position.x;
-                transform.translation.y = position.y;
-                resources.exterior_return.0 = destination.doorstep;
-                *location = WorldLocation::Interior;
-                story.notice = Some(format!(
-                    "Inside {}, the valley light falls away behind you.",
-                    next_interior.name()
-                ));
-                commands.insert_resource(next_interior);
-            }
-        }
-        InteractableKind::InteriorExit => {
-            if let Ok(mut transform) = player.single_mut() {
-                transform.translation.x = resources.exterior_return.0.x;
-                transform.translation.y = resources.exterior_return.0.y;
-                *location = WorldLocation::Exterior;
-                for entity in &interior_entities {
-                    commands.entity(entity).despawn();
-                }
-                story.notice = Some("You step back into the valley air.".to_owned());
-            }
-        }
+        InteractableKind::MotelDoor | InteractableKind::InteriorExit => {}
         InteractableKind::InteriorRepairable => {
             let Ok((mut instance, mut sprite, mut transform, mut visibility)) =
                 mutable_elements.get_mut(entity)
@@ -1800,8 +1909,8 @@ fn sync_ui(
                     InteractableKind::Tool => "E — take the old ladder",
                     InteractableKind::Desk => "E — search or repair the old desk",
                     InteractableKind::Traveler => "E — welcome the traveler",
-                    InteractableKind::MotelDoor => "E — try the motel door",
-                    InteractableKind::InteriorExit => "E — step back outside",
+                    InteractableKind::MotelDoor => "Walk through the motel door",
+                    InteractableKind::InteriorExit => "Walk onto the exit to step outside",
                     InteractableKind::InteriorRepairable => "E — work on this part of the room",
                     InteractableKind::ExteriorRepairable => "E — work on this part of the motel",
                 }
@@ -2002,5 +2111,61 @@ mod tests {
         assert!(!motel_door_is_unlocked(locked_door, &access));
         access.keys_found = true;
         assert!(motel_door_is_unlocked(locked_door, &access));
+    }
+
+    #[test]
+    fn automatic_door_requires_the_player_to_be_inside_its_art_bounds() {
+        let door = Vec2::new(100.0, 50.0);
+        let size = Vec2::new(60.0, 78.0);
+
+        assert!(player_inside_doorway(
+            door + Vec2::new(29.0, 38.0),
+            door,
+            size
+        ));
+        assert!(!player_inside_doorway(
+            door + Vec2::new(31.0, 0.0),
+            door,
+            size
+        ));
+        assert!(!player_inside_doorway(
+            door + Vec2::new(0.0, -40.0),
+            door,
+            size
+        ));
+    }
+
+    #[test]
+    fn office_transition_uses_the_authored_collision_above_the_door() {
+        let motel = interior::MotelExteriorMap::load();
+        let door = motel
+            .mutable_element("damaged-door-1-01")
+            .expect("office door");
+        let visual = &door.states["damaged"];
+        let door_center = motel.element_center(door, visual.size);
+        let player = door_center + Vec2::new(0.0, 23.0);
+
+        assert!(player_inside_doorway(player, door_center, visual.size));
+        assert!(motel.is_walkable(player));
+        assert!(!motel.is_walkable(player + Vec2::Y * DOOR_HEAD_PROBE_OFFSET));
+    }
+
+    #[test]
+    fn locked_door_bump_rearms_only_after_forward_is_released() {
+        let mut latch = None;
+
+        assert!(latch_locked_door_bump(
+            &mut latch,
+            interior::InteriorId::Room01
+        ));
+        assert!(!latch_locked_door_bump(
+            &mut latch,
+            interior::InteriorId::Room01
+        ));
+        latch = None;
+        assert!(latch_locked_door_bump(
+            &mut latch,
+            interior::InteriorId::Room01
+        ));
     }
 }

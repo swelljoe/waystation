@@ -30,6 +30,7 @@ INTERIOR_ROOT = ROOT / "content/interiors"
 BUILDING_ROOT = ROOT / "content/buildings"
 REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
 INTERIOR_LAYER_ORDER = {"floor": 0, "wall": 1, "object": 2, "overlay": 3}
+SCENE_LAYERS = ("floor", "wall", "object", "overlay")
 INTERIOR_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 # Compact runtime atlas order. These coordinates select only the pieces the
@@ -639,11 +640,14 @@ def composite_scene_placements(
     level: dict[str, object],
     source: Path,
     tile_size: int,
+    layer: str | None = None,
 ) -> Image.Image:
     placements = sorted(
         level["placements"], key=lambda item: INTERIOR_LAYER_ORDER[item["layer"]]
     )
     for placement in placements:
+        if layer is not None and placement["layer"] != layer:
+            continue
         source_spec = placement["source"]
         stamp = load_interior_stamp(source_spec, source, placement["layer"])
         stamp = transform_interior_stamp(stamp, placement.get("transform"))
@@ -664,29 +668,51 @@ def composite_scene_placements(
 
 
 def render_interior(level: dict[str, object], source: Path) -> Image.Image:
-    grid = level["grid"]
-    tile_size = int(grid["tile_size"])
-    room_size = (int(grid["width"]) * tile_size, int(grid["height"]) * tile_size)
-    image = Image.new("RGBA", room_size, str(level.get("background", "#100c09")))
-    floor_draw = ImageDraw.Draw(image)
-    floor_line = str(level.get("floor_line", "#2d2119"))
-    for y in range(tile_size, room_size[1], tile_size):
-        floor_draw.line((0, y, room_size[0], y), fill=floor_line, width=1)
-    for row, y in enumerate(range(0, room_size[1], tile_size)):
-        offset = tile_size if row % 2 == 0 else tile_size * 2
-        for x in range(offset, room_size[0], tile_size * 2):
-            floor_draw.line(
-                (x, y, x, min(y + tile_size, room_size[1])), fill=floor_line, width=1
-            )
-    return composite_scene_placements(image, level, source, tile_size)
+    layers = render_scene_layers(level, source, interior=True)
+    image = Image.new("RGBA", layers["floor"].size, (0, 0, 0, 0))
+    for layer in SCENE_LAYERS:
+        image.alpha_composite(layers[layer])
+    return image
 
 
 def render_building(level: dict[str, object], source: Path) -> Image.Image:
+    layers = render_scene_layers(level, source, interior=False)
+    image = Image.new("RGBA", layers["floor"].size, (0, 0, 0, 0))
+    for layer in SCENE_LAYERS:
+        image.alpha_composite(layers[layer])
+    return image
+
+
+def render_scene_layers(
+    level: dict[str, object], source: Path, *, interior: bool
+) -> dict[str, Image.Image]:
+    """Render independent caches so baked and mutable art can share layer order."""
     grid = level["grid"]
     tile_size = int(grid["tile_size"])
     size = (int(grid["width"]) * tile_size, int(grid["height"]) * tile_size)
-    image = Image.new("RGBA", size, (0, 0, 0, 0))
-    return composite_scene_placements(image, level, source, tile_size)
+    layers = {
+        layer: Image.new("RGBA", size, (0, 0, 0, 0)) for layer in SCENE_LAYERS
+    }
+    if interior:
+        floor = layers["floor"]
+        floor.alpha_composite(
+            Image.new("RGBA", size, str(level.get("background", "#100c09")))
+        )
+        floor_draw = ImageDraw.Draw(floor)
+        floor_line = str(level.get("floor_line", "#2d2119"))
+        for y in range(tile_size, size[1], tile_size):
+            floor_draw.line((0, y, size[0], y), fill=floor_line, width=1)
+        for row, y in enumerate(range(0, size[1], tile_size)):
+            offset = tile_size if row % 2 == 0 else tile_size * 2
+            for x in range(offset, size[0], tile_size * 2):
+                floor_draw.line(
+                    (x, y, x, min(y + tile_size, size[1])),
+                    fill=floor_line,
+                    width=1,
+                )
+    for layer, image in layers.items():
+        composite_scene_placements(image, level, source, tile_size, layer)
+    return layers
 
 
 def write_mutable_interior_art(
@@ -748,17 +774,17 @@ def write_interior_art(source: Path, output: Path) -> list[dict[str, object]]:
         level = json.loads(level_path.read_text(encoding="utf-8"))
         if level.get("schema_version") not in {1, 2, 3, 4} or level.get("id") != level_path.stem:
             raise SystemExit(f"invalid interior identity in {level_path}")
-        image = render_interior(level, source)
-        destination = interiors / f"{level['id']}.png"
-        image.save(destination, optimize=False)
-        records.append(
-            {
-                "path": str(destination.relative_to(output)),
-                "sha256": sha256(destination),
-                "size": list(image.size),
-                "source": "authored interior flattened from private stamps or public fallbacks",
-            }
-        )
+        for layer, image in render_scene_layers(level, source, interior=True).items():
+            destination = interiors / f"{level['id']}--{layer}.png"
+            image.save(destination, optimize=False)
+            records.append(
+                {
+                    "path": str(destination.relative_to(output)),
+                    "sha256": sha256(destination),
+                    "size": list(image.size),
+                    "source": "authored interior layer flattened from private stamps or public fallbacks",
+                }
+            )
         records.extend(
             write_mutable_interior_art(level, source, output, interiors, repair_pairs)
         )
@@ -783,17 +809,17 @@ def write_building_art(source: Path, output: Path) -> list[dict[str, object]]:
             or level.get("id") != level_path.stem
         ):
             raise SystemExit(f"invalid building identity in {level_path}")
-        image = render_building(level, source)
-        destination = buildings / f"{level['id']}.png"
-        image.save(destination, optimize=False)
-        records.append(
-            {
-                "path": str(destination.relative_to(output)),
-                "sha256": sha256(destination),
-                "size": list(image.size),
-                "source": "authored building cache flattened from private stamps or public fallbacks",
-            }
-        )
+        for layer, image in render_scene_layers(level, source, interior=False).items():
+            destination = buildings / f"{level['id']}--{layer}.png"
+            image.save(destination, optimize=False)
+            records.append(
+                {
+                    "path": str(destination.relative_to(output)),
+                    "sha256": sha256(destination),
+                    "size": list(image.size),
+                    "source": "authored building layer flattened from private stamps or public fallbacks",
+                }
+            )
         records.extend(
             write_mutable_interior_art(level, source, output, buildings, repair_pairs)
         )

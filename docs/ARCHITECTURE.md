@@ -93,10 +93,10 @@ backward compatibility.
 
 Building source data lives in `content/buildings` and uses the same schema-v4
 placement and mutable-instance model with `scene_type: "building"`. Unlike a
-room, a building cache has a transparent canvas and no entry/exit requirement.
-The asset pipeline writes its baked cache and referenced repair-state sprites to
-`runtime-assets/buildings`. This makes the static and mutable split identical on
-both sides of a motel door.
+room, a building's four baked layer caches have transparent canvases and it has
+no entry/exit requirement. The asset pipeline writes those caches and referenced
+repair-state sprites to `runtime-assets/buildings`. This makes the static and
+mutable split identical on both sides of a motel door.
 
 New placements store `position: {grid, x, y}`. Multiplying the signed integer
 coordinates by that placement's grid yields its exact native-pixel offset from
@@ -113,12 +113,15 @@ flips through the sprite renderer. One instance transform covers every repair-
 pair state, preserving alignment across state changes without duplicated art.
 The fixed layer order is floor, wall, object, then overlay; mutable instances use
 their optional layer override before falling back to the repair pair's layer.
+The build emits one full-scene baked cache per layer so baked art interleaves
+with mutable sprites correctly. Within one layer, mutable art renders just above
+baked art.
 
-`scripts/build-assets.py` turns baked placements into a cached room background
-and extracts each repair-pair state referenced by that room as a separate runtime
-sprite. The Bevy client spawns mutable instances over the cache, records changes under stable
-`room-id/instance-id` keys, and includes those values in browser save data. The
-runtime never needs access to the private library.
+`scripts/build-assets.py` turns baked placements into four cached room layers and
+extracts each repair-pair state referenced by that room as a separate runtime
+sprite. The Bevy client spawns mutable instances among those layers, records
+changes under stable `room-id/instance-id` keys, and includes those values in
+browser save data. The runtime never needs access to the private library.
 
 `scripts/level_editor.py` serves a localhost-only browser editor. Its asset
 catalog is generated from filenames, image dimensions, and the distributable
@@ -151,7 +154,11 @@ The room/building canvas derives its pointer ghost from the same source metadata
 snap coordinate, layer, transform, and initial repair state used to construct the
 eventual placement. It is render-only editor state and never enters authored JSON.
 
-The Bevy client places interior maps in a separate world-space island. Door
-interaction moves the player between exterior and interior spawn cells; camera
+The Bevy client places interior maps in a separate world-space island. An upward
+head probe transitions only after the player is within a door's art bounds and
+reaches the authored collision above it; walking onto an interior exit cell
+returns to the saved doorstep. Locked doors block at the same collision and
+apply one latched recoil per held approach while explaining where to seek a key. Camera
 scale changes to frame the room against a near-black brown backdrop. Interior
-movement checks the authored collision grid.
+movement checks the room collision grid; exterior movement checks the authored
+motel grid while treating terrain beyond its canvas as walkable.

@@ -172,6 +172,50 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertEqual(rendered.getpixel((0, 0)), (0, 0, 0, 0))
         self.assertEqual(rendered.getpixel((3, 4)), (255, 0, 0, 255))
 
+    def test_scene_layer_caches_keep_baked_layers_independent(self) -> None:
+        source = Image.new("RGBA", (2, 1))
+        source.putpixel((0, 0), (255, 0, 0, 255))
+        source.putpixel((1, 0), (0, 255, 0, 255))
+        source.save(self.assets / "sheet.png")
+        level = self.level_with(
+            {
+                "layer": "object",
+                "position": {"grid": 1, "x": 0, "y": 0},
+                "width": 1,
+                "height": 1,
+                "source": {
+                    "path": "sheet.png",
+                    "grid": 1,
+                    "x": 0,
+                    "y": 0,
+                    "width": 1,
+                    "height": 1,
+                },
+            }
+        )
+        level["placements"].append(
+            {
+                "layer": "overlay",
+                "position": {"grid": 1, "x": 0, "y": 0},
+                "width": 1,
+                "height": 1,
+                "source": {
+                    "path": "sheet.png",
+                    "grid": 1,
+                    "x": 1,
+                    "y": 0,
+                    "width": 1,
+                    "height": 1,
+                },
+            }
+        )
+
+        layers = BUILD_ASSETS.render_scene_layers(level, self.assets, interior=False)
+
+        self.assertEqual(layers["floor"].getpixel((0, 0)), (0, 0, 0, 0))
+        self.assertEqual(layers["object"].getpixel((0, 0)), (255, 0, 0, 255))
+        self.assertEqual(layers["overlay"].getpixel((0, 0)), (0, 255, 0, 255))
+
     def test_scribe_sheet_keeps_the_complete_lpc_action_grid(self) -> None:
         custom = self.assets / "custom"
         custom.mkdir()
@@ -273,9 +317,12 @@ class InteriorRenderingTests(unittest.TestCase):
             BUILD_ASSETS.BUILDING_ROOT = original_building_root
             BUILD_ASSETS.REPAIR_PAIR_PATH = original_repair_path
 
-        self.assertEqual(len(records), 3)
-        with Image.open(output / "buildings/test-building.png") as cache:
+        self.assertEqual(len(records), 6)
+        with Image.open(output / "buildings/test-building--floor.png") as cache:
             self.assertEqual(cache.getpixel((0, 0)), (0, 0, 0, 0))
+        self.assertTrue((output / "buildings/test-building--wall.png").is_file())
+        self.assertTrue((output / "buildings/test-building--object.png").is_file())
+        self.assertTrue((output / "buildings/test-building--overlay.png").is_file())
         self.assertTrue((output / "buildings/test-building/wall--damaged.png").is_file())
         self.assertTrue((output / "buildings/test-building/wall--repaired.png").is_file())
 

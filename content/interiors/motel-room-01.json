@@ -761,6 +761,24 @@
         "flip_x": true,
         "flip_y": false
       }
+    },
+    {
+      "layer": "floor",
+      "position": {
+        "grid": 8,
+        "x": 49,
+        "y": 59
+      },
+      "width": 3,
+      "height": 1,
+      "source": {
+        "path": "motel/Auto-tile-A4-walls-2.png",
+        "grid": 8,
+        "x": 73,
+        "y": 36,
+        "width": 10,
+        "height": 1
+      }
     }
   ],
   "templates": {},
