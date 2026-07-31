@@ -907,11 +907,11 @@
       "height": 3,
       "source": {
         "path": "motel/Auto-tile-A4-walls-3.png",
-        "grid": 48,
-        "x": 6,
-        "y": 13,
-        "width": 2,
-        "height": 2
+        "grid": 16,
+        "x": 42,
+        "y": 24,
+        "width": 6,
+        "height": 6
       },
       "transform": {
         "flip_x": true,
@@ -929,11 +929,11 @@
       "height": 3,
       "source": {
         "path": "motel/Auto-tile-A4-walls-3.png",
-        "grid": 48,
-        "x": 6,
-        "y": 13,
-        "width": 2,
-        "height": 2
+        "grid": 16,
+        "x": 42,
+        "y": 24,
+        "width": 6,
+        "height": 6
       },
       "transform": {
         "flip_x": true,
@@ -951,11 +951,11 @@
       "height": 3,
       "source": {
         "path": "motel/Auto-tile-A4-walls-3.png",
-        "grid": 48,
-        "x": 6,
-        "y": 13,
-        "width": 2,
-        "height": 2
+        "grid": 16,
+        "x": 42,
+        "y": 24,
+        "width": 6,
+        "height": 6
       },
       "transform": {
         "flip_x": true,
@@ -973,11 +973,11 @@
       "height": 3,
       "source": {
         "path": "motel/Auto-tile-A4-walls-3.png",
-        "grid": 48,
-        "x": 6,
-        "y": 13,
-        "width": 2,
-        "height": 2
+        "grid": 16,
+        "x": 42,
+        "y": 24,
+        "width": 6,
+        "height": 6
       },
       "transform": {
         "flip_x": true,
@@ -995,11 +995,11 @@
       "height": 3,
       "source": {
         "path": "motel/Auto-tile-A4-walls-3.png",
-        "grid": 48,
-        "x": 6,
-        "y": 13,
-        "width": 2,
-        "height": 2
+        "grid": 16,
+        "x": 42,
+        "y": 24,
+        "width": 6,
+        "height": 6
       },
       "transform": {
         "flip_x": true,
@@ -1018,8 +1018,8 @@
       "source": {
         "path": "motel/Auto-tile-A4-walls-3.png",
         "grid": 16,
-        "x": 18,
-        "y": 39,
+        "x": 46,
+        "y": 24,
         "width": 2,
         "height": 6
       },
