@@ -49,6 +49,26 @@ The multi-stage `Containerfile` creates procedural art, compiles the Bevy client
 WebAssembly with Trunk, compiles the native Axum service, and copies only runtime
 artifacts into an unprivileged Debian image. Port 7777 is the project default.
 
+Licensed audio uses the same private runtime-only delivery boundary as purchased
+art. The manifest selects individual ignored source files and the asset build
+copies only those sounds into `runtime-assets/audio`; open CI builds omit them,
+while strict demo builds require them.
+
+## Audio
+
+`crates/game/src/game_audio.rs` owns three independent concerns: alternating
+background music, deterministic wet/dry weather ambience, and surface-triggered
+effects. Rain is guaranteed during the opening six minutes and then fades between
+wet and dry phases. Its sink follows location with a smooth exterior-to-interior
+crossfade. Bevy's built-in sink does not expose per-source EQ, so the private
+build derives a compact 900 Hz low-pass variant with FFmpeg rather than adding a
+custom runtime backend.
+
+Broken floorboards reuse authored mutable scene state. A spawn marker identifies
+the relevant repair-pair placements, their sprite rectangle defines the trigger,
+and `state == "damaged"` enables a rotating creak set. Repairing the existing
+entity therefore disables its surface sound without a second persistence path.
+
 ## World terrain
 
 `crates/game/src/terrain.rs` owns the seeded logical `WorldGrid`. Every cell is a

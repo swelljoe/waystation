@@ -2,6 +2,7 @@
 
 #![allow(clippy::needless_pass_by_value)]
 
+mod game_audio;
 mod interior;
 mod progression;
 mod terrain;
@@ -69,6 +70,7 @@ fn main() {
                 })
                 .set(ImagePlugin::default_nearest()),
         )
+        .add_plugins(game_audio::GameAudioPlugin)
         .add_systems(
             Startup,
             (load_story, setup_world, load_ui_fonts, setup_ui).chain(),
@@ -697,6 +699,11 @@ fn spawn_interior_scene(
                 state: state.to_owned(),
             },
         ));
+        if game_audio::is_creaking_floorboard(element) {
+            commands
+                .entity(entity)
+                .insert(game_audio::CreakingFloorboard);
+        }
         if !matches!(kind, InteractableKind::Hearth | InteractableKind::Desk) {
             commands.entity(entity).insert(TaskTarget {
                 action: element.task.action,

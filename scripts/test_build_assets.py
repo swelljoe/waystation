@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from PIL import Image
 
@@ -240,6 +241,106 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertEqual(props["plank.png"].size, (80, 24))
         self.assertEqual(props["ladder.png"].size, (44, 112))
         self.assertIsNotNone(props["ladder.png"].getbbox())
+
+    def test_licensed_audio_copies_only_manifest_entries_and_clears_stale_files(self) -> None:
+        source_root = self.assets / "source"
+        output = self.assets / "output"
+        (source_root / "music").mkdir(parents=True)
+        (output / "audio").mkdir(parents=True)
+        (source_root / "music/selected.mp3").write_bytes(b"selected audio")
+        (source_root / "music/unselected.mp3").write_bytes(b"private source")
+        (source_root / "music/license.txt").write_text("license\n", encoding="utf-8")
+        (output / "audio/stale.mp3").write_bytes(b"stale")
+        manifest = {
+            "licensed_audio": [
+                {
+                    "role": "rain",
+                    "source_file": "music/selected.mp3",
+                    "runtime_file": "audio/ambience/rain.mp3",
+                    "creator": "Example",
+                    "license_file": "music/license.txt",
+                }
+            ]
+        }
+
+        records = BUILD_ASSETS.write_licensed_audio(
+            manifest, output, source_root, strict=True
+        )
+
+        self.assertEqual((output / "audio/ambience/rain.mp3").read_bytes(), b"selected audio")
+        self.assertFalse((output / "audio/stale.mp3").exists())
+        self.assertFalse((output / "audio/unselected.mp3").exists())
+        self.assertEqual(records[0]["role"], "rain")
+        self.assertTrue((output / "audio/licenses/license.txt").is_file())
+
+    def test_missing_licensed_audio_is_optional_for_open_builds(self) -> None:
+        output = self.assets / "output"
+        manifest = {
+            "licensed_audio": [
+                {
+                    "role": "rain",
+                    "source_file": "music/missing.mp3",
+                    "runtime_file": "audio/ambience/rain.mp3",
+                    "creator": "Example",
+                    "license_file": "music/license.txt",
+                }
+            ]
+        }
+
+        records = BUILD_ASSETS.write_licensed_audio(
+            manifest, output, self.assets, strict=False
+        )
+
+        self.assertEqual(records, [])
+
+    def test_licensed_audio_transcode_applies_runtime_filter(self) -> None:
+        source_root = self.assets / "source"
+        output = self.assets / "output"
+        (source_root / "music").mkdir(parents=True)
+        (source_root / "music/rain.mp3").write_bytes(b"long source audio")
+        (source_root / "music/license.txt").write_text("license\n", encoding="utf-8")
+        manifest = {
+            "licensed_audio": [
+                {
+                    "role": "rain_indoors",
+                    "source_file": "music/rain.mp3",
+                    "runtime_file": "audio/ambience/rain-indoors.mp3",
+                    "creator": "Example",
+                    "license_file": "music/license.txt",
+                    "transcode": {
+                        "duration_seconds": 120,
+                        "bitrate": "96k",
+                        "lowpass_hz": 900,
+                        "normalize_lufs": -22,
+                    },
+                }
+            ]
+        }
+
+        def fake_transcode(command: list[str], check: bool) -> None:
+            self.assertTrue(check)
+            Path(command[-1]).write_bytes(b"small filtered runtime audio")
+
+        with (
+            mock.patch.object(BUILD_ASSETS.shutil, "which", return_value="/usr/bin/ffmpeg"),
+            mock.patch.object(
+                BUILD_ASSETS.subprocess, "run", side_effect=fake_transcode
+            ) as run,
+        ):
+            records = BUILD_ASSETS.write_licensed_audio(
+                manifest, output, source_root, strict=True
+            )
+
+        command = run.call_args.args[0]
+        filter_chain = command[command.index("-af") + 1]
+        self.assertIn("lowpass=f=900", filter_chain)
+        self.assertIn("loudnorm=I=-22:TP=-2:LRA=7", filter_chain)
+        self.assertIn("96k", command)
+        self.assertEqual(
+            (output / "audio/ambience/rain-indoors.mp3").read_bytes(),
+            b"small filtered runtime audio",
+        )
+        self.assertEqual(records[0]["role"], "rain_indoors")
 
     def test_background_key_makes_opaque_sheet_whitespace_transparent(self) -> None:
         source_image = Image.new("RGB", (3, 1), (253, 253, 253))

@@ -14,6 +14,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -879,6 +880,87 @@ def write_bundled_fonts(
     return records
 
 
+def write_licensed_audio(
+    manifest: dict[str, object], output: Path, source_root: Path, strict: bool
+) -> list[dict[str, str]]:
+    """Copy only selected private audio into the runtime-only asset boundary."""
+    audio_output = output / "audio"
+    if audio_output.exists():
+        shutil.rmtree(audio_output)
+
+    records = []
+    copied_licenses: set[str] = set()
+    for audio in manifest.get("licensed_audio", []):
+        source = source_root / audio["source_file"]
+        if not source.is_file():
+            if strict:
+                raise SystemExit(f"required licensed audio is missing: {source}")
+            continue
+
+        destination = output / audio["runtime_file"]
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        transcode = audio.get("transcode")
+        if transcode:
+            ffmpeg = shutil.which("ffmpeg")
+            if ffmpeg is None:
+                raise SystemExit(
+                    "ffmpeg is required to prepare selected licensed runtime audio"
+                )
+            command = [
+                ffmpeg,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-i",
+                str(source),
+                "-t",
+                str(transcode["duration_seconds"]),
+            ]
+            filters = []
+            if "lowpass_hz" in transcode:
+                filters.append(f"lowpass=f={transcode['lowpass_hz']}")
+            if "normalize_lufs" in transcode:
+                filters.append(
+                    f"loudnorm=I={transcode['normalize_lufs']}:TP=-2:LRA=7"
+                )
+            if filters:
+                command.extend(["-af", ",".join(filters)])
+            command.extend(
+                [
+                    "-codec:a",
+                    "libmp3lame",
+                    "-b:a",
+                    transcode["bitrate"],
+                    str(destination),
+                ]
+            )
+            subprocess.run(command, check=True)
+        else:
+            shutil.copyfile(source, destination)
+
+        license_file = audio["license_file"]
+        license_source = source_root / license_file
+        if strict and not license_source.is_file():
+            raise SystemExit(f"licensed audio attribution is missing: {license_source}")
+        if license_source.is_file() and license_file not in copied_licenses:
+            license_destination = output / "audio/licenses" / Path(license_file).name
+            license_destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(license_source, license_destination)
+            copied_licenses.add(license_file)
+
+        records.append(
+            {
+                "role": audio["role"],
+                "creator": audio["creator"],
+                "path": audio["runtime_file"],
+                "source_sha256": sha256(source),
+                "sha256": sha256(destination),
+            }
+        )
+    return records
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, default=ROOT / "assets")
@@ -894,16 +976,19 @@ def main() -> None:
     generated.extend(write_interior_art(args.source, args.output))
     generated.extend(write_building_art(args.source, args.output))
     fonts = write_bundled_fonts(manifest, args.output)
+    audio = write_licensed_audio(manifest, args.output, ROOT, args.strict_private)
     report = {
         "schema_version": 1,
         "private_checks": checks,
         "generated": generated,
         "bundled_fonts": fonts,
+        "licensed_audio": audio,
     }
     report_path = args.output / "provenance.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(
         f"wrote {len(generated)} generated assets, {len(fonts)} bundled fonts, "
+        f"{len(audio)} licensed audio files, "
         f"and {report_path}"
     )
 

@@ -45,6 +45,68 @@
     "palette": ["#f1dfad", "#c39a5b", "#77543b", "#34322a", "#78966b", "#9d5f55"],
     "motifs": ["road-lamp", "shelter-tree", "open-hands"]
   },
+  "licensed_audio": [
+    {
+      "role": "background_music",
+      "source_file": "music/andriig-sad-instrumental-sad-music-487223.mp3",
+      "runtime_file": "audio/music/andriig-sad-instrumental.mp3",
+      "creator": "AndriiG",
+      "license_file": "music/andriig.txt"
+    },
+    {
+      "role": "background_music",
+      "source_file": "music/andriig-sad-sad-acoustic-music-566795.mp3",
+      "runtime_file": "audio/music/andriig-sad-acoustic.mp3",
+      "creator": "AndriiG",
+      "license_file": "music/andriig.txt"
+    },
+    {
+      "role": "rain",
+      "source_file": "music/dragon-studio-relaxing-rain-444802.mp3",
+      "runtime_file": "audio/ambience/relaxing-rain.mp3",
+      "creator": "Dragon Studio",
+      "license_file": "music/dragon-studio.txt",
+      "transcode": {
+        "duration_seconds": 120,
+        "bitrate": "96k",
+        "normalize_lufs": -22
+      }
+    },
+    {
+      "role": "rain_indoors",
+      "source_file": "music/dragon-studio-relaxing-rain-444802.mp3",
+      "runtime_file": "audio/ambience/relaxing-rain-indoors.mp3",
+      "creator": "Dragon Studio",
+      "license_file": "music/dragon-studio.txt",
+      "transcode": {
+        "duration_seconds": 120,
+        "bitrate": "96k",
+        "lowpass_hz": 900,
+        "normalize_lufs": -22
+      }
+    },
+    {
+      "role": "floorboard_creak",
+      "source_file": "music/dragon-studio-floorboard-creak-01-499645.mp3",
+      "runtime_file": "audio/sfx/floorboard-creak-01.mp3",
+      "creator": "Dragon Studio",
+      "license_file": "music/dragon-studio.txt"
+    },
+    {
+      "role": "floorboard_creak",
+      "source_file": "music/dragon-studio-floorboard-creak-02-499644.mp3",
+      "runtime_file": "audio/sfx/floorboard-creak-02.mp3",
+      "creator": "Dragon Studio",
+      "license_file": "music/dragon-studio.txt"
+    },
+    {
+      "role": "floorboard_creak",
+      "source_file": "music/dragon-studio-floorboard-creak-03-499651.mp3",
+      "runtime_file": "audio/sfx/floorboard-creak-03.mp3",
+      "creator": "Dragon Studio",
+      "license_file": "music/dragon-studio.txt"
+    }
+  ],
   "bundled_fonts": [
     {
       "family": "EB Garamond",

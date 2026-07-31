@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish flattened licensed runtime art to the private demo release."""
+"""Publish flattened licensed runtime art and audio to the private demo release."""
 
 from __future__ import annotations
 
@@ -84,9 +84,9 @@ def main() -> None:
                 "--target",
                 "main",
                 "--title",
-                "Waystation licensed demo runtime art",
+                "Waystation licensed demo runtime assets",
                 "--notes",
-                "Flattened runtime-only art for the hosted demo. "
+                "Flattened runtime-only art and selected audio for the hosted demo. "
                 "Never make this release public with the source repository.",
             )
             print(f"created private release {RELEASE_TAG}")

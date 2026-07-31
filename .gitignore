@@ -12,3 +12,6 @@ __pycache__/
 
 # Purchased source art is intentionally kept out of the public repository.
 /assets/
+
+# Licensed source audio follows the same private-runtime boundary as source art.
+/music/

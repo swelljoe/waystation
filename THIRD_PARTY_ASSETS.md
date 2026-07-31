@@ -32,6 +32,13 @@ Both fonts are distributed under the SIL Open Font License 1.1. Their license
 texts are stored beside the canonical font files in `open-assets/fonts`; the
 asset build verifies and copies them into `runtime-assets/fonts`.
 
+Licensed music and sound sources under `music/` are also excluded from git. The
+manifest selects only the two AndriiG background tracks and the Dragon Studio
+rain and floorboard effects currently used by the demo. The build copies those
+selected files and attribution notes into `runtime-assets/audio`; unused source
+audio is never packaged. AndriiG participates in YouTube Content ID, so retain
+the provider's license/certificate records when publishing captured gameplay.
+
 For the hosted demo, `make publish-demo-assets` performs a strict private build
 and uploads only `runtime-assets/` to the `demo-runtime-assets` Release. The
 repository is private, and default-branch CI overlays this archive after its open

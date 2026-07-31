@@ -265,7 +265,9 @@ build works at a Pages repository path and from a local static server.
 Because `assets/` is intentionally gitignored, pull-request runners build the
 distributable procedural fallback art. Default-branch builds overlay the
 flattened, runtime-only bundle held by the private `demo-runtime-assets` Release;
-they never receive the purchased source sheets. After changing licensed art, run
+they never receive the purchased source sheets or raw licensed audio. The same
+boundary selects only currently used files from ignored `music/` and places them
+under `runtime-assets/audio`. After changing licensed art or audio, run
 `make publish-demo-assets` from the authoring machine to rebuild and replace that
 bundle. Delete the private Release before ever making the repository public.
 
