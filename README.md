@@ -65,6 +65,13 @@ The Scribe uses the complete 13×54 LPC action sheet from
 rows at native pixel scale; the remaining action rows stay in the runtime atlas
 for future tool, farming, sitting, climbing, expression, and combat systems.
 
+Exterior trees depth-sort at their trunk ground contact. When the Scribe passes
+behind the dense leafy canopy, the character is fully hidden rather than leaving
+a stray head pixel above the opaque foliage. Full concealment samples the PNG's
+actual alpha silhouette, so partial overlaps and the rounded transparent outer
+area still composite naturally. Walking in front draws the complete Scribe over
+the trunk and lower branches.
+
 ## Author interiors and buildings
 
 The local scene editor searches the private art library, selects single- or
@@ -142,7 +149,11 @@ wall, object, and overlay caches and all repairable components—passes in front
 of the Scribe when the Scribe walks north/behind that line, while preserving its
 authored internal layer order. A cropped 16-pixel crown from the current Scribe
 animation remains visible above the façade so the player is never lost; authored
-`chimney` elements still fully occlude that crown when they overlap it. Keep
+components marked **Fully hides player** still completely occlude that crown
+when they overlap it. The motel office gable uses this setting, while chimney
+repair pairs receive the same behavior from their semantic kind. In Select mode,
+toggle it from the selected-placement toolbar for other baked or repairable
+building components. Keep
 collision only where the Scribe's feet should actually be blocked: roof and
 chimney overhangs can extend beyond it without changing the building's art.
 

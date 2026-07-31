@@ -28,6 +28,7 @@ const {
   repairStateForElement,
   roomGridLayersForRendering,
   setPlacementLayer,
+  setPlacementOcclusion,
   repairPairMatches,
   snapCellForPixel,
   stampAnchorForUnit,
@@ -133,6 +134,11 @@ assert.deepEqual(repairableLayer, {}, "returning to the pair default should remo
 const bakedLayer = { layer: "floor" };
 setPlacementLayer(bakedLayer, null, "object");
 assert.deepEqual(bakedLayer, { layer: "object" });
+setPlacementOcclusion(bakedLayer, true);
+assert.deepEqual(bakedLayer, { layer: "object", occludes_player: true });
+setPlacementOcclusion(bakedLayer, false);
+assert.deepEqual(bakedLayer, { layer: "object" });
+assert.match(fs.readFileSync(indexPath, "utf8"), /id="placement-occludes-player"/);
 const overlappingRenderables = [
   {
     placement: { position: { grid: 16, x: 1, y: 1 }, source: { grid: 1, width: 32, height: 32 } },

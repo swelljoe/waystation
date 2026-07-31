@@ -47,6 +47,7 @@ label { display: inline-flex; gap: 6px; align-items: center; color: var(--muted)
 .topbar input[type="number"] { width: 52px; }
 .topbar #level-list { max-width: 145px; }
 body[data-scene-type="building"] [data-interior-only] { display: none; }
+body:not([data-scene-type="building"]) [data-building-only] { display: none; }
 
 .workspace { display: grid; grid-template-columns: 310px minmax(460px, 1fr) 585px; min-height: 0; }
 .panel { background: var(--panel); min-width: 0; min-height: 0; }
@@ -81,6 +82,7 @@ h1, h2 { font-size: 20px; line-height: 1; margin: 2px 0 0; font-weight: 500; }
 .placement-summary strong { margin-left: 7px; color: #f0dfb8; }
 .placement-summary p { display: inline; margin: 0 0 0 8px; color: var(--muted); font: 11px/1.45 system-ui, sans-serif; }
 .placement-inspector .placed-state-actions { flex: 0 0 auto; }
+.placement-inspector .placement-occlusion { flex: 0 0 auto; }
 .placement-inspector #clear-placement-selection { flex: 0 0 auto; }
 .tool-group { display: flex; }
 .tool-group button { border-radius: 0; margin-left: -1px; }

@@ -475,6 +475,12 @@ function setPlacementLayer(element, template, layer) {
   return element;
 }
 
+function setPlacementOcclusion(element, enabled) {
+  if (enabled) element.occludes_player = true;
+  else delete element.occludes_player;
+  return element;
+}
+
 function selectedElement() {
   if (!state.selectedPlaced) return null;
   return state.room[state.selectedPlaced.collection]?.[state.selectedPlaced.index] || null;
@@ -1892,10 +1898,13 @@ function updatePlacedSelectionInspector() {
   const details = $("#placed-selection-details");
   const clearButton = $("#clear-placement-selection");
   const previewButtons = document.querySelectorAll("[data-placement-preview]");
+  const occlusionControl = $("#placement-occludes-player");
   if (!element) {
     title.textContent = "None";
     details.textContent = "Choose Select, then click an item in the scene.";
     clearButton.disabled = true;
+    occlusionControl.disabled = true;
+    occlusionControl.checked = false;
     for (const button of previewButtons) {
       button.disabled = true;
       button.classList.toggle("active", button.dataset.placementPreview === "scene");
@@ -1919,6 +1928,8 @@ function updatePlacedSelectionInspector() {
     : `Baked scenery #${state.selectedPlaced.index + 1}`;
   details.textContent = `${repairable ? "Repairable" : "Baked"} ${collection.slice(0, -1)} on the ${layer} layer at (${position.x}, ${position.y})px · ${grid}px movement grid · ${flips}. Drag it or use arrow keys to reposition it.`;
   clearButton.disabled = false;
+  occlusionControl.disabled = false;
+  occlusionControl.checked = element.occludes_player === true;
   for (const button of previewButtons) {
     button.disabled = !repairable;
     button.classList.toggle("active", button.dataset.placementPreview === state.selectedRepairPreview);
@@ -1968,6 +1979,16 @@ function bindEvents() {
     state.layer = event.target.value;
     updateSelectionDetails();
     drawRoom();
+  });
+  $("#placement-occludes-player").addEventListener("change", (event) => {
+    const element = selectedElement();
+    if (!element) return;
+    pushUndo();
+    setPlacementOcclusion(element, event.target.checked);
+    updatePlacedSelectionInspector();
+    setStatus(event.target.checked
+      ? "The selected building component now fully hides the player when overlapping."
+      : "The selected building component now uses the ordinary crown reveal.");
   });
   $("#behavior").addEventListener("change", drawRoom);
   $("#repair-view").addEventListener("change", (event) => {
@@ -2152,6 +2173,7 @@ if (typeof module !== "undefined") {
     placementPixelPosition,
     repairStateForElement,
     setPlacementLayer,
+    setPlacementOcclusion,
     repairPairMatches,
     roomGridLayersForRendering,
     snapCellForPixel,

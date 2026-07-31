@@ -110,11 +110,82 @@ struct SceneDefinition {
     #[serde(default)]
     collision: Vec<CollisionDefinition>,
     #[serde(default)]
+    placements: Vec<BakedPlacementDefinition>,
+    #[serde(default)]
     templates: HashMap<String, ElementTemplateDefinition>,
     #[serde(default)]
     structures: Vec<MutableInstanceDefinition>,
     #[serde(default)]
     fixtures: Vec<MutableInstanceDefinition>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BakedPlacementDefinition {
+    #[serde(default)]
+    x: Option<i16>,
+    #[serde(default)]
+    y: Option<i16>,
+    #[serde(default)]
+    position: Option<PixelPositionDefinition>,
+    width: u16,
+    height: u16,
+    #[serde(default)]
+    repeat: bool,
+    #[serde(default)]
+    occludes_player: bool,
+    source: SourceDefinition,
+}
+
+impl BakedPlacementDefinition {
+    #[allow(clippy::cast_precision_loss)]
+    fn pixel_position(&self, tile_size: f32) -> Vec2 {
+        self.position.as_ref().map_or_else(
+            || {
+                Vec2::new(
+                    f32::from(self.x.expect("legacy placement needs x")) * tile_size,
+                    f32::from(self.y.expect("legacy placement needs y")) * tile_size,
+                )
+            },
+            |position| {
+                Vec2::new(
+                    position.x as f32 * f32::from(position.grid),
+                    position.y as f32 * f32::from(position.grid),
+                )
+            },
+        )
+    }
+
+    fn pixel_size(&self, tile_size: f32) -> Vec2 {
+        if self.repeat {
+            Vec2::new(
+                f32::from(self.width) * tile_size,
+                f32::from(self.height) * tile_size,
+            )
+        } else {
+            Vec2::new(
+                f32::from(self.source.width) * f32::from(self.source.grid),
+                f32::from(self.source.height) * f32::from(self.source.grid),
+            )
+        }
+    }
+
+    fn resolve_occlusion_area(
+        &self,
+        tile_size: f32,
+        world_size: Vec2,
+        origin: Vec2,
+    ) -> CollisionArea {
+        let size = self.pixel_size(tile_size);
+        let pixel_position = self.pixel_position(tile_size);
+        let top_left = Vec2::new(
+            pixel_position.x + origin.x - world_size.x / 2.0,
+            -pixel_position.y + origin.y + world_size.y / 2.0,
+        );
+        CollisionArea {
+            center: top_left + Vec2::new(size.x / 2.0, -size.y / 2.0),
+            size,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -176,6 +247,8 @@ struct MutableInstanceDefinition {
     initial_state: String,
     #[serde(default)]
     transform: InstanceTransformDefinition,
+    #[serde(default)]
+    occludes_player: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -254,6 +327,7 @@ pub struct MutableElement {
     pub initial_state: String,
     pub flip_x: bool,
     pub flip_y: bool,
+    pub occludes_player: bool,
     pub states: HashMap<String, ElementVisual>,
 }
 
@@ -267,7 +341,33 @@ struct SceneMap {
     origin: Vec2,
     art_directory: &'static str,
     collision: Vec<CollisionArea>,
+    crown_occluders: Vec<CollisionArea>,
     mutable_elements: Vec<MutableElement>,
+}
+
+fn resolve_scene_areas(
+    definition: &SceneDefinition,
+    world_size: Vec2,
+    origin: Vec2,
+) -> (Vec<CollisionArea>, Vec<CollisionArea>) {
+    let collision = definition
+        .collision
+        .iter()
+        .map(|&area| area.resolve(definition.grid.tile_size, world_size, origin))
+        .collect();
+    let crown_occluders = definition
+        .placements
+        .iter()
+        .filter(|placement| placement.occludes_player)
+        .map(|placement| {
+            placement.resolve_occlusion_area(
+                f32::from(definition.grid.tile_size),
+                world_size,
+                origin,
+            )
+        })
+        .collect();
+    (collision, crown_occluders)
 }
 
 impl SceneMap {
@@ -295,11 +395,7 @@ impl SceneMap {
             f32::from(definition.grid.width) * tile_size,
             f32::from(definition.grid.height) * tile_size,
         );
-        let collision = definition
-            .collision
-            .iter()
-            .map(|&area| area.resolve(definition.grid.tile_size, world_size, origin))
-            .collect();
+        let (collision, crown_occluders) = resolve_scene_areas(&definition, world_size, origin);
         let mutable_elements = definition
             .structures
             .into_iter()
@@ -332,6 +428,7 @@ impl SceneMap {
                     initial_state: instance.initial_state,
                     flip_x: instance.transform.flip_x,
                     flip_y: instance.transform.flip_y,
+                    occludes_player: instance.occludes_player,
                     states: template
                         .states
                         .iter()
@@ -373,6 +470,7 @@ impl SceneMap {
                 origin,
                 art_directory,
                 collision,
+                crown_occluders,
                 mutable_elements,
             },
             entry,
@@ -440,6 +538,15 @@ impl SceneMap {
             && point.x <= self.origin.x + half_size.x
             && point.y >= ground_y
             && point.y <= self.origin.y + half_size.y
+    }
+
+    fn crown_is_fully_occluded(&self, center: Vec2, size: Vec2) -> bool {
+        let half_size = size / 2.0;
+        self.crown_occluders.iter().any(|area| {
+            let area_half_size = area.size / 2.0;
+            (center.x - area.center.x).abs() < half_size.x + area_half_size.x
+                && (center.y - area.center.y).abs() < half_size.y + area_half_size.y
+        })
     }
 
     fn element_center(&self, element: &MutableElement, visual_size: Vec2) -> Vec2 {
@@ -587,6 +694,16 @@ impl MotelExteriorMap {
 
     pub fn occludes_ground_point(&self, point: Vec2) -> bool {
         self.scene.contains_exterior_occlusion_point(point)
+    }
+
+    pub fn fully_occludes_crown(&self, center: Vec2, size: Vec2) -> bool {
+        self.scene.crown_is_fully_occluded(center, size)
+    }
+}
+
+impl MutableElement {
+    pub fn fully_occludes_player(&self) -> bool {
+        self.occludes_player || self.kind == "chimney"
     }
 }
 
@@ -821,6 +938,29 @@ mod tests {
         assert!(motel.occludes_ground_point(Vec2::new(0.0, ground_y + 1.0)));
         assert!(!motel.occludes_ground_point(Vec2::new(0.0, ground_y - 1.0)));
         assert!(!motel.occludes_ground_point(Vec2::new(10_000.0, ground_y + 1.0)));
+    }
+
+    #[test]
+    fn motel_gable_and_chimneys_are_authored_full_occluders() {
+        let motel = MotelExteriorMap::load();
+        assert_eq!(motel.scene.crown_occluders.len(), 4);
+
+        let gable = motel.scene.crown_occluders[0];
+        assert!(motel.fully_occludes_crown(gable.center, Vec2::new(24.0, 16.0)));
+        assert!(!motel.fully_occludes_crown(
+            MOTEL_EXTERIOR_ORIGIN + Vec2::new(600.0, -250.0),
+            Vec2::new(24.0, 16.0),
+        ));
+
+        let chimneys: Vec<_> = motel
+            .mutable_elements()
+            .iter()
+            .filter(|element| element.kind == "chimney")
+            .collect();
+        assert_eq!(chimneys.len(), 2);
+        assert!(chimneys
+            .iter()
+            .all(|element| element.fully_occludes_player()));
     }
 
     #[test]

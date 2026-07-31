@@ -40,6 +40,11 @@ const SCRIBE_WALK_FRAMES: usize = 9;
 const SCRIBE_WALK_SECONDS_PER_FRAME: f32 = 0.11;
 const SCRIBE_OCCLUSION_CROWN_WIDTH: f32 = 24.0;
 const SCRIBE_OCCLUSION_CROWN_HEIGHT: f32 = 16.0;
+const TREE_OCCLUSION_SAMPLE_COLUMNS: u16 = 8;
+const TREE_OCCLUSION_SAMPLE_ROWS: u16 = 14;
+const TREE_OCCLUSION_SAMPLE_SPACING: f32 = 4.0;
+const TREE_OCCLUSION_REQUIRED_PERCENT: usize = 96;
+const TREE_OPAQUE_ALPHA: f32 = 0.5;
 const TREE_PLAYER_CLEARANCE: f32 = 10.0;
 // Top-down movement collides at the lower stance; the torso may overlap tall art.
 const PLAYER_COLLISION_OFFSET: Vec2 = Vec2::new(0.0, -18.0);
@@ -113,9 +118,11 @@ fn main() {
                 handle_automatic_doorways,
                 update_exterior_depth,
                 animate_player,
+                update_player_tree_occlusion,
                 sync_player_occlusion_crown
                     .after(update_exterior_depth)
-                    .after(animate_player),
+                    .after(animate_player)
+                    .after(update_player_tree_occlusion),
                 follow_player,
                 terrain::update_debug_overlay,
                 update_nearby_interaction,
@@ -175,6 +182,9 @@ struct PlayerOcclusionCrown;
 
 #[derive(Component)]
 struct BuildingCrownOccluder;
+
+#[derive(Component)]
+struct DenseTreeOccluder;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Facing {
@@ -571,7 +581,7 @@ fn setup_world(
             ground_y: building_ground_y,
             depth_bias: building_layer_depth_bias(authored_layer_index(&element.layer), true),
         });
-        if element.kind == "chimney" {
+        if element.fully_occludes_player() {
             commands.entity(entity).insert(BuildingCrownOccluder);
         }
         let kind = if door_routes.contains_key(&element.id) {
@@ -640,6 +650,7 @@ fn setup_world(
                 ground_offset_y: -size * 0.34,
                 depth_bias: 0.0,
             },
+            DenseTreeOccluder,
         ));
         exterior_obstacles
             .tree_trunks
@@ -1060,6 +1071,85 @@ fn tree_trunk_rect(position: Vec2, size: f32) -> ExteriorRect {
     )
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
+fn tree_image_pixel_at_world_point(
+    world_point: Vec2,
+    tree_position: Vec2,
+    tree_size: f32,
+    image_size: UVec2,
+) -> Option<UVec2> {
+    let local = (world_point - tree_position) / tree_size;
+    let image_position = Vec2::new(local.x + 0.5, 0.5 - local.y);
+    if image_position.x < 0.0
+        || image_position.x >= 1.0
+        || image_position.y < 0.0
+        || image_position.y >= 1.0
+    {
+        return None;
+    }
+    Some(UVec2::new(
+        (image_position.x * image_size.x as f32).floor() as u32,
+        (image_position.y * image_size.y as f32).floor() as u32,
+    ))
+}
+
+fn tree_image_is_opaque_at_world_point(
+    image: &Image,
+    tree_position: Vec2,
+    tree_size: f32,
+    world_point: Vec2,
+) -> bool {
+    tree_image_pixel_at_world_point(
+        world_point,
+        tree_position,
+        tree_size,
+        UVec2::new(image.width(), image.height()),
+    )
+    .and_then(|pixel| image.get_color_at(pixel.x, pixel.y).ok())
+    .is_some_and(|color| color.to_srgba().alpha >= TREE_OPAQUE_ALPHA)
+}
+
+fn player_is_fully_covered_by_tree_alpha(
+    player_position: Vec2,
+    mut is_tree_opaque: impl FnMut(Vec2) -> bool,
+) -> bool {
+    let mut opaque_samples = 0;
+    for row in 0..TREE_OCCLUSION_SAMPLE_ROWS {
+        for column in 0..TREE_OCCLUSION_SAMPLE_COLUMNS {
+            let offset = Vec2::new(
+                f32::from(column).mul_add(TREE_OCCLUSION_SAMPLE_SPACING, -14.0),
+                f32::from(row).mul_add(TREE_OCCLUSION_SAMPLE_SPACING, -26.0),
+            );
+            opaque_samples += usize::from(is_tree_opaque(player_position + offset));
+        }
+    }
+    let sample_count = usize::from(TREE_OCCLUSION_SAMPLE_COLUMNS * TREE_OCCLUSION_SAMPLE_ROWS);
+    opaque_samples * 100 >= sample_count * TREE_OCCLUSION_REQUIRED_PERCENT
+}
+
+fn dense_tree_occludes_player(
+    player_position: Vec2,
+    tree_position: Vec2,
+    tree_size: f32,
+    tree_ground_y: f32,
+    tree_image: &Image,
+) -> bool {
+    let player_ground_y = player_position.y + PLAYER_GROUND_OFFSET_Y;
+    let player_art = ExteriorRect::new(
+        player_position,
+        Vec2::new(SCRIBE_FRAME_SIZE_F32 / 2.0, SCRIBE_FRAME_SIZE_F32 * 0.875),
+    );
+    player_ground_y > tree_ground_y
+        && ExteriorRect::new(tree_position, Vec2::splat(tree_size)).overlaps(player_art)
+        && player_is_fully_covered_by_tree_alpha(player_position, |point| {
+            tree_image_is_opaque_at_world_point(tree_image, tree_position, tree_size, point)
+        })
+}
+
 fn resolve_tree_position(grid: &terrain::WorldGrid, desired: Vec2, size: f32) -> Vec2 {
     nearest_valid_position(desired, |candidate| {
         let ground = tree_ground_rect(candidate, size);
@@ -1464,10 +1554,45 @@ fn update_exterior_depth(
 }
 
 #[allow(clippy::type_complexity)]
+fn update_player_tree_occlusion(
+    location: Res<WorldLocation>,
+    images: Res<Assets<Image>>,
+    mut player: Query<(&Transform, &mut Visibility), With<Player>>,
+    trees: Query<(&Transform, &Sprite, &ExteriorYSort), (With<DenseTreeOccluder>, Without<Player>)>,
+) {
+    let Ok((player_transform, mut visibility)) = player.single_mut() else {
+        return;
+    };
+    if *location != WorldLocation::Exterior {
+        *visibility = Visibility::Visible;
+        return;
+    }
+    let player_position = player_transform.translation.truncate();
+    let occluded = trees.iter().any(|(tree_transform, tree_sprite, sorting)| {
+        let tree_position = tree_transform.translation.truncate();
+        let tree_size = tree_sprite.custom_size.unwrap_or(Vec2::ONE).x;
+        images.get(&tree_sprite.image).is_some_and(|tree_image| {
+            dense_tree_occludes_player(
+                player_position,
+                tree_position,
+                tree_size,
+                tree_position.y + sorting.ground_offset_y,
+                tree_image,
+            )
+        })
+    });
+    *visibility = if occluded {
+        Visibility::Hidden
+    } else {
+        Visibility::Visible
+    };
+}
+
+#[allow(clippy::type_complexity)]
 fn sync_player_occlusion_crown(
     location: Res<WorldLocation>,
     motel: Res<interior::MotelExteriorMap>,
-    player: Query<(&Transform, &Sprite), With<Player>>,
+    player: Query<(&Transform, &Sprite, &Visibility), With<Player>>,
     mut crown: Query<
         (&mut Transform, &mut Sprite, &mut Visibility),
         (
@@ -1481,13 +1606,18 @@ fn sync_player_occlusion_crown(
         (With<BuildingCrownOccluder>, Without<PlayerOcclusionCrown>),
     >,
 ) {
-    let (Ok((player_transform, player_sprite)), Ok((mut transform, mut sprite, mut visibility))) =
-        (player.single(), crown.single_mut())
+    let (
+        Ok((player_transform, player_sprite, player_visibility)),
+        Ok((mut transform, mut sprite, mut visibility)),
+    ) = (player.single(), crown.single_mut())
     else {
         return;
     };
     let player_ground = player_transform.translation.truncate() + Vec2::Y * PLAYER_GROUND_OFFSET_Y;
-    if *location != WorldLocation::Exterior || !motel.occludes_ground_point(player_ground) {
+    if *location != WorldLocation::Exterior
+        || *player_visibility == Visibility::Hidden
+        || !motel.occludes_ground_point(player_ground)
+    {
         *visibility = Visibility::Hidden;
         return;
     }
@@ -1507,12 +1637,14 @@ fn sync_player_occlusion_crown(
         crown_position,
         Vec2::new(SCRIBE_OCCLUSION_CROWN_WIDTH, SCRIBE_OCCLUSION_CROWN_HEIGHT),
     );
-    let hidden_by_tall_structure = full_occluders.iter().any(|(occluder, sprite)| {
-        crown_bounds.overlaps(ExteriorRect::new(
-            occluder.translation.truncate(),
-            sprite.custom_size.unwrap_or(Vec2::ONE),
-        ))
-    });
+    let hidden_by_tall_structure = motel
+        .fully_occludes_crown(crown_bounds.center, crown_bounds.size)
+        || full_occluders.iter().any(|(occluder, sprite)| {
+            crown_bounds.overlaps(ExteriorRect::new(
+                occluder.translation.truncate(),
+                sprite.custom_size.unwrap_or(Vec2::ONE),
+            ))
+        });
     if hidden_by_tall_structure {
         *visibility = Visibility::Hidden;
         return;
@@ -2577,10 +2709,19 @@ mod tests {
             .expect("office door");
         let visual = &door.states["damaged"];
         let door_center = motel.element_center(door, visual.size);
-        let player = door_center + Vec2::new(0.0, 23.0);
+        let player = (0..=128_u16)
+            .map(|step| door_center + Vec2::new(0.0, -visual.size.y / 2.0 + f32::from(step)))
+            .find(|candidate| {
+                let stance = player_collision_rect(*candidate);
+                player_inside_doorway(*candidate, door_center, visual.size)
+                    && motel.is_area_walkable(stance.center, stance.size)
+                    && !motel.is_walkable(*candidate + Vec2::Y * DOOR_HEAD_PROBE_OFFSET)
+            })
+            .expect("office doorway needs a walkable approach below its collision threshold");
 
         assert!(player_inside_doorway(player, door_center, visual.size));
-        assert!(motel.is_walkable(player));
+        let stance = player_collision_rect(player);
+        assert!(motel.is_area_walkable(stance.center, stance.size));
         assert!(!motel.is_walkable(player + Vec2::Y * DOOR_HEAD_PROBE_OFFSET));
     }
 
@@ -2651,6 +2792,49 @@ mod tests {
 
         assert!(exterior_depth(player_behind_ground_y) < exterior_depth(tree_ground_y));
         assert!(exterior_depth(player_in_front_ground_y) > exterior_depth(tree_ground_y));
+    }
+
+    #[test]
+    fn dense_tree_full_hide_uses_the_art_silhouette() {
+        let circular_canopy = |point: Vec2| point.length() <= 48.0;
+
+        assert!(player_is_fully_covered_by_tree_alpha(
+            Vec2::ZERO,
+            circular_canopy,
+        ));
+        assert!(!player_is_fully_covered_by_tree_alpha(
+            Vec2::new(32.0, 0.0),
+            circular_canopy,
+        ));
+    }
+
+    #[test]
+    fn tree_world_points_map_to_png_pixels_without_filling_transparent_bounds() {
+        let image_size = UVec2::splat(64);
+        let tree_position = Vec2::new(100.0, 200.0);
+
+        assert_eq!(
+            tree_image_pixel_at_world_point(tree_position, tree_position, 160.0, image_size,),
+            Some(UVec2::splat(32))
+        );
+        assert_eq!(
+            tree_image_pixel_at_world_point(
+                tree_position + Vec2::new(-79.0, 79.0),
+                tree_position,
+                160.0,
+                image_size,
+            ),
+            Some(UVec2::ZERO)
+        );
+        assert_eq!(
+            tree_image_pixel_at_world_point(
+                tree_position + Vec2::new(80.0, 0.0),
+                tree_position,
+                160.0,
+                image_size,
+            ),
+            None
+        );
     }
 
     #[test]

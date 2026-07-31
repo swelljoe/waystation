@@ -72,6 +72,42 @@ class LevelEditorValidationTests(unittest.TestCase):
         self.level["placements"][0]["x"] = 7
         self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
 
+    def test_placement_occlusion_flag_must_be_boolean(self) -> None:
+        self.level["placements"][0]["occludes_player"] = "yes"
+        self.assertIn(
+            "placements[0].occludes_player must be a boolean",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
+    def test_repairable_occlusion_flag_must_be_boolean(self) -> None:
+        self.level["structures"] = [
+            {
+                "id": "gable-01",
+                "template": "mirror",
+                "x": 1,
+                "y": 1,
+                "width": 1,
+                "height": 1,
+                "initial_state": "damaged",
+                "occludes_player": 1,
+            }
+        ]
+        self.level["templates"] = {
+            "mirror": {
+                "label": "Mirror",
+                "kind": "fixture",
+                "layer": "object",
+                "states": {
+                    "damaged": {"source": self.level["placements"][0]["source"]},
+                    "repaired": {"source": self.level["placements"][0]["source"]},
+                },
+            }
+        }
+        self.assertIn(
+            "structures[0].occludes_player must be a boolean",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
     def test_stamp_may_be_outside_after_room_is_resized(self) -> None:
         self.level["placements"][0]["x"] = -3
         self.level["placements"][0]["y"] = 12

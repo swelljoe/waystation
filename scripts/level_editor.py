@@ -234,6 +234,10 @@ def validate_level(
             else:
                 errors.extend(validate_pixel_position(position, f"placements[{index}]"))
             errors.extend(validate_transform(placement.get("transform"), f"placements[{index}]"))
+            if "occludes_player" in placement and not isinstance(
+                placement.get("occludes_player"), bool
+            ):
+                errors.append(f"placements[{index}].occludes_player must be a boolean")
             source_numeric = ("grid", "x", "y", "width", "height")
             if not isinstance(source, dict) or not all(
                 isinstance(source.get(key), int) for key in source_numeric
@@ -342,6 +346,10 @@ def validate_level(
             else:
                 errors.extend(validate_pixel_position(position, label))
             errors.extend(validate_transform(element.get("transform"), label))
+            if "occludes_player" in element and not isinstance(
+                element.get("occludes_player"), bool
+            ):
+                errors.append(f"{label}.occludes_player must be a boolean")
             if "layer" in element and element.get("layer") not in {
                 "floor",
                 "wall",
