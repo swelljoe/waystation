@@ -113,7 +113,10 @@ mod tests {
 
     #[test]
     fn find_ids_are_unique() {
-        let mut ids = finds().iter().map(|find| find.id.as_str()).collect::<Vec<_>>();
+        let mut ids = finds()
+            .iter()
+            .map(|find| find.id.as_str())
+            .collect::<Vec<_>>();
         ids.sort_unstable();
         let count = ids.len();
         ids.dedup();

@@ -175,9 +175,9 @@ A `TaskSpec` states what a job asks for (skill, level, tools, supplies) and what
 it gives back (`yields`). Yields are what keep the valley circulating rather than
 draining: cleared debris returns nails, a chopped tree returns logs and kindling,
 and two standing stations convert raw material into the two currencies every
-repair is priced in. The sawbuck in the motel court takes a hatchet and one log
-and returns two planks; the outcrops along the valley rim take a pickaxe and
-return stone. Both are worked in place instead of collected, so their entities
+repair is priced in. The sawbuck at the back of the tool shed takes a hatchet and
+one log and returns two planks; the outcrops along the valley rim take a pickaxe
+and return stone. Both are worked in place instead of collected, so their entities
 carry a task rather than a pickup reward, and the outcrop's `collected_pickups`
 entry is what keeps it quarried across a save.
 
@@ -185,7 +185,8 @@ Conversion teaches nothing — milling and quarrying award no experience — so 
 skill level still measures restoration done rather than material gathered. The
 gates are deliberate and each one uses a mechanism that already existed: milling
 is Carpentry work, so it waits on the Upkeep 1 unlock; quarrying needs the shed's
-pickaxe, which starts broken, so masonry begins with a tool repair. Masonry lays
+pickaxe, which starts broken, so masonry begins with a tool repair — and because
+mending a haft wants wood, the axe work comes before the quarry does. Masonry lays
 stone with a shovel because no trowel art exists in any licensed pack; `Trowel`
 remains in `ToolId` for whenever one does.
 
@@ -231,8 +232,8 @@ terrain and every prop, and no collision — so the Scribe walks over them rathe
 than around them. They skip `spawn_building` entirely for that reason: no layer
 caches, no depth sorting, no collision. Because the layout is now editable, a
 test reads the authored scene and asserts nine bays on one line with no gaps, on
-land, out of the building, and clear of the motel sign and the sawbuck; an editor
-can put a bay in a wall, and that is what catches it.
+land, out of the building, and clear of the motel sign; an editor can put a bay
+in a wall, and that is what catches it.
 
 A bed is a small state machine — cracked bay, broken ground, tilled rows, sown
 seed, standing grain, harvest — and each state owns exactly one `TaskSpec`

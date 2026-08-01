@@ -115,7 +115,11 @@ mod tests {
         let readings = readings();
         assert!(readings.len() >= 10);
         for reading in readings {
-            assert!(!reading.verse.trim().is_empty(), "{} has no verse", reading.id);
+            assert!(
+                !reading.verse.trim().is_empty(),
+                "{} has no verse",
+                reading.id
+            );
             assert!(
                 !reading.reference.trim().is_empty(),
                 "{} has no reference",

@@ -34,6 +34,17 @@ PORTABLE_TOOLS = {
     "hoe",
     "watering_can",
 }
+# The pairings `spawn_scene_interaction` in the game knows how to build. An
+# interaction the editor lets through that the game has no pairing for panics at
+# load with the scene named, so these two lists have to stay in step.
+INTERACTION_KINDS = {"search", "rest", "work"}
+INTERACTION_DISCOVERIES = {
+    "gideon_bible",
+    "seed_store",
+    "salvage",
+    "bed",
+    "sawbuck",
+}
 
 
 def safe_child(root: Path, relative: str) -> Path | None:
@@ -338,9 +349,9 @@ def validate_level(
                 interaction_ids.add(interaction_id)
             if not isinstance(interaction.get("label"), str) or not interaction["label"].strip():
                 errors.append(f"{label} needs a label")
-            if interaction.get("kind") != "search":
+            if interaction.get("kind") not in INTERACTION_KINDS:
                 errors.append(f"{label} has an invalid kind")
-            if interaction.get("discovery") != "gideon_bible":
+            if interaction.get("discovery") not in INTERACTION_DISCOVERIES:
                 errors.append(f"{label} has an invalid discovery")
             errors.extend(validate_pixel_position(interaction.get("position"), label))
             if not all(isinstance(interaction.get(key), int) for key in ("width", "height")):

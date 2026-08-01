@@ -22,8 +22,10 @@ support is: kindling under the old growth, three debris items in the office and
 room 5, a fallen ladder somewhere in the grass, a chimney that has to be reached
 from the roof, and then a fire. Searching the office desk yields the motel keys
 and nails. The authored tool shed behind the motel holds the working hammer, wood
-axe, shovel, and a broken pickaxe. Fallen logs, kindling, and sound planks are
-scattered across the expanded valley.
+axe, shovel, and a broken pickaxe, and the sawbuck stands against its back wall —
+the one place in the valley a log becomes planks, and the only roof old enough to
+explain why a wooden bench is still standing. Fallen logs, kindling, and sound
+planks are scattered across the expanded valley.
 
 None of that is stated to the player. Requirements appear on the thing they
 belong to, when the Scribe walks up to it — the cold hearth says what is stopping
@@ -45,11 +47,30 @@ scene and native-pixel position in save data. Using `Q` inside the tool shed
 returns a shed tool to its authored home position instead. Drop positions are
 checked against water, trees, buildings, room edges, and authored collision.
 
-Broken tools may still be carried but do not satisfy a task requirement. `R`
-repairs a broken tool when its Upkeep/tool requirements are met. The first
-broken pickaxe needs Upkeep 1 and a serviceable hammer. Tool state is keyed by
-its stable item ID and can represent `home`, `carried`, `dropped`, or `held_by`
-locations; `held_by` is reserved for later NPC use.
+Broken tools may still be carried but do not satisfy a task requirement. Taking
+one says so in the Scribe's own voice — *I'll need to repair this pickaxe before
+I can use it* — and stops there, without naming the bench, the skill, or the
+material.
+
+`R` mends a broken tool, either where it lies or out of the pack. A tool goes
+where the Scribe goes, so the job goes with it: when nothing underfoot wants the
+key, `R` works on the carried tool, preferring whichever one is selected. Only
+when the player is standing over a job does that job take the key instead. With
+a broken tool in hand and nothing nearby, the prompt line becomes
+`R — repair the broken pickaxe     [Upkeep 2 · hammer · 1 sound plank or 1
+fallen log]`, which is the same shape every standing station uses: it names what
+the work wants and not where to find it.
+
+Mending costs **Upkeep 2**, a serviceable **hammer**, and **one piece of wood** —
+a sound plank or a fallen log, whichever the Scribe has. A broken hammer is the
+one tool that needs no tool, since it cannot mend itself; it still wants the
+skill and the wood. This is the first requirement in the game where alternatives
+are allowed, expressed as `any_of` on a `TaskSpec`: any single option satisfies
+it and exactly one is spent, in authoring order, so the plank goes before the
+log — a whole log is worth more milled than whittled down for one handle.
+
+Tool state is keyed by its stable item ID and can represent `home`, `carried`,
+`dropped`, or `held_by` locations; `held_by` is reserved for later NPC use.
 
 To author one, select a source crop in the scene editor, choose **Portable tool**,
 set its type, label, initial condition, and layer, then stamp it like scenery.
@@ -146,6 +167,20 @@ piece of furniture is for without any new engine code:
 | `search` | `seed_store` | The one sack of seed grain, once |
 | `search` | `salvage` | One draw from `content/salvage.json`, then empty |
 | `rest` | `bed` | Sleeps until morning, if the light has started to go |
+| `work` | `sawbuck` | Mills one log into planks, as often as there are logs |
+
+Two of those bring their own art rather than sitting over furniture the room has
+already drawn: the seed sack, which vanishes when the shelf is emptied, and the
+sawbuck, which fills the authored rectangle exactly. Moving the bench, resizing
+it, or putting a second one in another scene is a content edit; the game reads
+`world/sawbuck.png` at whatever `width` and `height` the interaction gives it.
+
+Where a station stands matters as much as whether it is reachable. Proximity
+picks the *nearest* interactable, so a bench in a crowded corner spawns, draws,
+and is silently unselectable because a tool on the floor is always half a pace
+closer. A test asserts every `work` station has ground in front of it — outside
+its own rectangle, walkable, and nearer to the station than to anything else in
+the room. The shed's first back-left placement failed exactly that way.
 
 An unknown pairing panics at load with the scene and interaction named, rather
 than silently spawning something that answers to no key. Salvage spots record

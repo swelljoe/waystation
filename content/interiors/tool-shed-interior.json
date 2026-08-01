@@ -1093,6 +1093,19 @@
       },
       "width": 64,
       "height": 48
+    },
+    {
+      "id": "sawbuck",
+      "label": "sawbuck against the back wall",
+      "kind": "work",
+      "discovery": "sawbuck",
+      "position": {
+        "grid": 8,
+        "x": 31,
+        "y": 13
+      },
+      "width": 120,
+      "height": 96
     }
   ]
 }

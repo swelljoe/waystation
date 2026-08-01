@@ -263,9 +263,7 @@ impl Visitors {
         let names = profile
             .bodies
             .iter()
-            .map(|body| {
-                (*chance.pick(body.names).unwrap_or(&"the stranger")).to_owned()
-            })
+            .map(|body| (*chance.pick(body.names).unwrap_or(&"the stranger")).to_owned())
             .collect();
         let vignette = (*chance.pick(profile.vignettes).unwrap_or(&"mara_grief")).to_owned();
         self.visits_received += 1;
@@ -443,7 +441,10 @@ mod tests {
         party.stage = Stage::Deciding;
         party.given.room = Some("motel-room-01".to_owned());
         visitors.finish_deciding();
-        assert_eq!(visitors.party.as_ref().expect("party").stage, Stage::Lodging);
+        assert_eq!(
+            visitors.party.as_ref().expect("party").stage,
+            Stage::Lodging
+        );
 
         visitors.wake_guests();
         let party = visitors.party.as_ref().expect("party");

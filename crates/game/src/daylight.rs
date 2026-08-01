@@ -70,6 +70,16 @@ impl Default for Clock {
 }
 
 impl Clock {
+    /// A clock set to a named point in a named day, for tests and for anything
+    /// that needs to reason about an hour it is not currently living in.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn at(day: u32, fraction: f32) -> Self {
+        Self {
+            day,
+            seconds: DAY_SECONDS * fraction.clamp(0.0, 1.0),
+        }
+    }
+
     /// How far through the day, in `0.0..1.0`.
     pub fn fraction(self) -> f32 {
         self.seconds / DAY_SECONDS
@@ -127,10 +137,6 @@ impl Clock {
         colour.with_alpha(dark * DEEPEST_TINT)
     }
 
-    pub fn is_dark(self) -> bool {
-        matches!(self.phase(), Phase::Night)
-    }
-
     /// True once the light has begun to fail. A bed refuses before this.
     pub fn is_bedtime(self) -> bool {
         self.fraction() >= EARLIEST_BEDTIME
@@ -156,11 +162,11 @@ mod tests {
 
     #[test]
     fn a_day_is_ten_minutes_and_rolls_over_exactly_once() {
-        let mut clock = Clock {
-            day: 4,
-            seconds: DAY_SECONDS - 1.0,
-        };
-        assert!(!clock.tick(0.5), "half a second short is still the same day");
+        let mut clock = Clock::at(4, 1.0 - 1.0 / DAY_SECONDS);
+        assert!(
+            !clock.tick(0.5),
+            "half a second short is still the same day"
+        );
         assert!(clock.tick(1.0), "crossing midnight advances the date");
         assert_eq!(clock.day, 5);
         assert!(clock.fraction() < 0.01, "the new day starts at its start");
@@ -169,41 +175,36 @@ mod tests {
     #[test]
     fn the_light_holds_flat_through_the_working_middle_of_the_day() {
         for fraction in [0.10, 0.30, 0.50, 0.70] {
-            let clock = Clock {
-                day: 1,
-                seconds: DAY_SECONDS * fraction,
-            };
+            let clock = Clock::at(1, fraction);
             assert!(
                 (clock.light() - 1.0).abs() < f32::EPSILON,
                 "the day should not dim at {fraction}"
             );
-            assert_eq!(clock.tint().alpha(), 0.0, "no wash over full daylight");
+            assert!(
+                clock.tint().alpha() < f32::EPSILON,
+                "no wash over full daylight"
+            );
         }
     }
 
     #[test]
     fn the_light_falls_without_ever_coming_back_up_between_dusk_and_dark() {
         let mut previous = f32::MAX;
-        let mut fraction = LIGHT_BEGINS_TO_FAIL;
-        while fraction <= 1.0 {
-            let clock = Clock {
-                day: 1,
-                seconds: DAY_SECONDS * fraction,
-            };
-            let light = clock.light();
-            assert!(light <= previous, "the light brightened again at {fraction}");
+        for step in 72_u8..=100 {
+            let fraction = f32::from(step) / 100.0;
+            let light = Clock::at(1, fraction).light();
+            assert!(
+                light <= previous,
+                "the light brightened again at {fraction}"
+            );
             previous = light;
-            fraction += 0.01;
         }
-        assert_eq!(previous, 0.0, "night is fully dark");
+        assert!(previous < f32::EPSILON, "night is fully dark");
     }
 
     #[test]
     fn full_dark_is_still_something_a_player_can_see_through() {
-        let clock = Clock {
-            day: 1,
-            seconds: DAY_SECONDS * 0.95,
-        };
+        let clock = Clock::at(1, 0.95);
         let alpha = clock.tint().alpha();
         assert!(
             (0.3..0.7).contains(&alpha),
@@ -213,24 +214,15 @@ mod tests {
 
     #[test]
     fn a_bed_refuses_until_the_light_starts_to_go() {
-        let noon = Clock {
-            day: 2,
-            seconds: DAY_SECONDS * 0.4,
-        };
+        let noon = Clock::at(2, 0.4);
         assert!(!noon.is_bedtime());
-        let dusk = Clock {
-            day: 2,
-            seconds: DAY_SECONDS * 0.8,
-        };
+        let dusk = Clock::at(2, 0.8);
         assert!(dusk.is_bedtime());
     }
 
     #[test]
     fn sleeping_at_dusk_costs_the_whole_night_rather_than_rewinding_the_day() {
-        let mut clock = Clock {
-            day: 2,
-            seconds: DAY_SECONDS * 0.75,
-        };
+        let mut clock = Clock::at(2, 0.75);
         assert_eq!(clock.sleep_until_morning(), 3);
         assert_eq!(clock.phase(), Phase::Morning);
         assert!(!clock.is_bedtime(), "you cannot sleep twice in a row");

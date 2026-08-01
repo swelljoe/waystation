@@ -342,6 +342,26 @@ class InteriorRenderingTests(unittest.TestCase):
         self.assertIsNotNone(icon.getbbox())
         self.assertIn("fallback", records[0]["source"])
 
+    def test_painted_motel_sign_is_used_at_its_own_pixel_size(self) -> None:
+        components = self.assets / "components"
+        components.mkdir()
+        painted = Image.new("RGBA", (101, 100), (0, 0, 0, 0))
+        painted.putpixel((40, 22), (91, 130, 174, 255))
+        painted.save(components / "way-station-sign.png")
+
+        image, provenance = BUILD_ASSETS.build_way_station_sign(self.assets)
+
+        self.assertEqual(image.size, (101, 100))
+        self.assertEqual(image.getpixel((40, 22)), (91, 130, 174, 255))
+        self.assertIn("custom", provenance)
+
+    def test_motel_sign_has_a_public_fallback_on_the_same_canvas(self) -> None:
+        image, provenance = BUILD_ASSETS.build_way_station_sign(self.assets)
+
+        self.assertEqual(image.size, BUILD_ASSETS.WAY_STATION_SIGN_SIZE)
+        self.assertIsNotNone(image.getbbox())
+        self.assertIn("fallback", provenance)
+
     def test_restoration_world_props_have_native_pixel_canvases(self) -> None:
         props = BUILD_ASSETS.draw_forage_and_tool_props()
 

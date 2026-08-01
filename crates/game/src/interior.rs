@@ -176,6 +176,9 @@ struct SceneDefinition {
 pub enum SceneInteractionKind {
     Search,
     Rest,
+    /// A station rather than a hiding place: it holds nothing of its own and
+    /// answers for as long as the Scribe brings it something to work on.
+    Work,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
@@ -188,6 +191,9 @@ pub enum SceneDiscovery {
     Salvage,
     /// A bed in a room dry enough to lie down in.
     Bed,
+    /// The milling bench. A log laid across it comes off as planks, which is
+    /// work the shed's own roof has kept dry for a century.
+    Sawbuck,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1325,7 +1331,12 @@ mod tests {
             ids.sort_unstable();
             let authored = ids.len();
             ids.dedup();
-            assert_eq!(authored, ids.len(), "duplicate interaction id in {}", room.id());
+            assert_eq!(
+                authored,
+                ids.len(),
+                "duplicate interaction id in {}",
+                room.id()
+            );
         }
     }
 
@@ -1344,6 +1355,41 @@ mod tests {
             sleepable,
             vec![InteriorId::Room01, InteriorId::Room06],
             "rooms one and six are the dry ones; a bed anywhere else is a lie"
+        );
+    }
+
+    /// Milling is the only way a fallen log becomes a plank, and planks are what
+    /// carpentry, roofing, and every mended tool haft are waiting on. The bench
+    /// stands indoors now, out of a century of weather, which means one scene
+    /// edit is all it would take to strand the rest of the tree.
+    #[test]
+    fn the_valley_has_one_milling_bench_and_it_stands_in_the_tool_shed() {
+        let housing = InteriorId::ALL
+            .into_iter()
+            .filter(|&interior_id| {
+                InteriorMap::load(interior_id)
+                    .interactions()
+                    .iter()
+                    .any(|interaction| interaction.discovery == SceneDiscovery::Sawbuck)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(housing, vec![InteriorId::ToolShed]);
+
+        let shed = InteriorMap::load(InteriorId::ToolShed);
+        let bench = shed
+            .interactions()
+            .iter()
+            .find(|interaction| interaction.discovery == SceneDiscovery::Sawbuck)
+            .expect("the shed keeps the sawbuck");
+        assert_eq!(
+            bench.kind,
+            SceneInteractionKind::Work,
+            "a sawbuck authored as anything but work has no pairing and panics at load"
+        );
+        assert_eq!(
+            bench.size,
+            Vec2::new(120.0, 96.0),
+            "the bench draws its art at the size the scene gives it"
         );
     }
 

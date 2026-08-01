@@ -85,8 +85,9 @@ static PRINTS: OnceLock<Vec<Print>> = OnceLock::new();
 
 pub fn prints() -> &'static [Print] {
     PRINTS.get_or_init(|| {
-        let catalogue: Catalogue = serde_json::from_str(include_str!("../../../content/prints.json"))
-            .expect("content/prints.json must be valid");
+        let catalogue: Catalogue =
+            serde_json::from_str(include_str!("../../../content/prints.json"))
+                .expect("content/prints.json must be valid");
         catalogue
             .prints
             .into_iter()
@@ -252,7 +253,10 @@ mod tests {
 
     #[test]
     fn print_ids_are_unique_so_a_card_cannot_be_cut_twice() {
-        let mut ids = prints().iter().map(|print| print.id.as_str()).collect::<Vec<_>>();
+        let mut ids = prints()
+            .iter()
+            .map(|print| print.id.as_str())
+            .collect::<Vec<_>>();
         ids.sort_unstable();
         let count = ids.len();
         ids.dedup();
@@ -348,7 +352,9 @@ mod tests {
             Vec::new(),
             Tier::Monochrome,
         );
-        let suggestion = collection.suggestion_for("belonging").expect("a suggestion");
+        let suggestion = collection
+            .suggestion_for("belonging")
+            .expect("a suggestion");
         assert_eq!(suggestion.id, "early-hospitality");
         assert!(
             collection.suggestion_for("no-such-need").is_none(),

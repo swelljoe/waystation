@@ -9,6 +9,11 @@ const XP_PER_LEVEL: u16 = 3;
 const MAX_SKILL_LEVEL: u8 = 3;
 pub const MAX_CARRIED_TOOLS: usize = 3;
 
+/// Mending a tool is not a formality. A hand that has only ever swept debris
+/// does not know what a sound joint feels like, so the work waits on a season
+/// of easier repairs first.
+const TOOL_REPAIR_LEVEL: u8 = 2;
+
 /// Total experience in one skill from nothing to its ceiling.
 #[cfg_attr(not(test), allow(dead_code))]
 pub const fn xp_for_max_level() -> u32 {
@@ -245,6 +250,11 @@ pub struct TaskSpec {
     pub tools: Vec<ToolId>,
     #[serde(default)]
     pub supplies: Vec<SupplyCost>,
+    /// Materials where any one option will do. A broken haft wants wood, and
+    /// the valley does not care whether it comes off a fallen log or out of a
+    /// sound plank. Empty means the job offers no such choice.
+    #[serde(default)]
+    pub any_of: Vec<SupplyCost>,
     /// Materials the work gives back: nails pulled from cleared debris, planks
     /// cut from a log, stone broken out of an outcrop. This is what keeps the
     /// restoration economy circulating instead of draining one-time props.
@@ -300,6 +310,7 @@ impl TaskSpec {
             level,
             tools: Vec::new(),
             supplies: Vec::new(),
+            any_of: Vec::new(),
             yields: Vec::new(),
             xp: 1,
         }
@@ -313,6 +324,22 @@ impl TaskSpec {
     fn with_supply(mut self, item: SupplyId, amount: u16) -> Self {
         self.supplies.push(SupplyCost { item, amount });
         self
+    }
+
+    fn with_any_of(mut self, options: &[SupplyCost]) -> Self {
+        self.any_of.extend_from_slice(options);
+        self
+    }
+
+    /// The choice clause as a player reads it: "1 sound plank or 1 fallen log".
+    fn choice_text(&self) -> Option<String> {
+        (!self.any_of.is_empty()).then(|| {
+            self.any_of
+                .iter()
+                .map(|cost| format!("{} {}", cost.amount, cost.item.label_for(cost.amount)))
+                .collect::<Vec<_>>()
+                .join(" or ")
+        })
     }
 
     fn with_yield(mut self, item: SupplyId, amount: u16) -> Self {
@@ -336,6 +363,7 @@ impl TaskSpec {
                 .iter()
                 .map(|cost| format!("{} {}", cost.amount, cost.item.label_for(cost.amount))),
         );
+        parts.extend(self.choice_text());
         if parts.is_empty() {
             "no prerequisites".to_owned()
         } else {
@@ -371,8 +399,23 @@ impl TaskSpec {
             .without_experience()
     }
 
+    /// A tool comes back into service for a hammer, a practised hand, and wood
+    /// for the haft — a fallen log or a sound plank, whichever is nearer.
+    ///
+    /// A broken hammer is the one exception on tools, since it cannot be the
+    /// thing that mends itself. It still wants the skill and the wood.
     pub fn for_tool_repair(tool: ToolId) -> Self {
-        let task = Self::new(TaskAction::Repair, SkillId::Upkeep, 1);
+        let task =
+            Self::new(TaskAction::Repair, SkillId::Upkeep, TOOL_REPAIR_LEVEL).with_any_of(&[
+                SupplyCost {
+                    item: SupplyId::Plank,
+                    amount: 1,
+                },
+                SupplyCost {
+                    item: SupplyId::Log,
+                    amount: 1,
+                },
+            ]);
         if tool == ToolId::Hammer {
             task
         } else {
@@ -537,6 +580,30 @@ impl Progression {
         Ok(record.tool)
     }
 
+    /// The tool `R` works on when nothing underfoot wants the key: whatever is
+    /// in hand if it needs mending, otherwise the first broken thing carried.
+    /// A tool goes where the Scribe goes, so mending one is not tied to
+    /// standing in the shed where it was found.
+    pub fn carried_broken_tool(&self) -> Option<(String, ToolId)> {
+        let needs_mending = |record: &&PortableToolRecord| {
+            record.location == ToolLocation::Carried && record.condition == ToolCondition::Broken
+        };
+        self.equipped_tool
+            .as_ref()
+            .and_then(|id| {
+                self.tool_instances
+                    .get(id)
+                    .filter(needs_mending)
+                    .map(|record| (id.clone(), record.tool))
+            })
+            .or_else(|| {
+                self.tool_instances
+                    .iter()
+                    .find(|(_, record)| needs_mending(record))
+                    .map(|(id, record)| (id.clone(), record.tool))
+            })
+    }
+
     pub fn set_tool_condition(&mut self, id: &str, condition: ToolCondition) -> bool {
         let Some(record) = self.tool_instances.get_mut(id) else {
             return false;
@@ -648,7 +715,20 @@ impl Progression {
                     )
                 }),
         );
+        if self.affordable_choice(task).is_none() {
+            missing.extend(task.choice_text());
+        }
         missing
+    }
+
+    /// Which option of a task's choice clause the Scribe can actually pay, if
+    /// any. The first affordable one wins, so authoring order is preference
+    /// order — a plank before a whole log, since the log is worth more milled.
+    fn affordable_choice(&self, task: &TaskSpec) -> Option<SupplyCost> {
+        task.any_of
+            .iter()
+            .copied()
+            .find(|cost| self.supply(cost.item) >= cost.amount)
     }
 
     pub fn attempt(&mut self, task: &TaskSpec) -> Result<TaskOutcome, String> {
@@ -686,7 +766,15 @@ impl Progression {
                 self.supply(cost.item)
             ));
         }
-        for cost in &task.supplies {
+        let choice = self.affordable_choice(task);
+        if choice.is_none() {
+            if let Some(wanted) = task.choice_text() {
+                // No count to report: had the Scribe any of it, this would
+                // have gone through instead of coming back here.
+                return Err(format!("Needs {wanted}."));
+            }
+        }
+        for cost in task.supplies.iter().chain(choice.iter()) {
             *self.supplies.entry(cost.item).or_default() -= cost.amount;
         }
         for gain in &task.yields {
@@ -715,7 +803,7 @@ impl Progression {
             .filter(|record| record.location == ToolLocation::Carried)
             .map(|record| {
                 if record.condition == ToolCondition::Broken {
-                    format!("{} (broken)", record.tool.label())
+                    format!("{} ({})", record.tool.label(), record.condition.label())
                 } else {
                     record.tool.label().to_owned()
                 }
@@ -854,7 +942,8 @@ mod tests {
         progression.register_tool_instance("pickaxe-01", ToolId::Pickaxe, ToolCondition::Broken);
         progression.pick_up_tool("pickaxe-01").expect("carried");
         progression.add_tool(ToolId::Hammer);
-        for _ in 0..3 {
+        progression.add_tool(ToolId::Hatchet);
+        for _ in 0..u16::from(TOOL_REPAIR_LEVEL) * XP_PER_LEVEL {
             progression
                 .attempt(&TaskSpec::for_kind("debris"))
                 .expect("cleaning");
@@ -865,9 +954,18 @@ mod tests {
             progression.attempt(&quarrying),
             Err("Needs a pickaxe.".to_owned())
         );
+        // The haft wants wood before the pick will hold an edge, and the valley
+        // hands that over one felled tree at a time.
+        assert_eq!(
+            progression.attempt(&TaskSpec::for_tool_repair(ToolId::Pickaxe)),
+            Err("Needs 1 sound plank or 1 fallen log.".to_owned())
+        );
+        progression
+            .attempt(&TaskSpec::for_tree_chopping())
+            .expect("a hatchet and a standing tree");
         progression
             .attempt(&TaskSpec::for_tool_repair(ToolId::Pickaxe))
-            .expect("Upkeep 1 and a hammer");
+            .expect("Upkeep 2, a hammer, and wood for the haft");
         progression.set_tool_condition("pickaxe-01", ToolCondition::Serviceable);
         progression.attempt(&quarrying).expect("a working pickaxe");
 
@@ -926,17 +1024,19 @@ mod tests {
         }
         assert_eq!(progression.skill_level(SkillId::Upkeep), MAX_SKILL_LEVEL);
 
-        progression
-            .attempt(&TaskSpec::for_tool_repair(ToolId::Pickaxe))
-            .expect("Upkeep 1 and a hammer");
-        progression.set_tool_condition("pickaxe-01", ToolCondition::Serviceable);
-
+        // Wood comes before the pick does: mending a haft needs something to
+        // cut one from, so the axe work leads and the quarry waits on it.
         for _ in 0..9 {
             progression
                 .attempt(&TaskSpec::for_tree_chopping())
                 .expect("a hatchet and a standing tree");
         }
-        for _ in 0..18 {
+        progression
+            .attempt(&TaskSpec::for_tool_repair(ToolId::Pickaxe))
+            .expect("Upkeep 2, a hammer, and wood for the haft");
+        progression.set_tool_condition("pickaxe-01", ToolCondition::Serviceable);
+
+        for _ in 0..17 {
             progression
                 .attempt(&TaskSpec::for_milling())
                 .expect("a log on the sawbuck");
@@ -1025,6 +1125,85 @@ mod tests {
         assert!(!progression.has_tool(ToolId::Pickaxe));
     }
 
+    /// A hand and a hammer are not enough; the haft wants wood. Either kind
+    /// pays, and only one of them is spent — a tool repair should not quietly
+    /// eat both the plank and the log when it needed one of them.
+    #[test]
+    fn mending_a_tool_wants_wood_and_takes_whichever_kind_is_nearer() {
+        let repair = TaskSpec::for_tool_repair(ToolId::Pickaxe);
+        let ready = || {
+            let mut progression = Progression::default();
+            progression.add_tool(ToolId::Hammer);
+            for _ in 0..u16::from(TOOL_REPAIR_LEVEL) * XP_PER_LEVEL {
+                progression
+                    .attempt(&TaskSpec::for_kind("debris"))
+                    .expect("cleaning asks for nothing");
+            }
+            progression
+        };
+
+        let mut empty_handed = ready();
+        assert_eq!(
+            empty_handed.attempt(&repair),
+            Err("Needs 1 sound plank or 1 fallen log.".to_owned())
+        );
+        assert!(empty_handed
+            .shortfalls(&repair)
+            .contains(&"1 sound plank or 1 fallen log".to_owned()));
+
+        let mut with_a_log = ready();
+        with_a_log.add_supply(SupplyId::Log, 1);
+        with_a_log.attempt(&repair).expect("a log is wood enough");
+        assert_eq!(with_a_log.supply(SupplyId::Log), 0);
+
+        // Both on hand: the plank goes, because a whole log is worth more
+        // milled than whittled down for one handle.
+        let mut with_both = ready();
+        with_both.add_supply(SupplyId::Log, 1);
+        with_both.add_supply(SupplyId::Plank, 1);
+        with_both.attempt(&repair).expect("either will do");
+        assert_eq!(with_both.supply(SupplyId::Plank), 0);
+        assert_eq!(with_both.supply(SupplyId::Log), 1);
+    }
+
+    /// R with nothing underfoot works on what the Scribe is carrying, so this
+    /// has to name the right thing: the tool in hand when that one is broken,
+    /// and never a tool that is sound or still lying where it was found.
+    #[test]
+    fn the_carried_tool_r_reaches_for_is_the_broken_one_in_hand() {
+        let mut progression = Progression::default();
+        progression.register_tool_instance("hoe-01", ToolId::Hoe, ToolCondition::Broken);
+        progression.register_tool_instance("pickaxe-01", ToolId::Pickaxe, ToolCondition::Broken);
+        progression.register_tool_instance("hammer-01", ToolId::Hammer, ToolCondition::Serviceable);
+
+        // Still on the shed floor: nothing to work on.
+        assert_eq!(progression.carried_broken_tool(), None);
+
+        progression.pick_up_tool("hammer-01").expect("carried");
+        assert_eq!(progression.carried_broken_tool(), None);
+
+        progression.pick_up_tool("pickaxe-01").expect("carried");
+        assert_eq!(
+            progression.carried_broken_tool(),
+            Some(("pickaxe-01".to_owned(), ToolId::Pickaxe))
+        );
+
+        // Two broken tools in the pack: the equipped one is the one meant.
+        progression.pick_up_tool("hoe-01").expect("carried");
+        assert_eq!(
+            progression.carried_broken_tool(),
+            Some(("hoe-01".to_owned(), ToolId::Hoe))
+        );
+
+        progression.set_tool_condition("hoe-01", ToolCondition::Serviceable);
+        assert_eq!(
+            progression.carried_broken_tool(),
+            Some(("pickaxe-01".to_owned(), ToolId::Pickaxe))
+        );
+        progression.set_tool_condition("pickaxe-01", ToolCondition::Serviceable);
+        assert_eq!(progression.carried_broken_tool(), None);
+    }
+
     #[test]
     fn a_broken_tool_can_be_repaired_and_saved_by_stable_id() {
         let mut progression = Progression::default();
@@ -1033,11 +1212,12 @@ mod tests {
             .pick_up_tool("pickaxe-01")
             .expect("portable tool");
         progression.add_tool(ToolId::Hammer);
-        for _ in 0..3 {
+        for _ in 0..u16::from(TOOL_REPAIR_LEVEL) * XP_PER_LEVEL {
             progression
                 .attempt(&TaskSpec::for_kind("debris"))
                 .expect("basic upkeep");
         }
+        progression.add_supply(SupplyId::Plank, 1);
         progression
             .attempt(&TaskSpec::for_tool_repair(ToolId::Pickaxe))
             .expect("repair requirements met");

@@ -64,6 +64,37 @@ class LevelEditorValidationTests(unittest.TestCase):
         ]
         self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
 
+    def test_standing_station_hotspot_passes(self) -> None:
+        self.level["interactions"] = [
+            {
+                "id": "sawbuck",
+                "label": "sawbuck against the back wall",
+                "kind": "work",
+                "discovery": "sawbuck",
+                "position": {"grid": 8, "x": 5, "y": 13},
+                "width": 120,
+                "height": 96,
+            }
+        ]
+        self.assertEqual(validate_level(self.level, "test-room", self.assets), [])
+
+    def test_a_discovery_the_game_has_no_pairing_for_is_refused(self) -> None:
+        self.level["interactions"] = [
+            {
+                "id": "sawbuck",
+                "label": "sawbuck against the back wall",
+                "kind": "work",
+                "discovery": "anvil",
+                "position": {"grid": 8, "x": 5, "y": 13},
+                "width": 120,
+                "height": 96,
+            }
+        ]
+        self.assertIn(
+            "interactions[0] has an invalid discovery",
+            validate_level(self.level, "test-room", self.assets),
+        )
+
     def test_searchable_discovery_hotspots_require_unique_ids(self) -> None:
         interaction = {
             "id": "bible-nightstand",

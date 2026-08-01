@@ -978,6 +978,34 @@ WORKED_STATION_ART = {
 }
 
 
+WAY_STATION_SIGN_ART = "components/way-station-sign.png"
+WAY_STATION_SIGN_SIZE = (101, 100)
+
+
+def draw_way_station_sign() -> Image.Image:
+    """A blank board on two posts, for builds without the painted sign."""
+    image = Image.new("RGBA", WAY_STATION_SIGN_SIZE, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    for post in (30, 64):
+        px(draw, (post, 56, post + 6, 98), "#55534d")
+        px(draw, (post + 1, 56, post + 2, 98), "#8b8880")
+    px(draw, (6, 4, 94, 54), "#34322a")
+    px(draw, (9, 7, 91, 51), "#4f6a86")
+    px(draw, (14, 14, 86, 32), "#8b8880")
+    px(draw, (18, 62, 82, 82), "#5d4632")
+    px(draw, (21, 65, 79, 79), "#77543b")
+    return image
+
+
+def build_way_station_sign(source: Path) -> tuple[Image.Image, str]:
+    """The painted motel sign, with a plain board on the same posts otherwise."""
+    painted = source / WAY_STATION_SIGN_ART
+    if painted.is_file():
+        with Image.open(painted) as art:
+            return art.convert("RGBA"), "project-authored custom sign art"
+    return draw_way_station_sign(), "project-authored procedural fallback"
+
+
 def build_worked_stations(source: Path) -> list[tuple[str, Image.Image, str]]:
     """Prefer licensed station art, keeping the drawn prop as the open build."""
     stations = []
@@ -1036,6 +1064,10 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     for name, image, garden_source in build_garden_plots(source) + build_garden_props(source):
         image.save(world / name, optimize=False)
         sources[name] = garden_source
+
+    sign, sign_source = build_way_station_sign(source)
+    sign.save(world / "way_station_sign.png", optimize=False)
+    sources["way_station_sign.png"] = sign_source
 
     private_tree = source / "THE NATURAL/Props/Tree 08.png"
     tree = Image.open(private_tree).convert("RGBA") if private_tree.is_file() else draw_tree()

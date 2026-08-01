@@ -201,10 +201,6 @@ const STONE_OUTCROP_PLACEMENTS: [(f32, f32); 24] = [
     (-560.0, -1_420.0),
 ];
 const STONE_OUTCROP_SIZE: Vec2 = Vec2::new(96.0, 96.0);
-/// The sawbuck stands in the court at the east end of the parking row, where the
-/// Scribe can see both the road and the length of the motel.
-const SAWBUCK_POSITION: Vec2 = Vec2::new(560.0, -300.0);
-const SAWBUCK_SIZE: Vec2 = Vec2::new(120.0, 96.0);
 
 /// A bed is one parking bay. Where they are and what they look like is authored
 /// in `content/buildings/motel-parking.json`; this is only the fallback size for
@@ -213,10 +209,11 @@ const GARDEN_PLOT_SIZE: Vec2 = Vec2::new(96.0, 96.0);
 /// Flat ground art: above the terrain, below every prop and the Scribe, so the
 /// beds are walked over rather than walked around.
 const GARDEN_PLOT_DEPTH: f32 = 0.0;
-/// The old MOT—L sign, still an untextured placeholder, out at the western
-/// approach where the Scribe first comes down off the ridge.
+/// The motel's own sign, out at the western approach where the Scribe first
+/// comes down off the ridge. Sized to the art's native pixels like every other
+/// prop, so the lettering stays on its own grid.
 const MOTEL_SIGN_POSITION: Vec2 = Vec2::new(-780.0, -245.0);
-const MOTEL_SIGN_SIZE: Vec2 = Vec2::new(72.0, 96.0);
+const MOTEL_SIGN_SIZE: Vec2 = Vec2::new(101.0, 100.0);
 /// The motel's own rain butt, staved in, standing just past the east end of the
 /// bays where the roofline drains. Nothing in this valley is lying about waiting
 /// to be useful; it holds nothing at all until the Scribe puts it together.
@@ -597,11 +594,6 @@ struct WorldPickup {
 enum PickupReward {
     Supply(SupplyId, u16),
 }
-
-/// The court's sawbuck: a standing station rather than a pickup, so the valley's
-/// fallen wood can keep answering the motel's need for planks.
-#[derive(Component)]
-struct MillingBench;
 
 #[derive(Component)]
 struct StoneOutcrop {
@@ -1553,13 +1545,35 @@ fn setup_world(
             .push(ExteriorRect::new(position, Vec2::splat(size)));
     }
 
-    spawn_interactable(
-        &mut commands,
-        InteractableKind::Sign,
-        MOTEL_SIGN_POSITION,
-        MOTEL_SIGN_SIZE,
-        Color::srgb(0.37, 0.24, 0.14),
-    );
+    // The sign is the first built thing the road shows the Scribe. It stands on
+    // its posts the way a tree stands on its trunk: sorted by where it meets the
+    // ground, solid at the base, and no place for a fallen log to land.
+    exterior_obstacles
+        .solid_footprints
+        .push(station_footprint(MOTEL_SIGN_POSITION, MOTEL_SIGN_SIZE));
+    exterior_obstacles
+        .prop_exclusions
+        .push(ExteriorRect::new(MOTEL_SIGN_POSITION, MOTEL_SIGN_SIZE));
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("world/way_station_sign.png"),
+            custom_size: Some(MOTEL_SIGN_SIZE),
+            ..default()
+        },
+        Transform::from_xyz(
+            MOTEL_SIGN_POSITION.x,
+            MOTEL_SIGN_POSITION.y,
+            exterior_depth(MOTEL_SIGN_POSITION.y - MOTEL_SIGN_SIZE.y / 2.0),
+        ),
+        ExteriorYSort {
+            ground_offset_y: -MOTEL_SIGN_SIZE.y / 2.0,
+            depth_bias: 0.0,
+        },
+        Interactable {
+            kind: InteractableKind::Sign,
+            consumed: false,
+        },
+    ));
     // Loose tinder is easy to gather. Fallen logs and sound boards become the
     // first useful stockpile once the Scribe begins restoring the motel.
     let mut pickup_bounds = Vec::new();
@@ -1615,29 +1629,9 @@ fn setup_world(
         );
     }
 
-    // Standing work stations, not one-time props: the sawbuck answers every
-    // later call for planks, and each outcrop carries stone for the masonry the
-    // motel is full of.
-    let sawbuck_position = safe_pickup_position(
-        &world_grid,
-        &motel,
-        &tool_shed,
-        &exterior_obstacles,
-        &pickup_bounds,
-        SAWBUCK_POSITION,
-        SAWBUCK_SIZE,
-    );
-    pickup_bounds.push(ExteriorRect::new(sawbuck_position, SAWBUCK_SIZE));
-    spawn_worked_station(
-        &mut commands,
-        asset_server.load("world/sawbuck.png"),
-        InteractableKind::Sawbuck,
-        progression::TaskSpec::for_milling(),
-        sawbuck_position,
-        SAWBUCK_SIZE,
-        &mut exterior_obstacles,
-    )
-    .insert(MillingBench);
+    // Standing work stations, not one-time props: each outcrop carries stone for
+    // the masonry the motel is full of. The sawbuck is the other one, and it
+    // stands indoors — see `content/interiors/tool-shed-interior.json`.
     for (index, (x, y)) in STONE_OUTCROP_PLACEMENTS.into_iter().enumerate() {
         let outcrop_id = format!("stone-outcrop-{index:02}");
         if progression.pickup_collected(&outcrop_id) {
@@ -1917,10 +1911,59 @@ fn setup_world(
     commands.insert_resource(Nearby::default());
 }
 
-/// One authored interaction rectangle: the Bible's nightstand, or the seed
-/// shelf. The Bible sits over furniture that is already drawn, so its rectangle
-/// stays invisible; the sack is the only thing on its shelf, so it is its own
-/// sprite and disappears when the shelf is emptied.
+/// The authored interactions that bring their own art rather than sitting over
+/// scenery the room already draws: the seed sack, which is the only thing on its
+/// shelf and goes when the shelf is emptied, and the sawbuck, which fills the
+/// rectangle the scene gives it — so moving or resizing the bench is a content
+/// edit and not a code one.
+fn spawn_scene_interaction_art(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    kind: InteractableKind,
+    interaction: &interior::SceneInteraction,
+    previously_discovered: bool,
+) -> Option<Entity> {
+    let image = match kind {
+        InteractableKind::SeedStore => "world/seed_sack.png",
+        InteractableKind::Sawbuck => "world/sawbuck.png",
+        _ => return None,
+    };
+    let entity = spawn_interactable_sprite(
+        commands,
+        kind,
+        interaction.center,
+        Sprite {
+            image: asset_server.load(image),
+            custom_size: Some(interaction.size),
+            ..default()
+        },
+    );
+    commands.entity(entity).insert(Transform::from_xyz(
+        interaction.center.x,
+        interaction.center.y,
+        INTERIOR_PLAYER_DEPTH - 1.0,
+    ));
+    if kind == InteractableKind::SeedStore {
+        commands.entity(entity).insert(if previously_discovered {
+            Visibility::Hidden
+        } else {
+            Visibility::Visible
+        });
+    }
+    if kind == InteractableKind::Sawbuck {
+        let task = progression::TaskSpec::for_milling();
+        commands.entity(entity).insert(TaskTarget {
+            action: task.action,
+            requirements: task.requirements_text(),
+        });
+    }
+    Some(entity)
+}
+
+/// One authored interaction rectangle: the Bible's nightstand, the seed shelf,
+/// the sawbuck. The Bible sits over furniture that is already drawn, so its
+/// rectangle stays invisible; anything with art of its own goes through
+/// `spawn_scene_interaction_art`.
 fn spawn_scene_interaction(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -1945,6 +1988,9 @@ fn spawn_scene_interaction(
         (interior::SceneInteractionKind::Rest, interior::SceneDiscovery::Bed) => {
             InteractableKind::Bed
         }
+        (interior::SceneInteractionKind::Work, interior::SceneDiscovery::Sawbuck) => {
+            InteractableKind::Sawbuck
+        }
         (kind, discovery) => panic!(
             "{}/{} is authored as {kind:?} yielding {discovery:?}, which the game has no pairing for",
             map.id(),
@@ -1956,31 +2002,14 @@ fn spawn_scene_interaction(
     if kind == InteractableKind::Salvage && previously_discovered {
         return;
     }
-    let entity = if kind == InteractableKind::SeedStore {
-        let entity = spawn_interactable_sprite(
-            commands,
-            kind,
-            interaction.center,
-            Sprite {
-                image: asset_server.load("world/seed_sack.png"),
-                custom_size: Some(interaction.size),
-                ..default()
-            },
-        );
-        commands.entity(entity).insert((
-            Transform::from_xyz(
-                interaction.center.x,
-                interaction.center.y,
-                INTERIOR_PLAYER_DEPTH - 1.0,
-            ),
-            if previously_discovered {
-                Visibility::Hidden
-            } else {
-                Visibility::Visible
-            },
-        ));
-        entity
-    } else {
+    let drawn = spawn_scene_interaction_art(
+        commands,
+        asset_server,
+        kind,
+        interaction,
+        previously_discovered,
+    );
+    let entity = drawn.unwrap_or_else(|| {
         spawn_interactable(
             commands,
             kind,
@@ -1988,7 +2017,7 @@ fn spawn_scene_interaction(
             interaction.size,
             Color::NONE,
         )
-    };
+    });
     commands.entity(entity).insert((
         interior::InteriorSceneEntity,
         SceneInteractionId(format!("{}/{}", map.id(), interaction.id)),
@@ -3472,6 +3501,73 @@ fn start_task_animation(
     }
 }
 
+/// What the prompt says with nothing underfoot. A broken tool in the pack is
+/// the one job the Scribe carries around with them, so it displaces the
+/// controls line — and, like every other station, it names what it wants
+/// rather than telling the player where to go and get it.
+fn carried_tool_prompt(progression: &Progression) -> String {
+    progression.carried_broken_tool().map_or_else(
+        || "Move: WASD/arrows  ·  E interact  ·  R work  ·  Tab tool  ·  Q drop".to_owned(),
+        |(_, tool)| {
+            format!(
+                "R — repair the broken {}     [{}]",
+                tool.label(),
+                progression::TaskSpec::for_tool_repair(tool).requirements_text()
+            )
+        },
+    )
+}
+
+/// One tool put back into service, wherever it is lying: the requirement
+/// check, the swing, the sound, and the line saying what it cost. Shared so a
+/// tool in the pack mends by exactly the rules a tool on the shed floor does.
+fn mend_tool(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    progression: &mut Progression,
+    journal: &mut Journal,
+    player_animation: &mut Query<&mut PlayerAnimation, With<Player>>,
+    id: &str,
+    label: &str,
+) {
+    let Some(record) = progression.tool_record(id).cloned() else {
+        return;
+    };
+    if record.condition == ToolCondition::Serviceable {
+        journal.say(format!("The {label} is already in working order."));
+        return;
+    }
+    let task = progression::TaskSpec::for_tool_repair(record.tool);
+    let outcome = match progression.attempt(&task) {
+        Ok(outcome) => outcome,
+        Err(reason) => {
+            // The refusal names only what stopped it. The full requirement
+            // list belongs on the prompt bar, which is the width of the screen;
+            // the notice panel is 180px and clips a line it cannot wrap.
+            journal.say(format!("You cannot repair the {label} yet. {reason}"));
+            return;
+        }
+    };
+    progression.set_tool_condition(id, ToolCondition::Serviceable);
+    if task.tools.contains(&ToolId::Hammer) {
+        if let Ok(mut animation) = player_animation.single_mut() {
+            start_tool_animation(&mut animation, ToolWorkAnimation::Hammer);
+        }
+        game_audio::play_hammering(commands, asset_server);
+    }
+    journal.say(if outcome.new_level > outcome.old_level {
+        format!(
+            "You put the {label} back into working order. Upkeep rises to level {}!",
+            outcome.new_level
+        )
+    } else {
+        format!(
+            "You put the {label} back into working order. +{} Upkeep experience.",
+            task.xp
+        )
+    });
+}
+
 #[allow(clippy::type_complexity)]
 fn follow_player(
     location: Res<WorldLocation>,
@@ -3822,14 +3918,35 @@ fn handle_interaction(
     if popup.is_open() {
         return;
     }
+    let interact_pressed = keys.just_pressed(KeyCode::KeyE);
+    let repair_pressed = keys.just_pressed(KeyCode::KeyR);
+    // Only when nothing underfoot wants the key does R mean "work on what I am
+    // carrying". Standing over a job, the job wins.
+    let claimed_by_the_world = nearby.0.is_some_and(|entity| {
+        queries.interactables.get(entity).is_ok_and(|target| {
+            interaction_key_matches(target.kind, interact_pressed, repair_pressed)
+        })
+    });
+    if repair_pressed && !claimed_by_the_world {
+        if let Some((id, tool)) = resources.progression.carried_broken_tool() {
+            mend_tool(
+                &mut commands,
+                &asset_server,
+                &mut resources.progression,
+                &mut journal,
+                &mut queries.player_animation,
+                &id,
+                tool.label(),
+            );
+        }
+        return;
+    }
     let Some(entity) = nearby.0 else {
         return;
     };
     let Ok(mut target) = queries.interactables.get_mut(entity) else {
         return;
     };
-    let interact_pressed = keys.just_pressed(KeyCode::KeyE);
-    let repair_pressed = keys.just_pressed(KeyCode::KeyR);
     if !interaction_key_matches(target.kind, interact_pressed, repair_pressed) {
         return;
     }
@@ -3838,41 +3955,15 @@ fn handle_interaction(
             return;
         };
         if repair_pressed {
-            if record.condition == ToolCondition::Serviceable {
-                journal.notice = Some(format!("The {} is already in working order.", label.0));
-                return;
-            }
-            let task = progression::TaskSpec::for_tool_repair(record.tool);
-            let outcome = match resources.progression.attempt(&task) {
-                Ok(outcome) => outcome,
-                Err(reason) => {
-                    journal.notice = Some(format!(
-                        "You cannot repair the {} yet. {reason}\nRequires: {}.",
-                        label.0,
-                        task.requirements_text()
-                    ));
-                    return;
-                }
-            };
-            resources
-                .progression
-                .set_tool_condition(&portable.id, ToolCondition::Serviceable);
-            if task.tools.contains(&ToolId::Hammer) {
-                if let Ok(mut animation) = queries.player_animation.single_mut() {
-                    start_tool_animation(&mut animation, ToolWorkAnimation::Hammer);
-                }
-                game_audio::play_hammering(&mut commands, &asset_server);
-            }
-            journal.notice = Some(format!(
-                "You put the {} back into working order. +{} Upkeep experience.",
-                label.0, task.xp
-            ));
-            if outcome.new_level > outcome.old_level {
-                journal.notice = Some(format!(
-                    "You put the {} back into working order. Upkeep rises to level {}!",
-                    label.0, outcome.new_level
-                ));
-            }
+            mend_tool(
+                &mut commands,
+                &asset_server,
+                &mut resources.progression,
+                &mut journal,
+                &mut queries.player_animation,
+                &portable.id,
+                &label.0,
+            );
             return;
         }
         match resources.progression.pick_up_tool(&portable.id) {
@@ -3881,9 +3972,9 @@ fn handle_interaction(
                 commands.entity(entity).insert(Visibility::Hidden);
                 journal.notice = Some(if record.condition == ToolCondition::Broken {
                     format!(
-                        "You take the {}. It is {}, but perhaps it can be repaired. Carried tools: {}/{}.",
+                        "You take the {}. I'll need to repair this {} before I can use it. Carried tools: {}/{}.",
                         label.0,
-                        record.condition.label(),
+                        record.tool.label(),
                         resources.progression.carried_tool_count(),
                         progression::MAX_CARRIED_TOOLS
                     )
@@ -4108,7 +4199,8 @@ fn handle_interaction(
     match target.kind {
         InteractableKind::Sign => {
             journal.say(
-                "MOT—L. A shelter-name from the old speech. An arrow points into the court.",
+                "Way Station Motel. A shelter-name from the old speech. Under it, unlit and \
+                 unretracted for a hundred years: VACANCY.",
             );
         }
         InteractableKind::SeedStore => {
@@ -4483,9 +4575,7 @@ fn digit_pressed(keys: &ButtonInput<KeyCode>) -> Option<usize> {
         KeyCode::Digit8,
         KeyCode::Digit9,
     ];
-    DIGITS
-        .iter()
-        .position(|&digit| keys.just_pressed(digit))
+    DIGITS.iter().position(|&digit| keys.just_pressed(digit))
 }
 
 #[derive(SystemParam)]
@@ -4682,9 +4772,7 @@ fn search_for_salvage(
         body: find.line.clone(),
     });
     if let Some(reward) = find.reward {
-        resources
-            .progression
-            .add_supply(reward.item, reward.amount);
+        resources.progression.add_supply(reward.item, reward.amount);
         journal.say(format!(
             "The {label} gives up {} {}.",
             reward.amount,
@@ -4699,9 +4787,8 @@ fn search_for_salvage(
 /// a dark room for ninety seconds waiting for a number to change.
 fn sleep_here(resources: &mut InteractionResources, journal: &mut Journal) {
     if !resources.clock.is_bedtime() {
-        journal.say(
-            "There is too much light left in the day to lie down, and too much left undone.",
-        );
+        journal
+            .say("There is too much light left in the day to lie down, and too much left undone.");
         return;
     }
     let morning = resources.clock.sleep_until_morning();
@@ -5150,7 +5237,7 @@ fn sync_ui(
         .0
         .and_then(|entity| interactables.get(entity).ok().map(|item| (entity, item)))
         .map_or_else(
-            || "Move: WASD/arrows  ·  E interact  ·  R work  ·  Tab tool  ·  Q drop".to_owned(),
+            || carried_tool_prompt(&progression),
             |(entity, item)| {
                 // A bed changes what it wants as it goes, so it is asked first;
                 // the cached `TaskTarget` line every other station uses would be
@@ -5191,7 +5278,14 @@ fn sync_ui(
                         || format!("E — take the {label}"),
                         |record| {
                             if record.condition == ToolCondition::Broken {
-                                format!("E — take the broken {label}     R — repair it")
+                                // Mending it where it lies asks exactly what
+                                // mending it out of the pack asks, so the
+                                // prompt says so in the same breath.
+                                format!(
+                                    "E — take the broken {label}     R — repair it     [{}]",
+                                    progression::TaskSpec::for_tool_repair(record.tool)
+                                        .requirements_text()
+                                )
                             } else {
                                 format!("E — take the {label}")
                             }
@@ -5667,6 +5761,74 @@ mod tests {
         }
     }
 
+    /// A tool taken out of the shed goes where the Scribe goes, and so does the
+    /// job of mending it. Without this line the only place R ever worked on a
+    /// broken tool was the tile it was found on, and picking one up locked the
+    /// player out of repairing it.
+    #[test]
+    fn a_broken_tool_in_the_pack_says_which_key_works_on_it() {
+        let mut progression = Progression::default();
+        assert!(
+            carried_tool_prompt(&progression).contains("WASD"),
+            "an empty pack leaves the controls line alone"
+        );
+
+        progression.register_tool_instance("pickaxe-01", ToolId::Pickaxe, ToolCondition::Broken);
+        assert!(
+            carried_tool_prompt(&progression).contains("WASD"),
+            "a tool still on the shed floor is the shed's business, not the pack's"
+        );
+
+        progression.pick_up_tool("pickaxe-01").expect("carried");
+        let prompt = carried_tool_prompt(&progression);
+        assert!(
+            prompt.starts_with("R — repair the broken pickaxe"),
+            "{prompt}"
+        );
+        // Like every other station, it names what the work wants and stops
+        // short of saying where to find it.
+        assert!(prompt.contains("Upkeep 2"), "{prompt}");
+        assert!(prompt.contains("hammer"), "{prompt}");
+        assert!(prompt.contains("sound plank or 1 fallen log"), "{prompt}");
+        for direction in ["shed", "tree", "sawbuck"] {
+            assert!(
+                !prompt.contains(direction),
+                "the prompt is giving directions: {prompt}"
+            );
+        }
+
+        progression.set_tool_condition("pickaxe-01", ToolCondition::Serviceable);
+        assert!(carried_tool_prompt(&progression).contains("WASD"));
+    }
+
+    /// A broken tool the valley cannot mend is a dead end that looks exactly
+    /// like a puzzle. Every tool the shed authors broken has to be reachable
+    /// from tools the shed also authors sound.
+    #[test]
+    fn every_tool_that_starts_broken_can_be_put_back_into_service() {
+        let shed = interior::InteriorMap::load(interior::InteriorId::ToolShed);
+        let items = shed.portable_items();
+        let broken = items
+            .iter()
+            .filter(|item| item.condition == ToolCondition::Broken)
+            .collect::<Vec<_>>();
+        assert!(
+            !broken.is_empty(),
+            "a shed with nothing to mend makes the whole repair path unreachable"
+        );
+        for item in broken {
+            for wanted in progression::TaskSpec::for_tool_repair(item.tool).tools {
+                assert!(
+                    items.iter().any(|other| other.tool == wanted
+                        && other.condition == ToolCondition::Serviceable),
+                    "{} needs a {} the valley never hands over sound",
+                    item.id,
+                    wanted.label()
+                );
+            }
+        }
+    }
+
     #[test]
     fn a_room_cannot_be_offered_before_the_keys_are_found() {
         assert!(offerable_room(&MotelAccess::default()).is_none());
@@ -5726,7 +5888,10 @@ mod tests {
                 visit_overlay(&party_at(stage), &collection, &progression, &access).is_none(),
                 "{stage:?} should leave the player looking at the world"
             );
-            assert!(!stage.holds_the_screen(), "{stage:?} should not lock movement");
+            assert!(
+                !stage.holds_the_screen(),
+                "{stage:?} should not lock movement"
+            );
         }
         for stage in [
             VisitStage::Telling,
@@ -5861,6 +6026,59 @@ mod tests {
                     "{}/{} is authored where the Scribe can never stand beside it",
                     room.id(),
                     interaction.id
+                );
+            }
+        }
+    }
+
+    /// Standing beside a station is not enough: proximity picks whichever
+    /// interactable is *nearest*, and the tool shed is crowded — a shelf, a
+    /// crate, and six tools on the floor. A bench in the wrong corner spawns,
+    /// draws, and is quietly unselectable, because something smaller is always
+    /// half a pace closer. There has to be ground the Scribe can work from.
+    #[test]
+    fn every_authored_work_station_has_ground_to_be_worked_from() {
+        for interior_id in interior::InteriorId::ALL {
+            let room = interior::InteriorMap::load(interior_id);
+            let rivals: Vec<Vec2> = room
+                .interactions()
+                .iter()
+                .filter(|other| other.kind != interior::SceneInteractionKind::Work)
+                .map(|other| other.center)
+                .chain(room.portable_items().iter().map(|item| item.center))
+                .collect();
+            for station in room
+                .interactions()
+                .iter()
+                .filter(|interaction| interaction.kind == interior::SceneInteractionKind::Work)
+            {
+                let workable = (1_u8..=9).any(|ring| {
+                    (0_u8..24).any(|step| {
+                        #[allow(clippy::cast_precision_loss)]
+                        let angle = f32::from(step) * std::f32::consts::TAU / 24.0;
+                        #[allow(clippy::cast_precision_loss)]
+                        let reach = f32::from(ring) * INTERACT_DISTANCE / 9.0;
+                        let stand = station.center + Vec2::from_angle(angle) * reach;
+                        // In front of the bench, not on it and not behind it. A
+                        // spot inside the rectangle always wins on distance and
+                        // proves nothing; a spot behind one standing against the
+                        // back wall means working it from inside the wall.
+                        let in_front = stand.y < station.center.y - station.size.y / 2.0;
+                        in_front
+                            && room.is_area_walkable(
+                                stand + PLAYER_COLLISION_OFFSET,
+                                PLAYER_COLLISION_SIZE,
+                            )
+                            && rivals.iter().all(|rival| {
+                                stand.distance(*rival) > stand.distance(station.center)
+                            })
+                    })
+                });
+                assert!(
+                    workable,
+                    "{}/{} is authored where something else always answers the key first",
+                    room.id(),
+                    station.id
                 );
             }
         }
@@ -6328,15 +6546,11 @@ mod tests {
                 motel.is_area_walkable(centre, size),
                 "bay {id} is inside the motel"
             );
-            for (label, other, other_size) in [
-                ("the motel sign", MOTEL_SIGN_POSITION, MOTEL_SIGN_SIZE),
-                ("the sawbuck", SAWBUCK_POSITION, SAWBUCK_SIZE),
-            ] {
-                assert!(
-                    !ExteriorRect::new(centre, size).overlaps(ExteriorRect::new(other, other_size)),
-                    "bay {id} is laid over {label}"
-                );
-            }
+            assert!(
+                !ExteriorRect::new(centre, size)
+                    .overlaps(ExteriorRect::new(MOTEL_SIGN_POSITION, MOTEL_SIGN_SIZE)),
+                "bay {id} is laid over the motel sign"
+            );
             if let Some((previous_centre, previous_size)) = previous {
                 assert!(
                     (centre.y - previous_centre.y).abs() < f32::EPSILON,
