@@ -42,9 +42,17 @@ KEYS = {
     "e": ("KeyE", 69),
     "r": ("KeyR", 82),
     "q": ("KeyQ", 81),
+    "p": ("KeyP", 80),
     "tab": ("Tab", 9),
     "space": ("Space", 32),
+    "escape": ("Escape", 27),
+    "left": ("ArrowLeft", 37),
+    "right": ("ArrowRight", 39),
 }
+
+# Where the game keeps its save. Seeding it is the only way to look at a screen
+# that takes a night's play to reach.
+SAVE_KEY = "waystation-save-v1"
 
 # Chromium has no GPU here, and Bevy needs a real WebGL2 context, so ANGLE is
 # pointed at its software rasteriser.
@@ -260,6 +268,13 @@ async def run(args) -> int:
             )
             await page.shot("00-title")
 
+            # Before the click, because the game reads its save at startup.
+            if args.save:
+                save = Path(args.save).read_text(encoding="utf-8")
+                await page.evaluate(
+                    f"localStorage.setItem({json.dumps(SAVE_KEY)}, {json.dumps(save)})"
+                )
+
             # A real click, so the wasm entry point and the audio gesture take
             # the same path they take for a player.
             await page.evaluate("document.querySelector('.start-game').click()")
@@ -291,6 +306,11 @@ def main() -> int:
     parser.add_argument("--dist", default=str(ROOT / "dist"), help="built web bundle to serve")
     parser.add_argument("--out", default=str(ROOT / "target/web-smoke"), help="screenshot directory")
     parser.add_argument("--browser", default="chromium-browser")
+    parser.add_argument(
+        "--save",
+        help="JSON save file to put in local storage before the game starts, so a"
+        " screen that takes nights of play to reach can still be looked at",
+    )
     parser.add_argument(
         "--view",
         default="1920,1080",

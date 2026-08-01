@@ -284,6 +284,7 @@ fn run_game() {
         .init_resource::<GardenBeds>()
         .insert_resource(ExteriorReturn::default())
         .init_resource::<NarrativePopup>()
+        .init_resource::<Portfolio>()
         .init_resource::<DoorwayAttempt>()
         .init_resource::<DoorBumpLatch>()
         .init_resource::<terrain::TerrainDebugOverlay>()
@@ -332,11 +333,11 @@ fn run_game() {
                 (chance::stir_chance, advance_clock, sync_daylight).chain(),
                 (run_visits, retire_visitors).chain(),
                 update_nearby_interaction,
-                handle_tool_hotkeys,
+                (handle_portfolio_input, handle_tool_hotkeys).chain(),
                 handle_visit_input,
                 poll_interpretation,
                 sync_ui,
-                sync_narrative_popup_ui,
+                (sync_narrative_popup_ui, sync_portfolio_ui).chain(),
                 save_story,
             )
                 .chain(),
@@ -817,7 +818,7 @@ struct UiKnowledge<'w, 's> {
 // are disjoint; that is what makes these signatures long, not the logic.
 #[allow(clippy::type_complexity)]
 struct OverlayWidgets<'w, 's> {
-    root: Query<'w, 's, &'static mut Visibility, (With<OverlayRoot>, Without<CardArt>)>,
+    root: Query<'w, 's, &'static mut Visibility, With<OverlayRoot>>,
     title: Query<
         'w,
         's,
@@ -857,18 +858,11 @@ struct OverlayWidgets<'w, 's> {
             Without<ProgressText>,
         ),
     >,
-    card_art: Query<
-        'w,
-        's,
-        (&'static mut ImageNode, &'static mut Visibility),
-        (With<CardArt>, Without<OverlayRoot>),
-    >,
-    prompt_panel: Query<
-        'w,
-        's,
-        &'static mut Visibility,
-        (With<PromptPanel>, Without<OverlayRoot>, Without<CardArt>),
-    >,
+    // The slot is emptied out of the layout rather than merely hidden. A hidden
+    // node still holds its place, which on the screens carrying no art would
+    // leave a card-shaped gap beside the words.
+    card_art: Query<'w, 's, (&'static mut ImageNode, &'static mut Node), With<CardArt>>,
+    prompt_panel: Query<'w, 's, &'static mut Visibility, (With<PromptPanel>, Without<OverlayRoot>)>,
 }
 
 #[derive(SystemParam)]
@@ -982,6 +976,41 @@ struct ProgressText;
 #[derive(Component)]
 struct CardArt;
 
+/// `scripts/build-print-cards.py` composes every card at 512×768. Any node
+/// drawing one has to carry that shape or the block comes out squashed.
+const CARD_ASPECT: f32 = 512.0 / 768.0;
+
+/// What a card slot holds before it has been told which print to draw. It is
+/// never on screen: both slots start with their `Display` off.
+const CARD_PLACEHOLDER_PATH: &str = "card/illustration_1_1.png";
+
+/// How much of the overlay a card takes across. The web shell stretches the
+/// canvas to whatever window it is given, so the space these panels are laid
+/// out in is not the authored 960×540 and a fixed pixel width would overrun a
+/// short window. Everything here is a share of the screen instead.
+const OVERLAY_CARD_SHARE: f32 = 28.0;
+const OVERLAY_TEXT_SHARE: f32 = 68.0;
+
+/// How much of the screen the open folio covers, and how much of it the words
+/// beside the leaf take. The card fills the height that leaves and its width
+/// follows from the shape, so a short window gets a smaller card rather than
+/// one running off the bottom.
+const FOLIO_HEIGHT_SHARE: f32 = 90.0;
+const FOLIO_WIDTH_SHARE: f32 = 90.0;
+const FOLIO_TEXT_SHARE: f32 = 50.0;
+
+#[derive(Component)]
+struct PortfolioRoot;
+
+#[derive(Component)]
+struct PortfolioArt;
+
+#[derive(Component)]
+struct PortfolioCaption;
+
+#[derive(Component)]
+struct PortfolioTally;
+
 #[derive(Component)]
 struct NarrativePopupRoot;
 
@@ -1078,6 +1107,41 @@ impl StoryBeat {
 /// One card the game holds up in front of the player. Authored beats carry
 /// static text; a passage read from the book or a thing pulled out of a drawer
 /// is chosen at play time and carries its own.
+/// The Scribe's own folio of block-prints, openable at any hour and anywhere.
+/// The prints already carried off by somebody are still in it: the block is
+/// still in the shed and the hands still remember cutting it.
+#[derive(Resource, Default, Debug)]
+struct Portfolio {
+    open: bool,
+    index: usize,
+}
+
+impl Portfolio {
+    const fn is_open(&self) -> bool {
+        self.open
+    }
+
+    /// A folio that grew while it was shut still opens at a leaf that exists.
+    fn open_at_a_real_leaf(&mut self, cut: usize) {
+        self.open = true;
+        self.index = self.index.min(cut.saturating_sub(1));
+    }
+
+    /// Turning past the last leaf comes back to the first, so no direction is
+    /// ever a dead end and a folio of one still answers the key.
+    const fn turn_forward(&mut self, cut: usize) {
+        if cut > 0 {
+            self.index = (self.index + 1) % cut;
+        }
+    }
+
+    const fn turn_back(&mut self, cut: usize) {
+        if cut > 0 {
+            self.index = (self.index + cut - 1) % cut;
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum NarrativeCard {
     Item(DiscoveredItem),
@@ -2647,12 +2711,13 @@ fn sync_portable_tool_entities(
 fn handle_tool_hotkeys(
     keys: Res<ButtonInput<KeyCode>>,
     popup: Res<NarrativePopup>,
+    portfolio: Res<Portfolio>,
     environment: ToolDropEnvironment,
     mut progression: ResMut<Progression>,
     mut journal: ResMut<Journal>,
     player: Query<(&Transform, &PlayerAnimation), With<Player>>,
 ) {
-    if popup.is_open() {
+    if popup.is_open() || portfolio.is_open() {
         return;
     }
     if keys.just_pressed(KeyCode::Tab) {
@@ -2838,11 +2903,11 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Percent(12.0),
-                right: Val::Percent(12.0),
-                top: Val::Percent(4.0),
-                bottom: Val::Percent(4.0),
-                padding: UiRect::all(Val::Px(16.0)),
+                left: Val::Percent(8.0),
+                right: Val::Percent(8.0),
+                top: Val::Percent(3.0),
+                bottom: Val::Percent(3.0),
+                padding: UiRect::all(Val::Px(12.0)),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
@@ -2862,32 +2927,66 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                 TextColor(Color::srgb(0.95, 0.79, 0.39)),
                 OverlayTitle,
             ));
-            parent.spawn((
-                ImageNode::new(asset_server.load("card/illustration_1_1.png")),
-                Node {
-                    width: Val::Px(288.0),
-                    height: Val::Px(192.0),
+            // A print is portrait and this overlay is landscape, so the block
+            // sits beside the words rather than above them. Stacked, the only
+            // room left for it is a letterbox slot, and a card squeezed into
+            // one is a card nobody can read.
+            parent
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    flex_grow: 1.0,
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    column_gap: Val::Px(16.0),
                     ..default()
-                },
-                Visibility::Hidden,
-                CardArt,
-            ));
-            parent.spawn((
-                Text::new(""),
-                fonts.roman(14.0),
-                TextColor(Color::srgb(0.93, 0.90, 0.80)),
-                Node {
-                    max_width: Val::Px(700.0),
-                    ..default()
-                },
-                OverlayBody,
-            ));
-            parent.spawn((
-                Text::new(""),
-                fonts.roman(13.0),
-                TextColor(Color::srgb(0.62, 0.66, 0.61)),
-                ProvenanceText,
-            ));
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        ImageNode::new(asset_server.load(CARD_PLACEHOLDER_PATH)),
+                        Node {
+                            display: Display::None,
+                            width: Val::Percent(OVERLAY_CARD_SHARE),
+                            aspect_ratio: Some(CARD_ASPECT),
+                            flex_shrink: 0.0,
+                            ..default()
+                        },
+                        CardArt,
+                    ));
+                    row.spawn(Node {
+                        width: Val::Percent(OVERLAY_TEXT_SHARE),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        row_gap: Val::Px(10.0),
+                        ..default()
+                    })
+                    .with_children(|column| {
+                        // Text wraps to the width its own node is given, not to
+                        // whatever its parent happens to be, so each block is
+                        // told to take the column and no more.
+                        column.spawn((
+                            Text::new(""),
+                            fonts.roman(14.0),
+                            TextColor(Color::srgb(0.93, 0.90, 0.80)),
+                            Node {
+                                max_width: Val::Percent(100.0),
+                                ..default()
+                            },
+                            OverlayBody,
+                        ));
+                        column.spawn((
+                            Text::new(""),
+                            fonts.roman(13.0),
+                            TextColor(Color::srgb(0.62, 0.66, 0.61)),
+                            Node {
+                                max_width: Val::Percent(100.0),
+                                ..default()
+                            },
+                            ProvenanceText,
+                        ));
+                    });
+                });
         });
 
     commands
@@ -2964,6 +3063,91 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                     ));
                 });
         });
+
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.04, 0.03, 0.02, 0.74)),
+            // Global, because what the folio has to cover — the status corner,
+            // the prompt strip — are separate roots rather than siblings.
+            GlobalZIndex(190),
+            Visibility::Hidden,
+            PortfolioRoot,
+        ))
+        .with_children(|backdrop| {
+            backdrop
+                .spawn((
+                    Node {
+                        width: Val::Percent(FOLIO_WIDTH_SHARE),
+                        height: Val::Percent(FOLIO_HEIGHT_SHARE),
+                        padding: UiRect::all(Val::Px(14.0)),
+                        border: UiRect::all(Val::Px(2.0)),
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        column_gap: Val::Px(16.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.08, 0.07, 0.06, 0.97)),
+                    BorderColor::all(Color::srgb(0.58, 0.48, 0.28)),
+                    Outline::new(Val::Px(3.0), Val::Px(0.0), Color::srgb(0.58, 0.48, 0.28)),
+                ))
+                .with_children(|panel| {
+                    // A card is taller than it is wide and the window is not, so
+                    // the height it can have is settled first and the width
+                    // follows from the shape rather than the other way round.
+                    panel.spawn((
+                        ImageNode::new(asset_server.load(CARD_PLACEHOLDER_PATH)),
+                        Node {
+                            display: Display::None,
+                            height: Val::Percent(100.0),
+                            aspect_ratio: Some(CARD_ASPECT),
+                            flex_shrink: 0.0,
+                            ..default()
+                        },
+                        PortfolioArt,
+                    ));
+                    panel
+                        .spawn(Node {
+                            width: Val::Percent(FOLIO_TEXT_SHARE),
+                            flex_direction: FlexDirection::Column,
+                            justify_content: JustifyContent::Center,
+                            row_gap: Val::Px(12.0),
+                            ..default()
+                        })
+                        .with_children(|column| {
+                            column.spawn((
+                                Text::new(""),
+                                fonts.roman(14.0),
+                                TextColor(Color::srgb(0.93, 0.90, 0.80)),
+                                // Text wraps to the width its own node is given,
+                                // not to whatever its parent happens to be.
+                                Node {
+                                    max_width: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                PortfolioCaption,
+                            ));
+                            column.spawn((
+                                Text::new(""),
+                                fonts.roman(12.0),
+                                TextColor(Color::srgb(0.62, 0.66, 0.61)),
+                                Node {
+                                    max_width: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                PortfolioTally,
+                            ));
+                        });
+                });
+        });
 }
 
 fn move_player(
@@ -2971,13 +3155,15 @@ fn move_player(
     keys: Res<ButtonInput<KeyCode>>,
     visitors: Res<Visitors>,
     popup: Res<NarrativePopup>,
+    portfolio: Res<Portfolio>,
     mut environment: MovementEnvironment,
     mut player: Query<(&mut Transform, &mut PlayerAnimation), With<Player>>,
 ) {
     environment.doorway_attempt.0 = None;
     // Walking away mid-sentence is rude and, worse, leaves a conversation on
-    // screen with nobody in front of it.
-    if popup.is_open() || visitor_holds_the_screen(&visitors) {
+    // screen with nobody in front of it. The same goes for the arrow keys while
+    // they are turning leaves in the folio.
+    if popup.is_open() || portfolio.is_open() || visitor_holds_the_screen(&visitors) {
         return;
     }
     let Ok((mut transform, mut animation)) = player.single_mut() else {
@@ -3507,7 +3693,10 @@ fn start_task_animation(
 /// rather than telling the player where to go and get it.
 fn carried_tool_prompt(progression: &Progression) -> String {
     progression.carried_broken_tool().map_or_else(
-        || "Move: WASD/arrows  ·  E interact  ·  R work  ·  Tab tool  ·  Q drop".to_owned(),
+        || {
+            "Move: WASD/arrows  ·  E interact  ·  R work  ·  Tab tool  ·  Q drop  ·  P prints"
+                .to_owned()
+        },
         |(_, tool)| {
             format!(
                 "R — repair the broken {}     [{}]",
@@ -3907,6 +4096,7 @@ fn handle_interaction(
     nearby: Res<Nearby>,
     mut journal: ResMut<Journal>,
     mut popup: ResMut<NarrativePopup>,
+    portfolio: Res<Portfolio>,
     interior: Res<interior::InteriorMap>,
     motel: Res<interior::MotelExteriorMap>,
     tool_shed: Res<interior::ToolShedExteriorMap>,
@@ -3915,7 +4105,7 @@ fn handle_interaction(
     mut exterior_obstacles: ResMut<ExteriorObstacles>,
     mut queries: InteractionQueries,
 ) {
-    if popup.is_open() {
+    if popup.is_open() || portfolio.is_open() {
         return;
     }
     let interact_pressed = keys.just_pressed(KeyCode::KeyE);
@@ -4590,9 +4780,13 @@ struct VisitInput<'w> {
 
 fn handle_visit_input(
     keys: Res<ButtonInput<KeyCode>>,
+    portfolio: Res<Portfolio>,
     mut popup: ResMut<NarrativePopup>,
     mut visit: VisitInput,
 ) {
+    if portfolio.is_open() {
+        return;
+    }
     if popup.is_open() {
         popup.handle_input(
             keys.just_pressed(KeyCode::KeyE)
@@ -5379,7 +5573,7 @@ fn sync_ui(
             **text = credit;
         }
     }
-    if let Ok((mut image, mut visibility)) = overlay.card_art.single_mut() {
+    if let Ok((mut image, mut node)) = overlay.card_art.single_mut() {
         let showing = visit.and_then(|party| match party.stage {
             VisitStage::Choosing => ui_knowledge
                 .collection
@@ -5394,13 +5588,11 @@ fn sync_ui(
                 .map(cards::Print::art_path),
             _ => None,
         });
-        *visibility = if showing.is_some() {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
         if let Some(path) = showing {
             image.image = asset_server.load(path);
+            node.display = Display::Flex;
+        } else {
+            node.display = Display::None;
         }
     }
 }
@@ -5559,6 +5751,107 @@ fn choosing_overlay(party: &visitors::Party, collection: &Collection) -> (String
         lines.join("\n"),
         String::new(),
     )
+}
+
+/// `P` opens the folio and, once it is open, the folio has the keyboard. It
+/// cannot be opened over a conversation or a popup, and nothing underneath it
+/// answers while it is, so leafing through prints never walks the Scribe into
+/// a wall or starts a repair.
+fn handle_portfolio_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    popup: Res<NarrativePopup>,
+    visitors: Res<Visitors>,
+    collection: Res<Collection>,
+    mut portfolio: ResMut<Portfolio>,
+) {
+    let cut = collection.made().len();
+    if portfolio.is_open() {
+        if keys.just_pressed(KeyCode::KeyP) || keys.just_pressed(KeyCode::Escape) {
+            portfolio.open = false;
+        } else if keys.just_pressed(KeyCode::ArrowRight) || keys.just_pressed(KeyCode::KeyD) {
+            portfolio.turn_forward(cut);
+        } else if keys.just_pressed(KeyCode::ArrowLeft) || keys.just_pressed(KeyCode::KeyA) {
+            portfolio.turn_back(cut);
+        }
+        return;
+    }
+    if popup.is_open() || visitor_holds_the_screen(&visitors) {
+        return;
+    }
+    if keys.just_pressed(KeyCode::KeyP) {
+        portfolio.open_at_a_real_leaf(cut);
+    }
+}
+
+/// Every widget the folio owns. Each text node excludes the other so Bevy can
+/// prove the two borrows are disjoint.
+#[derive(SystemParam)]
+struct PortfolioWidgets<'w, 's> {
+    root: Query<'w, 's, &'static mut Visibility, With<PortfolioRoot>>,
+    art: Query<'w, 's, (&'static mut ImageNode, &'static mut Node), With<PortfolioArt>>,
+    caption: Query<'w, 's, &'static mut Text, (With<PortfolioCaption>, Without<PortfolioTally>)>,
+    tally: Query<'w, 's, &'static mut Text, (With<PortfolioTally>, Without<PortfolioCaption>)>,
+}
+
+fn sync_portfolio_ui(
+    portfolio: Res<Portfolio>,
+    collection: Res<Collection>,
+    asset_server: Res<AssetServer>,
+    mut widgets: PortfolioWidgets,
+) {
+    if let Ok(mut visibility) = widgets.root.single_mut() {
+        *visibility = if portfolio.is_open() {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
+    if !portfolio.is_open() {
+        return;
+    }
+    let cut = collection.made();
+    let showing = cut.get(portfolio.index).and_then(|id| cards::print(id));
+    if let Ok((mut image, mut node)) = widgets.art.single_mut() {
+        if let Some(print) = showing {
+            image.image = asset_server.load(print.art_path());
+            node.display = Display::Flex;
+        } else {
+            node.display = Display::None;
+        }
+    }
+    if let Ok(mut text) = widgets.caption.single_mut() {
+        **text = showing.map_or_else(
+            || "The folio is empty. No block has been cut here yet.".to_owned(),
+            |print| portfolio_caption(print, collection.was_given(&print.id)),
+        );
+    }
+    if let Ok(mut text) = widgets.tally.single_mut() {
+        **text = portfolio_tally(portfolio.index, cut.len());
+    }
+}
+
+/// What is written beside the leaf. The verse is set again in readable type
+/// because the letters the Scribe can cut by hand are rough and small.
+fn portfolio_caption(print: &cards::Print, given: bool) -> String {
+    let mut caption = format!(
+        "\u{201c}{}\u{201d}\n{}\n\n\u{201c}{}\u{201d}",
+        print.title, print.reference, print.verse
+    );
+    if given {
+        caption.push_str("\n\nThis one went out in somebody's coat.");
+    }
+    caption
+}
+
+fn portfolio_tally(index: usize, cut: usize) -> String {
+    if cut == 0 {
+        return "P / ESC — put the folio away".to_owned();
+    }
+    let place = format!("{} of {cut}", index + 1);
+    if cut == 1 {
+        return format!("{place}\nP / ESC — put the folio away");
+    }
+    format!("{place}\n\u{2190} / \u{2192} — turn a leaf\nP / ESC — put the folio away")
 }
 
 #[allow(clippy::type_complexity)]
@@ -5959,6 +6252,77 @@ mod tests {
         assert!(body.contains("nothing to eat"), "{body}");
         assert!(body.contains("locked"), "{body}");
         assert!(body.contains("cut nothing"), "{body}");
+    }
+
+    #[test]
+    fn the_folio_wraps_in_both_directions_so_no_leaf_is_a_dead_end() {
+        let mut folio = Portfolio::default();
+        folio.turn_back(3);
+        assert_eq!(folio.index, 2, "turning back from the first leaf");
+        folio.turn_forward(3);
+        assert_eq!(folio.index, 0, "turning past the last leaf");
+        folio.turn_forward(1);
+        assert_eq!(folio.index, 0, "a folio of one has nowhere else to go");
+    }
+
+    #[test]
+    fn an_empty_folio_answers_the_key_without_moving_anywhere() {
+        let mut folio = Portfolio::default();
+        folio.turn_forward(0);
+        folio.turn_back(0);
+        assert_eq!(folio.index, 0);
+        assert!(
+            !portfolio_tally(0, 0).contains("of 0"),
+            "no leaf is counted"
+        );
+    }
+
+    #[test]
+    fn a_folio_that_grew_while_shut_still_opens_at_a_leaf_that_exists() {
+        let mut folio = Portfolio::default();
+        folio.open_at_a_real_leaf(4);
+        folio.turn_back(4);
+        assert_eq!(folio.index, 3);
+        folio.open = false;
+        // Prints are never un-cut, but the catalogue can lose an entry between
+        // saves, and an index past the end would draw nothing at all.
+        folio.open_at_a_real_leaf(2);
+        assert!(folio.is_open());
+        assert_eq!(folio.index, 1);
+    }
+
+    #[test]
+    fn a_print_already_carried_away_is_still_in_the_folio_and_says_so() {
+        let print = cards::prints().first().expect("a catalogue entry");
+        let mut collection = Collection::default();
+        collection.restore(
+            vec![print.id.clone()],
+            vec![print.id.clone()],
+            cards::Tier::Monochrome,
+        );
+
+        assert!(
+            collection.has(&print.id),
+            "giving it away did not un-cut it"
+        );
+        assert!(collection.was_given(&print.id));
+        let caption = portfolio_caption(print, collection.was_given(&print.id));
+        assert!(caption.contains(&print.verse), "the verse is set beside it");
+        assert!(caption.contains("went out in somebody's coat"));
+        assert!(
+            !portfolio_caption(print, false).contains("went out"),
+            "a print still on hand must not be described as gone"
+        );
+    }
+
+    #[test]
+    fn the_folio_names_which_leaf_of_how_many_is_open() {
+        assert!(portfolio_tally(2, 7).starts_with("3 of 7"));
+        assert!(
+            !portfolio_tally(0, 1).contains('\u{2192}'),
+            "a single leaf offers no turning"
+        );
+        assert!(portfolio_tally(0, 2).contains('\u{2192}'));
     }
 
     #[test]

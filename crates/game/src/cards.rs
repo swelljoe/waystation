@@ -142,6 +142,12 @@ impl Collection {
         self.made.iter().any(|made| made == id)
     }
 
+    /// Whether this one left with somebody. It stays in `made` either way: the
+    /// folio is a record of what the Scribe has cut, not of what is in reach.
+    pub fn was_given(&self, id: &str) -> bool {
+        self.given.iter().any(|given| given == id)
+    }
+
     /// Everything cut and not yet given away, in the order it was made.
     pub fn on_hand(&self) -> Vec<&'static Print> {
         self.made
