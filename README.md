@@ -97,6 +97,8 @@ the trunk and lower branches.
 
 ## Author interiors and buildings
 
+![Screenshot of the building/room editor showing the motel office](/static/editor.png)
+
 The local scene editor searches the private art library, selects single- or
 multi-cell rectangles from sprite sheets, and paints floor, wall, object, and
 overlay layers with the mouse. It also edits collision, entry, and exit cells.
