@@ -1,6 +1,6 @@
 # The Waystation at the Edge of the Ash
 
-A cozy, far-future game about literacy, hospitality, and a book that survived.
+A cozy, far-future game about restoration, literacy, hospitality, and a book that survived.
 
 ![Screenshot of the folio display showing 2 Timothy 4:16](/static/folio-display.png)
 
