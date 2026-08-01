@@ -2,6 +2,8 @@
 
 A cozy, far-future game about literacy, hospitality, and a book that survived.
 
+![Screenshot of the folio display showing 2 Timothy 4:16](/static/folio-display.png)
+
 You play The Scribe, a solitary traveler who finds an ancient stone motel in a
 protected valley. Restore its hearth and writing desk, welcome someone who follows
 the smoke, listen to what they carry, and make an illuminated remembrance from a
