@@ -43,7 +43,7 @@ waystation-shared = { path = "crates/shared" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = ["Storage", "Window"] }
+web-sys = { version = "0.3", features = ["Navigator", "Storage", "Window"] }
 
 [workspace]
 members = ["crates/server", "crates/shared"]

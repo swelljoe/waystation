@@ -25,6 +25,30 @@ art the Scribe has learned to carve.
 That separation is intentional: Codex creates pictures, but a human-reviewed
 catalog controls which passage was found and its exact wording.
 
+## Where the verse text comes from
+
+`make verses` refetches every reference in `content/prints.json` and
+`content/readings.json` from YouVersion and writes back exactly what the API
+returned. `make verses VERSION=ASV` changes translation; anything in
+`content/bible-versions.json` is accepted.
+
+Two things it will not do quietly:
+
+- **Partial references.** `Matthew 12:20a` names half a verse and the API only
+  serves whole ones. Where the verse divides into sentences the matching
+  sentence is taken. Where it does not — Matthew 12:20 is a single sentence —
+  the whole verse is written and reported for a human to cut. That cut is then
+  preserved across reruns, because a stored excerpt that is a literal span of
+  the fetched verse is treated as reviewed. Text from a different translation is
+  not a span of it, so switching versions correctly discards the old excerpt and
+  asks again.
+- **Cards that no longer fit.** The blank panel holds four wrapped lines and a
+  reference, and nothing clips — an overlong verse draws over the illustration.
+  `build-print-cards.py` now refuses to write such a card, and a test checks the
+  whole catalog. This matters because a different translation of the same
+  reference can be longer: moving from KJV to BSB pushed three cards past the
+  border and one to five lines, which became `Mark 4:39b`.
+
 ## Add another card
 
 For a guided prompt, run:
@@ -85,8 +109,13 @@ so only the newly cataloged jobs invoke image generation.
 | `early-rest` | rest | Matthew 11:28 | A weary traveler resting safely by the road |
 | `early-light` | hope | John 1:5 | One inn light answered across a dark valley |
 
-The text is KJV, which is public domain in the United States. The `a` suffix on
-Matthew 12:20 identifies the deliberately short opening excerpt.
+The text is BSB, fetched from the YouVersion Platform API by `make verses` and
+not hand-entered. The Berean Standard Bible was dedicated to the public domain
+(CC0) in April 2023, so the wording can live in a public repository and ship in
+the game. KJV was the original choice and is no longer possible here: the whole
+YouVersion catalog reachable by this key contains no English KJV, only a Thai
+one. The `a` and `b` suffixes name half a verse, which the API does not do —
+see below.
 
 ## Practical-help expansion
 

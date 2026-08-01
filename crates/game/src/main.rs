@@ -4829,6 +4829,7 @@ fn begin_interpretation(vignette_id: &str, inbox: &InterpretInbox) {
     let inbox = Arc::clone(&inbox.0);
     let request = InterpretRequest {
         vignette_id: vignette_id.to_owned(),
+        language: player_language(),
     };
     let body = match serde_json::to_vec(&request) {
         Ok(body) => body,
@@ -4861,6 +4862,27 @@ fn begin_interpretation(vignette_id: &str, inbox: &InterpretInbox) {
             *slot = Some(result);
         }
     });
+}
+
+/// The language the traveler's passage should arrive in. The browser already
+/// knows it and the desktop shell already says it, so nothing is asked of the
+/// player. The server treats an unmapped or missing tag as English, which means
+/// a wrong guess here costs a translation and never a passage.
+#[cfg(target_arch = "wasm32")]
+fn player_language() -> Option<String> {
+    web_sys::window().and_then(|window| window.navigator().language())
+}
+
+/// `LANG` arrives as `en_US.UTF-8`; the server wants the tag in front of the
+/// encoding. `C` and `POSIX` mean "unset" rather than a language.
+#[cfg(not(target_arch = "wasm32"))]
+fn player_language() -> Option<String> {
+    let value = std::env::var("LANG").ok()?;
+    let tag = value.split('.').next().unwrap_or_default();
+    if tag.is_empty() || tag == "C" || tag == "POSIX" {
+        return None;
+    }
+    Some(tag.to_owned())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -5467,14 +5489,26 @@ fn deciding_overlay(
         lines.join("\n"),
         party.need.as_ref().map_or_else(String::new, |need| {
             format!(
-                "{} via YouVersion · {} / {} via Gloo AI Studio · source: {:?}",
+                "{} via {} · {} / {} via Gloo AI Studio",
                 need.passage.version,
+                scripture_attribution(need.provenance.scripture_source),
                 need.provenance.gloo_model,
                 need.provenance.routing,
-                need.provenance.scripture_source
             )
         }),
     )
+}
+
+/// Who to credit for the words on the card. The line under a traveler's need is
+/// the only place the game says where its Scripture came from, so it has to name
+/// the thing that actually sent the text and not the thing we hope to be using.
+const fn scripture_attribution(source: waystation_shared::ScriptureSource) -> &'static str {
+    match source {
+        waystation_shared::ScriptureSource::YouVersionLive => "YouVersion",
+        waystation_shared::ScriptureSource::ReviewedLocal => "reviewed text",
+        waystation_shared::ScriptureSource::Fixture => "reviewed fixture",
+        waystation_shared::ScriptureSource::Cache => "cache",
+    }
 }
 
 /// The card line, before anything has been handed over. Naming the one the
@@ -5965,8 +5999,24 @@ mod tests {
             &Progression::default(),
             &MotelAccess::default(),
         );
-        assert!(provenance.contains("YouVersion"), "{provenance}");
+        // A reviewed fixture never came off the wire, and the line under the
+        // traveler must not say it did. Crediting YouVersion for words
+        // YouVersion did not send is the one thing this line can get wrong.
+        assert!(provenance.contains("reviewed fixture"), "{provenance}");
+        assert!(!provenance.contains("YouVersion"), "{provenance}");
         assert!(provenance.contains("Gloo"), "{provenance}");
+
+        let mut live = party_at(VisitStage::Deciding);
+        let mut heard = fixture_response("mara_grief").expect("a reviewed fixture");
+        heard.provenance.scripture_source = waystation_shared::ScriptureSource::YouVersionLive;
+        live.need = Some(heard);
+        let (_, _, provenance) = deciding_overlay(
+            &live,
+            &Collection::default(),
+            &Progression::default(),
+            &MotelAccess::default(),
+        );
+        assert!(provenance.contains("YouVersion"), "{provenance}");
     }
 
     #[test]

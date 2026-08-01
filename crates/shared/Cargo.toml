@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 ron = "0.11"
 serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

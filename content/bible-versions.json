@@ -1,0 +1,646 @@
+{
+  "schema_version": 1,
+  "note": "Which translation a player is handed, by language tag. Rebuilt with `make bible-versions`, then reviewed. Only versions containing every book content/passages.ron draws from are eligible, so a New Testament edition is never chosen for a Psalm. Move an entry out of `alternatives` to change a pick; the rebuild keeps it.",
+  "required_books": [
+    "GAL",
+    "ISA",
+    "LUK",
+    "MAT",
+    "PSA"
+  ],
+  "fallback": {
+    "language": "en",
+    "abbreviation": "BSB"
+  },
+  "languages": [
+    {
+      "id": 195,
+      "abbreviation": "SAT",
+      "title": "الكِتاب المُقَدَّس: التَّرْجَمَةُ العَرَبِيَّةُ المُبَسَّطَةُ",
+      "language": "ar",
+      "alternatives": []
+    },
+    {
+      "id": 1979,
+      "abbreviation": "IRVAsm",
+      "title": "ইণ্ডিয়ান ৰিভাইচ ভাৰচন (IRV) আচামিচ - 2019",
+      "language": "as",
+      "alternatives": []
+    },
+    {
+      "id": 1573,
+      "abbreviation": "BBB",
+      "title": "Біблія (пераклад А.Бокуна)",
+      "language": "be",
+      "alternatives": [
+        {
+          "id": 1723,
+          "abbreviation": "BBL",
+          "title": "Біблія (пераклад В. Сёмухі)",
+          "language": "be"
+        }
+      ]
+    },
+    {
+      "id": 2441,
+      "abbreviation": "beo",
+      "title": "GODE EA SIA: IDA:IWANE GALA",
+      "language": "beo",
+      "alternatives": []
+    },
+    {
+      "id": 2957,
+      "abbreviation": "BGH",
+      "title": "पवित्र परमेशरो रा वचन बघल्याणी भाषा दे",
+      "language": "bfz",
+      "alternatives": []
+    },
+    {
+      "id": 2766,
+      "abbreviation": "BGC",
+      "title": "हरियाणवी भाषा म्ह पवित्र शास्त्र",
+      "language": "bgc",
+      "alternatives": []
+    },
+    {
+      "id": 2767,
+      "abbreviation": "BHDNT",
+      "title": "भड्लाई भाषाई मां पवित्र शास्त्र",
+      "language": "bhd",
+      "alternatives": []
+    },
+    {
+      "id": 1883,
+      "abbreviation": "IRVBen",
+      "title": "ইন্ডিয়ান রিভাইজড ভার্সন (IRV) - বেঙ্গলী",
+      "language": "bn",
+      "alternatives": []
+    },
+    {
+      "id": 44,
+      "abbreviation": "ces1613",
+      "title": "Bible Kralická 1613",
+      "language": "cs",
+      "alternatives": []
+    },
+    {
+      "id": 1125,
+      "abbreviation": "Kwere",
+      "title": "Biblia Ching'hwele",
+      "language": "cwe",
+      "alternatives": []
+    },
+    {
+      "id": 49,
+      "abbreviation": "DA1871",
+      "title": "Danske Bibel 1871/1907",
+      "language": "da",
+      "alternatives": []
+    },
+    {
+      "id": 51,
+      "abbreviation": "DELUT",
+      "title": "Lutherbibel 1912",
+      "language": "de",
+      "alternatives": [
+        {
+          "id": 57,
+          "abbreviation": "deuelo",
+          "title": "Darby Unrevidierte Elberfelder",
+          "language": "de"
+        },
+        {
+          "id": 58,
+          "abbreviation": "ELB71",
+          "title": "Elberfelder 1871",
+          "language": "de"
+        },
+        {
+          "id": 2200,
+          "abbreviation": "deutkw",
+          "title": "Textbibel von Kautzsch und Weizsäcker",
+          "language": "de"
+        },
+        {
+          "id": 2351,
+          "abbreviation": "ELBBK",
+          "title": "Elberfelder Übersetzung (Version von bibelkommentare.de)",
+          "language": "de"
+        }
+      ]
+    },
+    {
+      "id": 1672,
+      "abbreviation": "DFBLVL",
+      "title": "Geeshsha Mas'aafaa",
+      "language": "dwr",
+      "alternatives": [
+        {
+          "id": 4075,
+          "abbreviation": "DFBE",
+          "title": "ጌሻ ማጻፋ",
+          "language": "dwr"
+        }
+      ]
+    },
+    {
+      "id": 3034,
+      "abbreviation": "BSB",
+      "title": "Berean Standard Bible",
+      "language": "en",
+      "alternatives": [
+        {
+          "id": 206,
+          "abbreviation": "engWEBUS",
+          "title": "World English Bible, American English Edition, without Strong's Numbers",
+          "language": "en"
+        },
+        {
+          "id": 42,
+          "abbreviation": "CPDV",
+          "title": "Catholic Public Domain Version",
+          "language": "en"
+        },
+        {
+          "id": 12,
+          "abbreviation": "ASV",
+          "title": "American Standard Version",
+          "language": "en"
+        },
+        {
+          "id": 130,
+          "abbreviation": "TOJB2011",
+          "title": "The Orthodox Jewish Bible",
+          "language": "en"
+        },
+        {
+          "id": 1207,
+          "abbreviation": "WMBBE",
+          "title": "World Messianic Bible British Edition",
+          "language": "en"
+        },
+        {
+          "id": 1209,
+          "abbreviation": "WMB",
+          "title": "World Messianic Bible",
+          "language": "en"
+        },
+        {
+          "id": 1932,
+          "abbreviation": "FBV",
+          "title": "Free Bible Version",
+          "language": "en"
+        },
+        {
+          "id": 2163,
+          "abbreviation": "enggnv",
+          "title": "Geneva Bible",
+          "language": "en"
+        },
+        {
+          "id": 2660,
+          "abbreviation": "LSV",
+          "title": "Literal Standard Version",
+          "language": "en"
+        }
+      ]
+    },
+    {
+      "id": 147,
+      "abbreviation": "RVES",
+      "title": "Reina-Valera Antigua",
+      "language": "es",
+      "alternatives": [
+        {
+          "id": 3291,
+          "abbreviation": "VBL",
+          "title": "Versión Biblia Libre",
+          "language": "es"
+        },
+        {
+          "id": 3365,
+          "abbreviation": "spaPdDpt",
+          "title": "Palabla de Dios para ti",
+          "language": "es"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "abbreviation": "BHNT",
+      "title": "Navarro-Labourdin Basque",
+      "language": "eu",
+      "alternatives": []
+    },
+    {
+      "id": 60,
+      "abbreviation": "FI1776",
+      "title": "Finnish 1776",
+      "language": "fi",
+      "alternatives": []
+    },
+    {
+      "id": 177,
+      "abbreviation": "TLAB",
+      "title": "Ang Biblia",
+      "language": "fil",
+      "alternatives": []
+    },
+    {
+      "id": 62,
+      "abbreviation": "FMAR",
+      "title": "Martin 1744",
+      "language": "fr",
+      "alternatives": [
+        {
+          "id": 64,
+          "abbreviation": "JND",
+          "title": "Bible J.N. Darby",
+          "language": "fr"
+        },
+        {
+          "id": 93,
+          "abbreviation": "LSG",
+          "title": "La Sainte Bible par Louis Segond 1910",
+          "language": "fr"
+        },
+        {
+          "id": 131,
+          "abbreviation": "OST",
+          "title": "Ostervald",
+          "language": "fr"
+        }
+      ]
+    },
+    {
+      "id": 4125,
+      "abbreviation": "guj",
+      "title": "KITAABA WOYYICHA",
+      "language": "gax",
+      "alternatives": []
+    },
+    {
+      "id": 434,
+      "abbreviation": "GM",
+      "title": "Geeshsha Maxaafa",
+      "language": "gmv",
+      "alternatives": [
+        {
+          "id": 4041,
+          "abbreviation": "GaFBEV",
+          "title": "ጋሞ ማጻፋ",
+          "language": "gmv"
+        }
+      ]
+    },
+    {
+      "id": 2344,
+      "abbreviation": "GFBLVF",
+      "title": "Geeshsha Maxaafa",
+      "language": "gof",
+      "alternatives": [
+        {
+          "id": 4044,
+          "abbreviation": "GFBEVF",
+          "title": "ጌሻ ማፃፋ",
+          "language": "gof"
+        }
+      ]
+    },
+    {
+      "id": 1911,
+      "abbreviation": "IRVGuj",
+      "title": "ઇન્ડિયન રીવાઇઝ્ડ વર્ઝન ગુજરાતી  - 2019",
+      "language": "gu",
+      "alternatives": []
+    },
+    {
+      "id": 819,
+      "abbreviation": "HHBD",
+      "title": "Hindi Holy Bible",
+      "language": "hi",
+      "alternatives": [
+        {
+          "id": 1980,
+          "abbreviation": "IRVHin",
+          "title": "इंडियन रिवाइज्ड वर्जन (IRV) हिंदी - 2019",
+          "language": "hi"
+        }
+      ]
+    },
+    {
+      "id": 820,
+      "abbreviation": "HHBR",
+      "title": "Hindi Holy Bible",
+      "language": "hi-Latn",
+      "alternatives": []
+    },
+    {
+      "id": 3821,
+      "abbreviation": "hatbsa",
+      "title": "Bib Sen An: Kreyòl Ayisyen",
+      "language": "ht",
+      "alternatives": []
+    },
+    {
+      "id": 54,
+      "abbreviation": "DB1885",
+      "title": "Diodati Bibbia 1885",
+      "language": "it",
+      "alternatives": []
+    },
+    {
+      "id": 81,
+      "abbreviation": "JA1955",
+      "title": "Colloquial Japanese (1955)",
+      "language": "ja",
+      "alternatives": []
+    },
+    {
+      "id": 1898,
+      "abbreviation": "IRVKan",
+      "title": "ಇಂಡಿಯನ್ ರಿವೈಜ್ಡ್ ವರ್ಸನ್ (IRV) - ಕನ್ನಡ - 2019",
+      "language": "kn",
+      "alternatives": []
+    },
+    {
+      "id": 3004,
+      "abbreviation": "kos",
+      "title": "BIBLE MUTAL",
+      "language": "kos",
+      "alternatives": []
+    },
+    {
+      "id": 1368,
+      "abbreviation": "kpg",
+      "title": "Beebaa Dabu",
+      "language": "kpg",
+      "alternatives": []
+    },
+    {
+      "id": 823,
+      "abbreviation": "VULG",
+      "title": "Vulgata latina",
+      "language": "la",
+      "alternatives": []
+    },
+    {
+      "id": 318,
+      "abbreviation": "NRLB2024",
+      "title": "Jauna Pārstrādāta latviešu Bībele 2024",
+      "language": "lv",
+      "alternatives": []
+    },
+    {
+      "id": 1688,
+      "abbreviation": "MB",
+      "title": "ጌኤዦ ማፃኣፖ",
+      "language": "mdy",
+      "alternatives": []
+    },
+    {
+      "id": 96,
+      "abbreviation": "MG1865",
+      "title": "Malagasy Bible",
+      "language": "mg",
+      "alternatives": []
+    },
+    {
+      "id": 1912,
+      "abbreviation": "IRVMAL",
+      "title": "ഇന്ത്യൻ റിവൈസ്ഡ് വേർഷൻ (IRV) - മലയാളം",
+      "language": "ml",
+      "alternatives": [
+        {
+          "id": 2333,
+          "abbreviation": "MAL10RO",
+          "title": "മലയാളം സത്യവേദപുസ്തകം 1910 പതിപ്പ് (പരിഷ്കരിച്ച ലിപിയിൽ)",
+          "language": "ml"
+        }
+      ]
+    },
+    {
+      "id": 1910,
+      "abbreviation": "IRVMar",
+      "title": "इंडियन रीवाइज्ड वर्जन (IRV) - मराठी",
+      "language": "mr",
+      "alternatives": []
+    },
+    {
+      "id": 121,
+      "abbreviation": "Bibel1930",
+      "title": "Bibel 1930 - Bibelselskapet",
+      "language": "nb",
+      "alternatives": []
+    },
+    {
+      "id": 2307,
+      "abbreviation": "nld1939",
+      "title": "De Heilige Schrift, Petrus Canisiusvertaling, 1939",
+      "language": "nl",
+      "alternatives": []
+    },
+    {
+      "id": 4486,
+      "abbreviation": "NorthZeme",
+      "title": "Northern Zeme Bible",
+      "language": "nme",
+      "alternatives": []
+    },
+    {
+      "id": 2743,
+      "abbreviation": "IRVOry",
+      "title": "ଇଣ୍ଡିୟାନ ରିୱାଇସ୍ଡ୍ ୱରସନ୍ ଓଡିଆ -NT",
+      "language": "or",
+      "alternatives": []
+    },
+    {
+      "id": 1884,
+      "abbreviation": "IRVPun",
+      "title": "ਇੰਡਿਅਨ ਰਿਵਾਇਜ਼ਡ ਵਰਜ਼ਨ (IRV) - ਪੰਜਾਬੀ",
+      "language": "pa",
+      "alternatives": []
+    },
+    {
+      "id": 132,
+      "abbreviation": "PBG",
+      "title": "Biblia Gdańska",
+      "language": "pl",
+      "alternatives": [
+        {
+          "id": 138,
+          "abbreviation": "polUBG",
+          "title": "UWSPÓŁCZEŚNIONA BIBLIA GDAŃSKA",
+          "language": "pl"
+        }
+      ]
+    },
+    {
+      "id": 3254,
+      "abbreviation": "BLT",
+      "title": "Biblia Livre Para Todos",
+      "language": "pt",
+      "alternatives": []
+    },
+    {
+      "id": 992,
+      "abbreviation": "RMC",
+      "title": "Le Devleskero Lav Andre Romaňi Čhib Slovensko 2021",
+      "language": "rmc",
+      "alternatives": []
+    },
+    {
+      "id": 3953,
+      "abbreviation": "MKongoBu",
+      "title": "BIBLIYA NTAGATIFU OMU MASHI",
+      "language": "shr",
+      "alternatives": []
+    },
+    {
+      "id": 7,
+      "abbreviation": "ALBB",
+      "title": "Bibla Shqip 1994",
+      "language": "sq",
+      "alternatives": []
+    },
+    {
+      "id": 2165,
+      "abbreviation": "srp1865",
+      "title": "Sveta Biblija",
+      "language": "sr",
+      "alternatives": []
+    },
+    {
+      "id": 893,
+      "abbreviation": "Susu",
+      "title": "Soso Kitaabuie: Tawureta, Yabura, Inyila",
+      "language": "sus",
+      "alternatives": []
+    },
+    {
+      "id": 1379,
+      "abbreviation": "AKS",
+      "title": "سٌسٌ كِتَابُييٍ؛ تَوُرٍتَ، يَبُرَ، عِنيِلَ",
+      "language": "sus-Arab",
+      "alternatives": []
+    },
+    {
+      "id": 161,
+      "abbreviation": "SK73",
+      "title": "Karl XII 1873",
+      "language": "sv",
+      "alternatives": [
+        {
+          "id": 166,
+          "abbreviation": "SVEN",
+          "title": "Svenska 1917",
+          "language": "sv"
+        },
+        {
+          "id": 1111,
+          "abbreviation": "SKB",
+          "title": "Svenska Kärnbibeln",
+          "language": "sv"
+        }
+      ]
+    },
+    {
+      "id": 1899,
+      "abbreviation": "IRVTam",
+      "title": "இண்டியன் ரிவைஸ்டு வெர்ஸன் (IRV) - தமிழ்",
+      "language": "ta",
+      "alternatives": []
+    },
+    {
+      "id": 1895,
+      "abbreviation": "IRVTel",
+      "title": "ఇండియన్ రివైజ్డ్ వెర్షన్ (IRV) - తెలుగు -2019",
+      "language": "te",
+      "alternatives": []
+    },
+    {
+      "id": 175,
+      "abbreviation": "KJV",
+      "title": "พระคัมภีร์ภาษาไทยฉบับ KJV",
+      "language": "th",
+      "alternatives": []
+    },
+    {
+      "id": 1380,
+      "abbreviation": "GDZ",
+      "title": "GALA Daawoo Zɛʋɛi",
+      "language": "tod",
+      "alternatives": []
+    },
+    {
+      "id": 3844,
+      "abbreviation": "turytc",
+      "title": "Yorumsuz Türkçe Çeviri (YTC)",
+      "language": "tr",
+      "alternatives": []
+    },
+    {
+      "id": 188,
+      "abbreviation": "UKRK",
+      "title": "Біблія в пер. П.Куліша та І.Пулюя, 1905",
+      "language": "uk",
+      "alternatives": []
+    },
+    {
+      "id": 187,
+      "abbreviation": "urdgvu",
+      "title": "ہولی بائبل کا اردو جیو ورژن",
+      "language": "ur",
+      "alternatives": [
+        {
+          "id": 3327,
+          "abbreviation": "urdgvh",
+          "title": "किताबे-मुक़द्दस",
+          "language": "ur"
+        }
+      ]
+    },
+    {
+      "id": 1885,
+      "abbreviation": "IRVUrd",
+      "title": "इंडियन रिवाइज्ड वर्जन (IRV) उर्दू - 2019",
+      "language": "ur-Deva",
+      "alternatives": []
+    },
+    {
+      "id": 1887,
+      "abbreviation": "urdgvr",
+      "title": "Kitab-i Muqaddas",
+      "language": "ur-Latn",
+      "alternatives": []
+    },
+    {
+      "id": 620,
+      "abbreviation": "Yalunka",
+      "title": "Kisin Kiraan Kitabuna",
+      "language": "yal",
+      "alternatives": []
+    },
+    {
+      "id": 1919,
+      "abbreviation": "yap",
+      "title": "Bible Ni Thothup",
+      "language": "yap",
+      "alternatives": []
+    },
+    {
+      "id": 43,
+      "abbreviation": "CSBS",
+      "title": "中文标准译本",
+      "language": "zh",
+      "alternatives": []
+    },
+    {
+      "id": 312,
+      "abbreviation": "CSBT",
+      "title": "中文標準譯本",
+      "language": "zh-Hant-TW",
+      "alternatives": []
+    }
+  ]
+}

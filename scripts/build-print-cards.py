@@ -18,6 +18,11 @@ OUTPUT_SIZE = WORK_SIZE
 TEXT_TOP = 557
 TEXT_BOTTOM = 733
 TEXT_MARGIN = 42
+# Four lines and a reference inside 176px. At the old 38/32 a four-line verse
+# ran past the border and over the illustration, which several cards were
+# quietly doing already; these are the largest values that cannot.
+LINE_HEIGHT = 36
+REFERENCE_HEIGHT = 30
 INK = (20, 19, 15)
 
 
@@ -56,6 +61,17 @@ def centered_text(draw: ImageDraw.ImageDraw, y: int, text: str, font: ImageFont.
     return y + (box[3] - box[1])
 
 
+def fits_text_panel(lines: list[str]) -> bool:
+    """Whether the wrapped verse and its reference stay inside the blank panel.
+
+    Nothing here clips: an overlong verse simply draws on past the border and
+    over the illustration. That was survivable while every verse was hand-typed
+    to fit. Now that the text is fetched, a translation with a longer rendering
+    of the same reference has to be an error somebody sees.
+    """
+    return len(lines) * LINE_HEIGHT + REFERENCE_HEIGHT <= TEXT_BOTTOM - TEXT_TOP
+
+
 def render_card(entry: dict[str, str], font_path: Path) -> None:
     source_path = ROOT / entry["art"]
     output_path = ROOT / entry["card"]
@@ -70,8 +86,14 @@ def render_card(entry: dict[str, str], font_path: Path) -> None:
     reference_font = ImageFont.truetype(str(font_path), 21)
     max_width = WORK_SIZE[0] - 2 * TEXT_MARGIN
     lines = wrap_words(draw, entry["verse"], verse_font, max_width)
-    line_height = 38
-    block_height = len(lines) * line_height + 32
+    if not fits_text_panel(lines):
+        raise SystemExit(
+            f"{entry['id']}: the verse wraps to {len(lines)} lines and the card holds "
+            f"{(TEXT_BOTTOM - TEXT_TOP - REFERENCE_HEIGHT) // LINE_HEIGHT}. "
+            f"Shorten the excerpt in content/prints.json."
+        )
+    line_height = LINE_HEIGHT
+    block_height = len(lines) * line_height + REFERENCE_HEIGHT
     y = max(TEXT_TOP, TEXT_TOP + (TEXT_BOTTOM - TEXT_TOP - block_height) // 2)
 
     for line in lines:

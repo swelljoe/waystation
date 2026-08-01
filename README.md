@@ -240,8 +240,8 @@ make container
 make run-container
 ```
 
-Open <http://127.0.0.1:7777>. The image defaults to reviewed fixture mode. For a
-live deployment, provide all three secrets at runtime:
+Open <http://127.0.0.1:7777>. The image defaults to reviewed fixture mode. Live
+mode needs the Gloo pair; `YVP_APP_KEY` is optional and adds only the wording:
 
 ```bash
 podman run --rm -p 7777:7777 \
@@ -252,20 +252,61 @@ podman run --rm -p 7777:7777 \
   waystation:latest
 ```
 
+Locally, `make server-live` reads the same values from a gitignored `.env`.
 Never place credentials in the browser build, source tree, or container image.
 
 ## How the Scripture loop works
 
 1. The client sends only an authored `vignette_id` to the same-origin server.
 2. Gloo Completions V2 receives the reviewed vignette and must call a structured
-   `select_remembrance` tool.
+   `select_remembrance` tool. Auto-routing picks the model per request, and the
+   one it picked is reported back in the response provenance.
 3. The server validates the selected need and passage against `content/*.ron`.
-4. YouVersion returns the authoritative passage text for the selected ID.
+   A selection outside the authored pairs is refused, not served.
+4. YouVersion returns the passage text for the selected ID, in the player's
+   language. Without a key the reviewed wording in `content/passages.ron` is
+   served instead, marked `reviewed_local`, and the card credits the reviewed
+   text rather than YouVersion.
 5. The player creates a card from the passage and project-authored pixel motifs.
 
-The first twelve wordless block-print illustrations and exact KJV card overlays
-are cataloged in `content/prints.json`. Run `make prints` after changing a verse
-or its source art. The deterministic compositor renders EB Garamond at low
+## Translations
+
+The traveler's passage arrives in the player's own language. The browser build
+sends `navigator.language`; the desktop build sends `LANG`. Nothing is asked of
+the player, and an unrecognised tag costs a translation rather than a passage.
+
+A tag is matched whole first, then with one trailing subtag dropped at a time.
+`zh-Hant-TW` finds the Traditional Chinese edition the catalog lists under that
+exact tag, while `pt-BR` — a distinction the catalog does not make — falls
+through to Portuguese.
+
+`content/bible-versions.json` decides which translation each language gets. It
+is committed and reviewable — the server never discovers versions at runtime —
+and `make bible-versions` rebuilds it from the YouVersion catalog with
+`YVP_APP_KEY` set. A version is only eligible if it carries every book
+`content/passages.ron` draws from, which is what keeps a New Testament edition
+from being chosen for a Psalm. Of 356 versions in the catalog, 92 clear that bar,
+covering **64 languages**. To change a pick, move an entry out of its
+`alternatives` list; a rebuild keeps the choice.
+
+English is pinned to BSB because the reviewed wording in `content/passages.ron`
+is BSB, and that wording is what a player sees whenever the live path is
+unavailable. It is labelled English even when another language was requested:
+visible English beats English under a Spanish name.
+
+Only Scripture is translated. The vignettes, the reflections, and the rest of
+the game are still English.
+
+Gloo's content controls answer a declined vignette with `200 OK` and prose in
+place of the tool call. The server names that case in its logs so an edited
+vignette that trips the filter is not mistaken for a network fault. Either way
+the traveler still gets the reviewed fallback.
+
+The first twelve wordless block-print illustrations and their exact card
+overlays are cataloged in `content/prints.json`. The verse text is BSB, fetched
+from YouVersion by `make verses`; the illustrations carry no words by design, so
+changing translation is a recomposite and never a regeneration. Run `make
+prints` after changing a verse or its source art. The deterministic compositor renders EB Garamond at low
 resolution with intentionally large type, giving exact Roman serif text an
 appropriately crude apprentice-print scale without enlarging the card. See
 [`docs/PRINT_CARDS.md`](docs/PRINT_CARDS.md) for the collection and prompt set.

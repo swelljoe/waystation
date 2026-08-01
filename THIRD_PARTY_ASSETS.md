@@ -64,6 +64,17 @@ with selection-specific credits rather than the comprehensive catalog. A build
 without the private sheets substitutes tinted fallback bodies, so the open
 fallback build still tells one visitor from another.
 
-Scripture text is fetched at runtime from YouVersion. The default development
-fixtures use short passages from the public-domain Berean Standard Bible and are
-identified as fixtures in the UI.
+Scripture text is fetched from YouVersion, at runtime for a traveler's passage
+and at build time for the print cards and the Gideon Bible readings. All of it
+is the Berean Standard Bible, which its translation committee dedicated to the
+public domain (CC0) on 30 April 2023; attribution is appreciated and not
+required:
+
+> The Holy Bible, Berean Standard Bible, BSB is produced in cooperation with
+> Bible Hub, Discovery Bible, OpenBible.com, and the Berean Bible Translation
+> Committee.
+
+Development fixtures use the same text and are identified as fixtures in the UI.
+Changing translation with `make verses VERSION=…` puts a different version's
+wording in the repository, and whether that version permits it is a question the
+YouVersion licence for that version answers, not this file.

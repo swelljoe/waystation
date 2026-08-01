@@ -1,4 +1,4 @@
-.PHONY: assets prints add-print print-art catalog editor check test analyze build server game web web-smoke publish-demo-assets container run-container
+.PHONY: assets prints add-print print-art catalog bible-versions verses editor check test analyze build server server-live game web web-smoke publish-demo-assets container run-container
 
 assets:
 	python3 scripts/build-assets.py
@@ -15,6 +15,17 @@ print-art:
 catalog:
 	python3 scripts/asset_catalog.py --output assets/.catalog.json
 
+# Rebuilds content/bible-versions.json from the YouVersion catalog. Needs
+# YVP_APP_KEY. The result is committed and reviewed; the server never discovers
+# translations at runtime.
+bible-versions:
+	python3 scripts/fetch-bible-versions.py
+
+# Refetches every verse in content/prints.json and content/readings.json from
+# YouVersion. Needs YVP_APP_KEY. Pass VERSION= to change translation.
+verses:
+	python3 scripts/fetch-verses.py $(if $(VERSION),--version $(VERSION))
+
 editor:
 	python3 scripts/level_editor.py
 
@@ -27,6 +38,8 @@ test:
 	python3 scripts/test_build_print_cards.py
 	python3 scripts/test_add_print.py
 	python3 scripts/test_generate_print_art.py
+	python3 scripts/test_fetch_bible_versions.py
+	python3 scripts/test_fetch_verses.py
 	python3 scripts/test_publish_demo_assets.py
 	python3 scripts/test_web_smoke.py
 	python3 scripts/test_level_editor.py
@@ -42,6 +55,14 @@ build: assets
 
 server:
 	API_MODE=fixture cargo run -p waystation-server
+
+# Real Gloo routing against the authored vignettes. Credentials come from a
+# gitignored .env, never from the source tree; copy .env.example and fill it in.
+# YouVersion is optional here — without a key the reviewed wording in
+# content/passages.ron is served and labelled as such.
+server-live:
+	@test -f .env || { echo "make server-live needs a .env; start from .env.example"; exit 1; }
+	set -a && . ./.env && set +a && API_MODE=live cargo run -p waystation-server
 
 game:
 	cargo run -p waystation-game

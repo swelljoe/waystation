@@ -28,6 +28,30 @@ class PrintCardTests(unittest.TestCase):
         self.assertTrue(all(entry["verse"] for entry in entries))
         self.assertTrue(all(entry["reference"] for entry in entries))
 
+    def test_the_panel_holds_four_lines_and_refuses_a_fifth(self) -> None:
+        self.assertTrue(BUILD_PRINTS.fits_text_panel(["one", "two", "three", "four"]))
+        self.assertFalse(
+            BUILD_PRINTS.fits_text_panel(["one", "two", "three", "four", "five"])
+        )
+
+    def test_every_shipped_verse_fits_inside_the_border(self) -> None:
+        # Nothing clips: a verse too long for the panel draws over the
+        # illustration. Fetched text can grow when the translation changes, so
+        # the catalog has to be checked and not assumed.
+        manifest_path = Path(__file__).parents[1] / "content" / "prints.json"
+        entries = json.loads(manifest_path.read_text(encoding="utf-8"))["prints"]
+        font = ImageFont.truetype(str(BUILD_PRINTS.DEFAULT_FONT), 30)
+        draw = ImageDraw.Draw(Image.new("RGB", BUILD_PRINTS.WORK_SIZE))
+        width = BUILD_PRINTS.WORK_SIZE[0] - 2 * BUILD_PRINTS.TEXT_MARGIN
+
+        for entry in entries:
+            with self.subTest(id=entry["id"]):
+                lines = BUILD_PRINTS.wrap_words(draw, entry["verse"], font, width)
+                self.assertTrue(
+                    BUILD_PRINTS.fits_text_panel(lines),
+                    f"{entry['id']} wraps to {len(lines)} lines",
+                )
+
     def test_word_wrap_respects_the_requested_width(self) -> None:
         font = ImageFont.truetype(str(BUILD_PRINTS.DEFAULT_FONT), 17)
         draw = ImageDraw.Draw(Image.new("RGB", (512, 768)))
