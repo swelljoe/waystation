@@ -989,15 +989,14 @@ const CARD_PLACEHOLDER_PATH: &str = "card/illustration_1_1.png";
 /// out in is not the authored 960×540 and a fixed pixel width would overrun a
 /// short window. Everything here is a share of the screen instead.
 const OVERLAY_CARD_SHARE: f32 = 28.0;
-const OVERLAY_TEXT_SHARE: f32 = 68.0;
 
 /// How much of the screen the open folio covers, and how much of it the words
 /// beside the leaf take. The card fills the height that leaves and its width
 /// follows from the shape, so a short window gets a smaller card rather than
 /// one running off the bottom.
 const FOLIO_HEIGHT_SHARE: f32 = 90.0;
-const FOLIO_WIDTH_SHARE: f32 = 90.0;
-const FOLIO_TEXT_SHARE: f32 = 50.0;
+const FOLIO_WIDTH_SHARE: f32 = 88.0;
+const FOLIO_TEXT_SHARE: f32 = 56.0;
 
 #[derive(Component)]
 struct PortfolioRoot;
@@ -2954,7 +2953,9 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                         CardArt,
                     ));
                     row.spawn(Node {
-                        width: Val::Percent(OVERLAY_TEXT_SHARE),
+                        flex_grow: 1.0,
+                        flex_basis: Val::Px(0.0),
+                        min_width: Val::Px(0.0),
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
@@ -5830,13 +5831,11 @@ fn sync_portfolio_ui(
     }
 }
 
-/// What is written beside the leaf. The verse is set again in readable type
-/// because the letters the Scribe can cut by hand are rough and small.
+/// What is written beside the leaf. Not the verse: the block itself carries
+/// that, cut large enough to read, and setting it twice on one screen is what
+/// pushes the folio off the bottom of a short window.
 fn portfolio_caption(print: &cards::Print, given: bool) -> String {
-    let mut caption = format!(
-        "\u{201c}{}\u{201d}\n{}\n\n\u{201c}{}\u{201d}",
-        print.title, print.reference, print.verse
-    );
+    let mut caption = format!("\u{201c}{}\u{201d}\n{}", print.title, print.reference);
     if given {
         caption.push_str("\n\nThis one went out in somebody's coat.");
     }
@@ -6307,7 +6306,11 @@ mod tests {
         );
         assert!(collection.was_given(&print.id));
         let caption = portfolio_caption(print, collection.was_given(&print.id));
-        assert!(caption.contains(&print.verse), "the verse is set beside it");
+        assert!(caption.contains(&print.reference), "the leaf is named");
+        assert!(
+            !caption.contains(&print.verse),
+            "the block already carries the verse; setting it twice overruns the panel"
+        );
         assert!(caption.contains("went out in somebody's coat"));
         assert!(
             !portfolio_caption(print, false).contains("went out"),

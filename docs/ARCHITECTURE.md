@@ -73,6 +73,12 @@ refusing to start an `AudioContext` before the title screen is clicked. That
 filter is the whole reason the runner can fail on console output, so it has its
 own tests in `scripts/test_web_smoke.py`.
 
+`--save some.json` writes a save into local storage before the game starts, so a
+screen that would take nights of play to reach — a folio with prints in it, a
+lit hearth, a visitor at the door — can still be looked at. The file is the same
+`waystation-save-v1` shape the game writes; every field but `version` defaults,
+so a save can name only what the screen needs.
+
 `WALK=--walk d:2.2 s:0.35` passes `key:seconds` steps through. The browser window
 size decides how much world is in frame rather than how large it is drawn: the
 camera scale is fixed, so a wider window shows more valley.

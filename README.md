@@ -316,6 +316,12 @@ cards after verifying each new portrait PNG.
 Use `make add-print` to append a reviewed verse and its wordless illustration
 brief without editing JSON by hand.
 
+`P` opens the folio at any hour and anywhere: every block ever cut, one leaf at
+a time, arrow keys to turn them. Prints already carried off by a traveler stay
+in it and are marked as gone. Cards are drawn at their composed 2:3 shape both
+here and on the visit screen, so a whole illustration is visible rather than a
+card squeezed into a letterbox slot.
+
 If a live dependency is unavailable, the server uses a disclosed cache or reviewed
 fixture. The UI always reports provenance; it never presents fixture text as a live
 API response.

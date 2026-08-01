@@ -39,6 +39,13 @@ searching, gathering, sleeping, tending the hearth, and speaking to whoever has
 come down the road. Keeping those paths separate prevents a search target beside
 damaged scenery from silently choosing the wrong action.
 
+## The folio
+
+`P` opens the block-prints at any hour and anywhere, `←`/`→` turn a leaf, and
+`P` or `ESC` puts it away. While it is open the world does not answer the
+keyboard, so leafing through prints cannot walk the Scribe into a wall or start
+a repair. Prints already given away remain in it, marked as gone.
+
 ## Portable tools
 
 The Scribe carries at most three tools. `E` picks up a nearby tool, `Tab` changes

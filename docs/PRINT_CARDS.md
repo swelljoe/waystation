@@ -148,6 +148,21 @@ carrying its title and reference, so authoring a reviewed verse is never blocked
 on running the image pipeline. A Rust test asserts every catalog entry has a card
 in the runtime tree.
 
+`P` opens the folio: every block ever cut, one leaf at a time, arrow keys to
+turn them and `P` or `ESC` to put it away. It is openable at any hour and in any
+room, and nothing underneath it answers the keyboard while it is open. Prints
+already given away stay in it and say so — the record is of what the Scribe has
+cut, not of what is still in reach.
+
+The words beside a leaf are its title, reference, and whether it is gone. The
+verse is deliberately not repeated there: the block itself carries it, cut large
+enough to read, and setting it twice runs the panel off a short window.
+
+Both the folio and the visit screen draw cards at the composed 2:3 shape, sized
+as a share of the window rather than in fixed pixels — the web shell stretches
+the canvas to whatever window it is given, so a pixel height that fits one
+player's screen hangs off the bottom of another's.
+
 In game these are not collected or awarded. The Scribe cuts one a night, unasked,
 preferring a theme matching whatever the book last fell open at, and the
 catalog's `stage` field gates which are reachable: running out of blocks that can
