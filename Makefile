@@ -1,4 +1,4 @@
-.PHONY: assets prints add-print print-art catalog editor check test analyze build server game web publish-demo-assets container run-container
+.PHONY: assets prints add-print print-art catalog editor check test analyze build server game web web-smoke publish-demo-assets container run-container
 
 assets:
 	python3 scripts/build-assets.py
@@ -28,6 +28,7 @@ test:
 	python3 scripts/test_add_print.py
 	python3 scripts/test_generate_print_art.py
 	python3 scripts/test_publish_demo_assets.py
+	python3 scripts/test_web_smoke.py
 	python3 scripts/test_level_editor.py
 	node scripts/test_level_editor_ui.js
 	cargo test --workspace
@@ -47,6 +48,12 @@ game:
 
 web: assets
 	NO_COLOR=true trunk build --release
+
+# Looks at the game as well as exercising it: a Wayland session will not let a
+# screenshot tool reach the native window, but the WebAssembly build hands back
+# frames through the debugging protocol. Needs `make web` and chromium.
+web-smoke:
+	python3 scripts/web_smoke.py --out target/web-smoke $(WALK)
 
 publish-demo-assets:
 	python3 scripts/publish-demo-assets.py

@@ -942,6 +942,50 @@
         "width": 1,
         "height": 1
       }
+    },
+    {
+      "id": "split-hoe-01",
+      "label": "split-handled hoe",
+      "tool": "hoe",
+      "condition": "broken",
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 3,
+        "y": 28
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-02.png",
+        "grid": 48,
+        "x": 13,
+        "y": 9,
+        "width": 1,
+        "height": 1
+      }
+    },
+    {
+      "id": "dented-pouring-can-01",
+      "label": "dented pouring can",
+      "tool": "watering_can",
+      "condition": "serviceable",
+      "layer": "object",
+      "position": {
+        "grid": 8,
+        "x": 28,
+        "y": 13
+      },
+      "width": 2,
+      "height": 2,
+      "source": {
+        "path": "Post-Apocalyptic Village Tileset Pack/tile-B-02.png",
+        "grid": 48,
+        "x": 14,
+        "y": 12,
+        "width": 1,
+        "height": 1
+      }
     }
   ],
   "templates": {},
@@ -1021,6 +1065,21 @@
       "y": 10,
       "to": "exterior",
       "spawn": "motel-door"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "seed-shelf",
+      "label": "sack of seed grain on the high shelf",
+      "kind": "search",
+      "discovery": "seed_store",
+      "position": {
+        "grid": 8,
+        "x": 20,
+        "y": 13
+      },
+      "width": 48,
+      "height": 48
     }
   ]
 }

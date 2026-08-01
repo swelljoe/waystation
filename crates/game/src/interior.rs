@@ -10,6 +10,9 @@ use crate::progression::{TaskSpec, ToolCondition, ToolId};
 pub const INTERIOR_ORIGIN: Vec2 = Vec2::new(8_192.0, 0.0);
 pub const MOTEL_EXTERIOR_ORIGIN: Vec2 = Vec2::new(0.0, 100.0);
 pub const TOOL_SHED_EXTERIOR_ORIGIN: Vec2 = Vec2::new(-1_180.0, 820.0);
+/// The parking bays run along the motel front, the nine-bay row centred on the
+/// building. Move the run by moving this; move a single bay in the editor.
+pub const MOTEL_PARKING_ORIGIN: Vec2 = Vec2::new(-16.0, -204.0);
 
 #[derive(Component)]
 pub struct InteriorSceneEntity;
@@ -40,6 +43,7 @@ const TOOL_SHED_INTERIOR_JSON: &str =
     include_str!("../../../content/interiors/tool-shed-interior.json");
 const MOTEL_EXTERIOR_JSON: &str = include_str!("../../../content/buildings/motel-exterior.json");
 const TOOL_SHED_EXTERIOR_JSON: &str = include_str!("../../../content/buildings/tool-shed.json");
+const MOTEL_PARKING_JSON: &str = include_str!("../../../content/buildings/motel-parking.json");
 const REPAIR_PAIRS_JSON: &str = include_str!("../../../content/repair-pairs.json");
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -177,6 +181,7 @@ pub enum SceneInteractionKind {
 #[serde(rename_all = "snake_case")]
 pub enum SceneDiscovery {
     GideonBible,
+    SeedStore,
 }
 
 #[derive(Debug, Deserialize)]
@@ -908,6 +913,36 @@ pub struct ToolShedExteriorMap {
     scene: SceneMap,
 }
 
+/// The parking lot is authored as a building so the editor can lay it out, but
+/// it is flat ground: no collision, no baked layers, no depth sorting. So it
+/// exposes only what placing and drawing one bay needs, rather than the whole
+/// exterior-building surface.
+#[derive(Resource, Debug)]
+pub struct MotelParkingMap {
+    scene: SceneMap,
+}
+
+impl MotelParkingMap {
+    #[must_use]
+    pub fn load() -> Self {
+        let (scene, _, _) = SceneMap::load(
+            MOTEL_PARKING_JSON,
+            "motel-parking",
+            MOTEL_PARKING_ORIGIN,
+            "buildings",
+        );
+        Self { scene }
+    }
+
+    pub fn mutable_elements(&self) -> &[MutableElement] {
+        &self.scene.mutable_elements
+    }
+
+    pub fn element_center(&self, element: &MutableElement, visual_size: Vec2) -> Vec2 {
+        self.scene.element_center(element, visual_size)
+    }
+}
+
 impl ToolShedExteriorMap {
     #[must_use]
     pub fn load() -> Self {
@@ -1257,7 +1292,17 @@ mod tests {
         let shed = InteriorMap::load(InteriorId::ToolShed);
         let tools = shed.portable_items();
 
-        assert_eq!(tools.len(), 4);
+        assert_eq!(tools.len(), 6);
+        assert!(tools.iter().any(|item| {
+            item.id == "split-hoe-01"
+                && item.tool == ToolId::Hoe
+                && item.condition == ToolCondition::Broken
+        }));
+        assert!(tools.iter().any(|item| {
+            item.id == "dented-pouring-can-01"
+                && item.tool == ToolId::WateringCan
+                && item.condition == ToolCondition::Serviceable
+        }));
         assert!(tools.iter().any(|item| {
             item.id == "claw-hammer-01"
                 && item.tool == ToolId::Hammer

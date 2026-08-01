@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "note": "What turns up when the Scribe searches a ruin. Most of it is worthless, and the reading of it is the point: a literate wanderer in a world that forgot how to read is guessing at the purpose of everything, and guessing wrong. Entries with a reward are the exception, not the rule, and should stay that way.",
+  "finds": [
+    {
+      "id": "wire-hanger",
+      "label": "a bent wire",
+      "line": "A length of good wire bent into a shape with no use I can name — two shoulders and a hook, as if made to hold up a person who is not there. A divining rod? A charm against something? I will carry it away from the well, to be safe."
+    },
+    {
+      "id": "remote",
+      "label": "a black slab with buttons",
+      "line": "A slab of black stone, light as bone, its face covered in tiny lettered buttons. The letters are ours. The words are not. Whatever this once commanded stopped obeying long before my grandmother was born."
+    },
+    {
+      "id": "bulb",
+      "label": "an unbroken glass pear",
+      "line": "A pear of thin glass with a wire heart suspended inside it, unbroken after all this time. Hold it to the window and the wire catches the light. That is only the sun, I know. I hold it up again anyway."
+    },
+    {
+      "id": "photograph",
+      "label": "a browned photograph",
+      "line": "A stiff square of paper, and on it two people standing close, faded nearly to nothing. Not painted — I can see no brush. Whoever they were, this is the whole of what is left of them, and I am the only one alive who has looked at it."
+    },
+    {
+      "id": "card",
+      "label": "a white rectangle with a silver stripe",
+      "line": "A rectangle of some smooth white stuff, too regular to be bone, with a band of dull silver across the back and a name pressed into the front. A token, perhaps. A promise. Someone kept it where it would not bend."
+    },
+    {
+      "id": "spectacles",
+      "label": "spectacles, one lens",
+      "line": "Wire loops for the ears and one surviving lens. I hold it to my eye and the room swims and then sharpens. Somebody's whole sight was in this, and they left it behind, which means they did not leave willingly."
+    },
+    {
+      "id": "tape",
+      "label": "a coil of brown ribbon",
+      "line": "Yards of brown ribbon wound tight between two toothed wheels, too narrow to bind anything and too slick to write on. I pull out a hand's length. It holds nothing at all that I can see."
+    },
+    {
+      "id": "pen",
+      "label": "a dry writing stick",
+      "line": "A tube with a metal point, and inside it a thread of black that will not flow however I warm it. A scribe's tool, and it has outlived every scribe who could have shown me how to wake it."
+    },
+    {
+      "id": "coin",
+      "label": "a coin worn smooth",
+      "line": "A disc of grey metal rubbed featureless by pockets. Somebody carried this for years without spending it. I understand that. I do it with worse things."
+    },
+    {
+      "id": "shoe",
+      "label": "one shoe",
+      "line": "One shoe, the sole gone to crumbs, the laces still tied in a knot somebody's fingers made. Only ever one. The rooms are full of halves of things."
+    },
+    {
+      "id": "tin",
+      "label": "a sealed tin",
+      "line": "A tin still sealed, still heavy, the paper on it gone. It could be food. It could be paint. I have heard of both, and heard of people who guessed wrong. It goes in the pack until I am braver or hungrier."
+    },
+    {
+      "id": "doorknob",
+      "label": "a doorknob without a door",
+      "line": "Brass, and still bright where a hand held it. It turns perfectly. There is nothing on the other side of it but this room."
+    },
+    {
+      "id": "toy",
+      "label": "a small green soldier",
+      "line": "A man the size of my thumb, moulded green, holding something to his shoulder. A child had this. I keep looking at the doorway as if the child might come back for it."
+    },
+    {
+      "id": "comb",
+      "label": "a comb, half its teeth",
+      "line": "A comb of that same smooth stuff, half the teeth broken out. There was a time when people had this much hair and this much leisure."
+    },
+    {
+      "id": "battery",
+      "label": "a corroded cylinder",
+      "line": "A metal cylinder furred blue-white with rot, one end raised like a little crown. The old stories say the ancients kept lightning in jars. This is a very small jar."
+    },
+    {
+      "id": "keyring",
+      "label": "keys to nothing here",
+      "line": "Three keys on a ring, none of them shaped like the motel's. Three doors, somewhere, that this would still open. None of them standing."
+    },
+    {
+      "id": "postcard",
+      "label": "a picture card, water-stained",
+      "line": "A card with a painted shore on it, water bluer than any water, and on the back a few words in a hurried hand: *wish you were*. The rest has run. Somebody made a card and gave it away. I did not know anyone else did that."
+    },
+    {
+      "id": "rag",
+      "label": "a bundle of sound cloth",
+      "line": "Curtain hem, folded into a drawer and spared the damp. It is only cloth. It is the most useful thing in this room.",
+      "reward": { "item": "cloth", "amount": 2 }
+    },
+    {
+      "id": "nails",
+      "label": "a twist of nails",
+      "line": "A paper twist of nails in a drawer's back corner, orange with rust but straight. Somebody put these away for a job they never got to.",
+      "reward": { "item": "nails", "amount": 4 }
+    },
+    {
+      "id": "drawer-slats",
+      "label": "a burst drawer",
+      "line": "The drawer comes apart in my hands, which saves me the trouble. Dry cedar, and dry is the whole of what a fire asks for.",
+      "reward": { "item": "kindling", "amount": 1 }
+    },
+    {
+      "id": "hoarded-tin",
+      "label": "a tin of something edible",
+      "line": "A tin, opened carefully at the rim by somebody who then never ate it. Dried beans, hard as gravel, and no smell of rot at all. This valley keeps giving me things it has no business still having.",
+      "reward": { "item": "ration", "amount": 1 }
+    }
+  ]
+}

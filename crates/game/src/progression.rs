@@ -22,10 +22,17 @@ pub enum SkillId {
     Carpentry,
     Masonry,
     Roofing,
+    Cultivation,
 }
 
 impl SkillId {
-    pub const ALL: [Self; 4] = [Self::Upkeep, Self::Carpentry, Self::Masonry, Self::Roofing];
+    pub const ALL: [Self; 5] = [
+        Self::Upkeep,
+        Self::Carpentry,
+        Self::Masonry,
+        Self::Roofing,
+        Self::Cultivation,
+    ];
 
     pub const fn label(self) -> &'static str {
         match self {
@@ -33,6 +40,7 @@ impl SkillId {
             Self::Carpentry => "Carpentry",
             Self::Masonry => "Masonry",
             Self::Roofing => "Roofing",
+            Self::Cultivation => "Cultivation",
         }
     }
 }
@@ -115,16 +123,22 @@ pub enum SupplyId {
     Nails,
     Stone,
     Cloth,
+    Seed,
+    Water,
+    Ration,
 }
 
 impl SupplyId {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 9] = [
         Self::Kindling,
         Self::Log,
         Self::Plank,
         Self::Nails,
         Self::Stone,
         Self::Cloth,
+        Self::Seed,
+        Self::Water,
+        Self::Ration,
     ];
 
     pub const fn label(self) -> &'static str {
@@ -135,6 +149,9 @@ impl SupplyId {
             Self::Nails => "nails",
             Self::Stone => "stone",
             Self::Cloth => "cloth",
+            Self::Seed => "seeds",
+            Self::Water => "canfuls of water",
+            Self::Ration => "rations",
         }
     }
 
@@ -145,6 +162,9 @@ impl SupplyId {
                 Self::Log => "fallen log",
                 Self::Plank => "sound plank",
                 Self::Nails => "nail",
+                Self::Seed => "seed",
+                Self::Water => "canful of water",
+                Self::Ration => "ration",
                 _ => self.label(),
             }
         } else {
@@ -163,6 +183,12 @@ pub enum TaskAction {
     Light,
     Mill,
     Quarry,
+    Break,
+    Till,
+    Sow,
+    Water,
+    Harvest,
+    Draw,
 }
 
 impl TaskAction {
@@ -175,6 +201,12 @@ impl TaskAction {
             Self::Light => "light",
             Self::Mill => "mill",
             Self::Quarry => "quarry",
+            Self::Break => "break",
+            Self::Till => "till",
+            Self::Sow => "sow",
+            Self::Water => "water",
+            Self::Harvest => "harvest",
+            Self::Draw => "draw",
         }
     }
 
@@ -187,6 +219,12 @@ impl TaskAction {
             Self::Light => "lit",
             Self::Mill => "milled",
             Self::Quarry => "quarried",
+            Self::Break => "broken",
+            Self::Till => "tilled",
+            Self::Sow => "sown",
+            Self::Water => "watered",
+            Self::Harvest => "harvested",
+            Self::Draw => "drawn",
         }
     }
 }
@@ -347,6 +385,49 @@ impl TaskSpec {
             .with_tools(&[ToolId::Hatchet])
             .with_yield(SupplyId::Log, 2)
             .with_yield(SupplyId::Kindling, 2)
+    }
+
+    /// The motel's parking bays are the only ground in the valley with soil from
+    /// before the ash under them. Levering the slabs up is a one-time job per
+    /// bed, it wants the pick, and the broken concrete is worth keeping.
+    ///
+    /// The bays carry their own copy of this, authored on the `parking-bay`
+    /// repair pairs so the lot stays editable; a test holds the two in step.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn for_breaking_ground() -> Self {
+        Self::new(TaskAction::Break, SkillId::Cultivation, 0)
+            .with_tools(&[ToolId::Pickaxe])
+            .with_yield(SupplyId::Stone, 2)
+    }
+
+    pub fn for_tilling() -> Self {
+        Self::new(TaskAction::Till, SkillId::Cultivation, 0).with_tools(&[ToolId::Hoe])
+    }
+
+    pub fn for_sowing() -> Self {
+        Self::new(TaskAction::Sow, SkillId::Cultivation, 0).with_supply(SupplyId::Seed, 1)
+    }
+
+    pub fn for_watering() -> Self {
+        Self::new(TaskAction::Water, SkillId::Cultivation, 0)
+            .with_tools(&[ToolId::WateringCan])
+            .with_supply(SupplyId::Water, 1)
+    }
+
+    /// The only step that gives back more than it took. A sown seed returns two,
+    /// so a garden that survives one season can be a wider one the next.
+    pub fn for_harvest() -> Self {
+        Self::new(TaskAction::Harvest, SkillId::Cultivation, 0)
+            .with_yield(SupplyId::Ration, 3)
+            .with_yield(SupplyId::Seed, 2)
+    }
+
+    /// Carrying water is fetching, not farming; it teaches the Scribe nothing.
+    pub fn for_drawing_water() -> Self {
+        Self::new(TaskAction::Draw, SkillId::Cultivation, 0)
+            .with_tools(&[ToolId::WateringCan])
+            .with_yield(SupplyId::Water, 3)
+            .without_experience()
     }
 }
 
@@ -529,15 +610,53 @@ impl Progression {
     pub fn skill_unlocked(&self, skill: SkillId) -> bool {
         match skill {
             SkillId::Upkeep => true,
-            SkillId::Carpentry | SkillId::Masonry => self.skill_level(SkillId::Upkeep) >= 1,
+            // Coaxing anything out of ash is patience learned on easier work first.
+            SkillId::Carpentry | SkillId::Masonry | SkillId::Cultivation => {
+                self.skill_level(SkillId::Upkeep) >= 1
+            }
             SkillId::Roofing => self.skill_level(SkillId::Carpentry) >= 1,
         }
+    }
+
+    /// Everything standing between the Scribe and one job, phrased for a
+    /// player. `attempt` reports only the first thing it hits, because it stops
+    /// there; a prompt has room to name them all, and an action that can refuse
+    /// owes the player the whole reason.
+    pub fn shortfalls(&self, task: &TaskSpec) -> Vec<String> {
+        let mut missing = Vec::new();
+        if !self.skill_unlocked(task.skill) {
+            missing.push(format!("{} (still locked)", task.skill.label()));
+        } else if self.skill_level(task.skill) < task.level {
+            missing.push(format!("{} {}", task.skill.label(), task.level));
+        }
+        missing.extend(
+            task.tools
+                .iter()
+                .filter(|tool| !self.has_tool(**tool))
+                .map(|tool| format!("a {}", tool.label())),
+        );
+        missing.extend(
+            task.supplies
+                .iter()
+                .filter(|cost| self.supply(cost.item) < cost.amount)
+                .map(|cost| {
+                    format!(
+                        "{} {} (you have {})",
+                        cost.amount,
+                        cost.item.label_for(cost.amount),
+                        self.supply(cost.item)
+                    )
+                }),
+        );
+        missing
     }
 
     pub fn attempt(&mut self, task: &TaskSpec) -> Result<TaskOutcome, String> {
         if !self.skill_unlocked(task.skill) {
             let unlock = match task.skill {
-                SkillId::Carpentry | SkillId::Masonry => "Reach Upkeep 1 first.",
+                SkillId::Carpentry | SkillId::Masonry | SkillId::Cultivation => {
+                    "Reach Upkeep 1 first."
+                }
                 SkillId::Roofing => "Reach Carpentry 1 first.",
                 SkillId::Upkeep => "",
             };
@@ -836,6 +955,30 @@ mod tests {
         for _ in 0..9 {
             progression.attempt(&roof).expect("planks and a ladder");
         }
+
+        // The garden is the one chain that feeds itself: one scavenged seed and
+        // one trip to the river open a season that hands back more than it took.
+        progression.add_tool(ToolId::Hoe);
+        progression.add_tool(ToolId::WateringCan);
+        progression.add_supply(SupplyId::Seed, 1);
+        // The pick was made serviceable back at the top of this walk.
+        progression
+            .attempt(&TaskSpec::for_drawing_water())
+            .expect("a can at the river");
+        for _ in 0..3 {
+            for step in [
+                TaskSpec::for_breaking_ground(),
+                TaskSpec::for_tilling(),
+                TaskSpec::for_sowing(),
+                TaskSpec::for_watering(),
+                TaskSpec::for_harvest(),
+            ] {
+                progression
+                    .attempt(&step)
+                    .unwrap_or_else(|reason| panic!("garden step should be payable: {reason}"));
+            }
+        }
+        assert!(progression.supply(SupplyId::Seed) > 1, "the garden widens");
 
         for skill in SkillId::ALL {
             assert_eq!(

@@ -2519,6 +2519,132 @@
           }
         }
       }
+    },
+    "parking-bay-1": {
+      "label": "cracked parking bay",
+      "kind": "parking",
+      "layer": "floor",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "parking/2.png",
+            "grid": 48,
+            "x": 0,
+            "y": 6,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "parking/2.png",
+            "grid": 48,
+            "x": 6,
+            "y": 6,
+            "width": 2,
+            "height": 2
+          }
+        }
+      },
+      "task": {
+        "action": "break",
+        "skill": "cultivation",
+        "level": 0,
+        "tools": [
+          "pickaxe"
+        ],
+        "yields": [
+          {
+            "item": "stone",
+            "amount": 2
+          }
+        ],
+        "xp": 1
+      }
+    },
+    "parking-bay-2": {
+      "label": "cracked parking bay",
+      "kind": "parking",
+      "layer": "floor",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "parking/2.png",
+            "grid": 48,
+            "x": 2,
+            "y": 6,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "parking/2.png",
+            "grid": 48,
+            "x": 6,
+            "y": 6,
+            "width": 2,
+            "height": 2
+          }
+        }
+      },
+      "task": {
+        "action": "break",
+        "skill": "cultivation",
+        "level": 0,
+        "tools": [
+          "pickaxe"
+        ],
+        "yields": [
+          {
+            "item": "stone",
+            "amount": 2
+          }
+        ],
+        "xp": 1
+      }
+    },
+    "parking-bay-3": {
+      "label": "cracked parking bay",
+      "kind": "parking",
+      "layer": "floor",
+      "states": {
+        "damaged": {
+          "source": {
+            "path": "parking/2.png",
+            "grid": 48,
+            "x": 4,
+            "y": 6,
+            "width": 2,
+            "height": 2
+          }
+        },
+        "repaired": {
+          "source": {
+            "path": "parking/2.png",
+            "grid": 48,
+            "x": 6,
+            "y": 6,
+            "width": 2,
+            "height": 2
+          }
+        }
+      },
+      "task": {
+        "action": "break",
+        "skill": "cultivation",
+        "level": 0,
+        "tools": [
+          "pickaxe"
+        ],
+        "yields": [
+          {
+            "item": "stone",
+            "amount": 2
+          }
+        ],
+        "xp": 1
+      }
     }
   }
 }

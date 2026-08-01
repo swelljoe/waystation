@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "translation": {
+    "id": "kjv",
+    "name": "King James Version",
+    "public_domain_note": "Public domain in the United States."
+  },
+  "note": "What the book falls open at. The first reading is fixed: it is the one that puts the idea of welcoming a stranger into the Scribe's head, before any stranger exists to test it. Everything after is drawn at random. Themes match content/prints.json, so what the Scribe reads by day is what they are likely to cut at night. Verse text is KJV and should be checked against a KJV source before any entry is added.",
+  "readings": [
+    {
+      "id": "heb-13-2",
+      "reference": "Hebrews 13:2",
+      "verse": "Be not forgetful to entertain strangers: for thereby some have entertained angels unawares.",
+      "theme": "hospitality",
+      "first": true,
+      "reflection": "Strangers. The word stops me. Every road I have walked, a stranger was the thing you watched the treeline for.\n\nAnd here is a book, older than the ash, telling whoever finds it to feed one. To take one in. Whoever left this on that nightstand meant it to be found by somebody exactly as tired and exactly as frightened as I am.\n\nI close it and sit with it a while."
+    },
+    {
+      "id": "mat-25-35",
+      "reference": "Matthew 25:35",
+      "verse": "For I was an hungred, and ye gave me meat: I was thirsty, and ye gave me drink: I was a stranger, and ye took me in:",
+      "theme": "hospitality",
+      "reflection": "Meat and drink and a door held open. Not a doctrine. A list of small ordinary things anybody could do, and most did not."
+    },
+    {
+      "id": "isa-58-7",
+      "reference": "Isaiah 58:7",
+      "verse": "Is it not to deal thy bread to the hungry, and that thou bring the poor that are cast out to thy house? when thou seest the naked, that thou cover him; and that thou hide not thyself from thine own flesh?",
+      "theme": "hospitality",
+      "reflection": "That thou hide not thyself. I have hidden myself from people on a road before now, and told myself it was sense. Perhaps it was. It was still hiding."
+    },
+    {
+      "id": "lev-19-34",
+      "reference": "Leviticus 19:34",
+      "verse": "But the stranger that dwelleth with you shall be unto you as one born among you, and thou shalt love him as thyself; for ye were strangers in the land of Egypt: I am the LORD your God.",
+      "theme": "hospitality",
+      "reflection": "Because you were strangers yourselves. That is the whole of the argument, and I cannot get round it. I have been the one at the edge of somebody's firelight, being decided about."
+    },
+    {
+      "id": "pro-25-21",
+      "reference": "Proverbs 25:21",
+      "verse": "If thine enemy be hungry, give him bread to eat; and if he be thirsty, give him water to drink:",
+      "theme": "mutual_aid",
+      "reflection": "Not your friend. Your enemy. Whoever wrote this had met people, and wrote it anyway."
+    },
+    {
+      "id": "gal-6-2",
+      "reference": "Galatians 6:2",
+      "verse": "Bear ye one another's burdens, and so fulfil the law of Christ.",
+      "theme": "mutual_aid",
+      "reflection": "One another's. Both ways along the road. I have got very good at the carrying and very bad at the setting down."
+    },
+    {
+      "id": "ecc-4-9",
+      "reference": "Ecclesiastes 4:9–10",
+      "verse": "Two are better than one; because they have a good reward for their labour. For if they fall, the one will lift up his fellow: but woe to him that is alone when he falleth; for he hath not another to help him up.",
+      "theme": "mutual_aid",
+      "reflection": "Woe to him that is alone when he falleth. I read that line three times in the quiet of this room and then went and looked out of the window at nothing."
+    },
+    {
+      "id": "psa-34-18",
+      "reference": "Psalm 34:18",
+      "verse": "The LORD is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.",
+      "theme": "gentleness",
+      "reflection": "Nigh. Near to. Not fixing it, not explaining it. Near to."
+    },
+    {
+      "id": "mat-12-20",
+      "reference": "Matthew 12:20a",
+      "verse": "A bruised reed shall he not break, and smoking flax shall he not quench.",
+      "theme": "gentleness",
+      "reflection": "A wick still smoking is a wick that has gone out. And still nobody pinches it. I think about that longer than I mean to.",
+      "note": "Short opening excerpt, identified with the conventional 'a' suffix."
+    },
+    {
+      "id": "mat-11-28",
+      "reference": "Matthew 11:28",
+      "verse": "Come unto me, all ye that labour and are heavy laden, and I will give you rest.",
+      "theme": "rest",
+      "reflection": "Rest. I have not trusted a roof enough to sleep properly under one in four years. Tonight I might."
+    },
+    {
+      "id": "isa-40-31",
+      "reference": "Isaiah 40:31",
+      "verse": "But they that wait upon the LORD shall renew their strength; they shall mount up with wings as eagles; they shall run, and not be weary; and they shall walk, and not faint.",
+      "theme": "rest",
+      "reflection": "They shall walk, and not faint. Not fly. The walking is the part I know about."
+    },
+    {
+      "id": "rut-1-16",
+      "reference": "Ruth 1:16",
+      "verse": "Intreat me not to leave thee, or to return from following after thee: for whither thou goest, I will go; and where thou lodgest, I will lodge: thy people shall be my people, and thy God my God:",
+      "theme": "rest",
+      "reflection": "Somebody said that to somebody. Out loud, to a person's face, on a road. That is a thing a person can decide to do."
+    },
+    {
+      "id": "joh-1-5",
+      "reference": "John 1:5",
+      "verse": "And the light shineth in darkness; and the darkness comprehended it not.",
+      "theme": "hope",
+      "reflection": "The dark does not understand the light and cannot argue with it either. A very small lamp is still a fact."
+    },
+    {
+      "id": "isa-61-3",
+      "reference": "Isaiah 61:3",
+      "verse": "To appoint unto them that mourn in Zion, to give unto them beauty for ashes, the oil of joy for mourning, the garment of praise for the spirit of heaviness; that they might be called trees of righteousness, the planting of the LORD, that he might be glorified.",
+      "theme": "hope",
+      "reflection": "Beauty for ashes. Written down long before the ash, by somebody who had no idea how literal they were being, and I am sitting in a valley that is trying to prove them right."
+    }
+  ]
+}

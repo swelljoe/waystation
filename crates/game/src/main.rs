@@ -1,11 +1,18 @@
-//! The Waystation at the Edge of the Ash — hackathon vertical slice.
+//! The Waystation at the Edge of the Ash.
 
 #![allow(clippy::needless_pass_by_value)]
 
+mod cards;
+mod chance;
+mod daylight;
 mod game_audio;
+mod garden;
 mod interior;
 mod progression;
+mod reading;
+mod salvage;
 mod terrain;
+mod visitors;
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -15,12 +22,17 @@ use std::{
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use cards::Collection;
+use chance::Chance;
+use daylight::Clock;
+use garden::{Garden, PlotStage};
 use progression::{Progression, SupplyId, TaskAction, ToolCondition, ToolId, ToolLocation};
+use reading::Readings;
+use salvage::Salvaged;
 use serde::{Deserialize, Serialize};
 use terrain::{MAP_HALF_HEIGHT, MAP_HALF_WIDTH};
-use waystation_shared::{
-    fixture_response, vignettes, CardRecipe, InterpretRequest, InterpretResponse,
-};
+use visitors::{Stage as VisitStage, Visitors};
+use waystation_shared::{fixture_response, vignette, InterpretRequest, InterpretResponse};
 
 const PLAYER_SPEED: f32 = 210.0;
 const INTERACT_DISTANCE: f32 = 72.0;
@@ -42,6 +54,8 @@ const SCRIBE_TOOL_FRAME_SIZE: u32 = 128;
 const SCRIBE_TOOL_COLUMNS: u32 = 6;
 const SCRIBE_TOOL_ROWS: u32 = 4;
 const SCRIBE_TOOL_SECONDS_PER_FRAME: f32 = 0.15;
+const SCRIBE_THRUST_FRAME_SIZE: u32 = 64;
+const SCRIBE_THRUST_COLUMNS: u32 = 8;
 const SCRIBE_OCCLUSION_CROWN_WIDTH: f32 = 24.0;
 const SCRIBE_OCCLUSION_CROWN_HEIGHT: f32 = 16.0;
 const TREE_OCCLUSION_SAMPLE_COLUMNS: u16 = 8;
@@ -153,6 +167,10 @@ const PLANK_PICKUPS: [Vec2; 3] = [
 const DESK_DRAWER_NAILS: u16 = 12;
 /// The first fire the valley has seen in generations.
 const HEARTH_KINDLING: u16 = 3;
+/// Saved state keys for the two halves of that fire: smoke needs somewhere to go
+/// before a flame is worth striking.
+const OFFICE_HEARTH_STATE_KEY: &str = "motel-office/stone-fireplace-1-01";
+const OFFICE_CHIMNEY_STATE_KEY: &str = "motel-exterior/tall-chimney-01";
 
 /// Stone lies where the ash-scoured rim broke, away from the motel court, so
 /// masonry costs a walk out to the valley's edges and back.
@@ -183,10 +201,53 @@ const STONE_OUTCROP_PLACEMENTS: [(f32, f32); 24] = [
     (-560.0, -1_420.0),
 ];
 const STONE_OUTCROP_SIZE: Vec2 = Vec2::new(96.0, 96.0);
-/// The sawbuck stands in the court where the Scribe can see both the road and
-/// the office door.
-const SAWBUCK_POSITION: Vec2 = Vec2::new(390.0, -300.0);
+/// The sawbuck stands in the court at the east end of the parking row, where the
+/// Scribe can see both the road and the length of the motel.
+const SAWBUCK_POSITION: Vec2 = Vec2::new(560.0, -300.0);
 const SAWBUCK_SIZE: Vec2 = Vec2::new(120.0, 96.0);
+
+/// A bed is one parking bay. Where they are and what they look like is authored
+/// in `content/buildings/motel-parking.json`; this is only the fallback size for
+/// a bay whose art failed to load.
+const GARDEN_PLOT_SIZE: Vec2 = Vec2::new(96.0, 96.0);
+/// Flat ground art: above the terrain, below every prop and the Scribe, so the
+/// beds are walked over rather than walked around.
+const GARDEN_PLOT_DEPTH: f32 = 0.0;
+/// The old MOT—L sign, still an untextured placeholder, out at the western
+/// approach where the Scribe first comes down off the ridge.
+const MOTEL_SIGN_POSITION: Vec2 = Vec2::new(-780.0, -245.0);
+const MOTEL_SIGN_SIZE: Vec2 = Vec2::new(72.0, 96.0);
+/// The motel's own rain butt, staved in, standing just past the east end of the
+/// bays where the roofline drains. Nothing in this valley is lying about waiting
+/// to be useful; it holds nothing at all until the Scribe puts it together.
+const RAIN_CISTERN_POSITION: Vec2 = Vec2::new(480.0, -200.0);
+const RAIN_CISTERN_SIZE: Vec2 = Vec2::new(64.0, 64.0);
+const RAIN_CISTERN_STATE_KEY: &str = "motel-exterior/rain-cistern";
+/// Wild food, and meagre by design. Nothing here is farmed, traded, or left in a
+/// sack by somebody else; it is what the valley grows on its own, and it is more
+/// than the wastes outside have offered since the Scribe came down from the
+/// mountain. It is a bridge to the first harvest, not a living.
+const FORAGE_PLACEMENTS: [(f32, f32, &str); 12] = [
+    (-1_760.0, 690.0, "world/forage_fungus.png"),
+    (-1_240.0, -560.0, "world/forage_greens.png"),
+    (-980.0, 980.0, "world/forage_agave.png"),
+    (-820.0, -1_180.0, "world/forage_fungus.png"),
+    (-620.0, 700.0, "world/forage_greens.png"),
+    (-180.0, 900.0, "world/forage_agave.png"),
+    (260.0, -980.0, "world/forage_fungus.png"),
+    (620.0, 640.0, "world/forage_greens.png"),
+    (1_020.0, -420.0, "world/forage_agave.png"),
+    (1_380.0, 780.0, "world/forage_fungus.png"),
+    (1_720.0, -1_140.0, "world/forage_greens.png"),
+    (2_040.0, 460.0, "world/forage_agave.png"),
+];
+const FORAGE_SIZE: Vec2 = Vec2::new(48.0, 48.0);
+/// A day's eating, near enough, and never more than that.
+const FORAGE_RATIONS: u16 = 1;
+/// The one sack of seed grain in the valley, kept dry on a tool-shed shelf. Any
+/// seed after this has to be grown, traded for, or given.
+const SHED_SEED_STORE: u16 = 3;
+const SHED_SEED_STORE_ID: &str = "seed-shelf";
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -209,11 +270,13 @@ fn run_game() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.08)))
         .insert_resource(UiScale(DEVELOPMENT_PRESENTATION_SCALE))
-        .insert_resource(Story::default())
+        .insert_resource(Journal::default())
         .insert_resource(InterpretInbox::default())
         .insert_resource(initial_world_location())
         .insert_resource(MotelAccess::default())
         .insert_resource(Progression::default())
+        .insert_resource(Garden::default())
+        .init_resource::<GardenBeds>()
         .insert_resource(ExteriorReturn::default())
         .init_resource::<NarrativePopup>()
         .init_resource::<DoorwayAttempt>()
@@ -260,6 +323,7 @@ fn run_game() {
                 follow_player,
                 trigger_story_hotspots,
                 sync_portable_tool_entities,
+                (grow_garden, sync_garden_plots).chain(),
                 update_nearby_interaction,
                 handle_tool_hotkeys,
                 handle_story_input,
@@ -356,10 +420,81 @@ impl Facing {
     }
 }
 
+/// The work cycles the Scribe has bodies for. The swung tools ride the LPC
+/// slash rows in oversized frames; the long-handled tools ride the thrust rows
+/// at the body's own frame size, so an animation has to carry its own geometry
+/// rather than assume one atlas shape.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ToolWorkAnimation {
     Hammer,
     Axe,
+    Hoe,
+    WateringCan,
+    Shovel,
+}
+
+impl ToolWorkAnimation {
+    const ALL: [Self; 5] = [
+        Self::Hammer,
+        Self::Axe,
+        Self::Hoe,
+        Self::WateringCan,
+        Self::Shovel,
+    ];
+
+    const fn art_name(self) -> &'static str {
+        match self {
+            Self::Hammer => "world/scribe-hammer.png",
+            Self::Axe => "world/scribe-axe.png",
+            Self::Hoe => "world/scribe-hoe.png",
+            Self::WateringCan => "world/scribe-watering-can.png",
+            Self::Shovel => "world/scribe-shovel.png",
+        }
+    }
+
+    const fn index(self) -> usize {
+        match self {
+            Self::Hammer => 0,
+            Self::Axe => 1,
+            Self::Hoe => 2,
+            Self::WateringCan => 3,
+            Self::Shovel => 4,
+        }
+    }
+
+    const fn swung(self) -> bool {
+        matches!(self, Self::Hammer | Self::Axe)
+    }
+
+    const fn frame_size(self) -> u32 {
+        if self.swung() {
+            SCRIBE_TOOL_FRAME_SIZE
+        } else {
+            SCRIBE_THRUST_FRAME_SIZE
+        }
+    }
+
+    const fn columns(self) -> u32 {
+        if self.swung() {
+            SCRIBE_TOOL_COLUMNS
+        } else {
+            SCRIBE_THRUST_COLUMNS
+        }
+    }
+
+    /// The cycle a task's own tools call for, so a new tool does not also need a
+    /// new branch at every place work happens.
+    fn for_task(task: &progression::TaskSpec) -> Option<Self> {
+        task.tools.iter().find_map(|tool| match tool {
+            // No pick layer is drawn yet; the hammer swing is the nearest body.
+            ToolId::Hammer | ToolId::Pickaxe => Some(Self::Hammer),
+            ToolId::Hatchet => Some(Self::Axe),
+            ToolId::Hoe => Some(Self::Hoe),
+            ToolId::WateringCan => Some(Self::WateringCan),
+            ToolId::Shovel => Some(Self::Shovel),
+            ToolId::Trowel | ToolId::Ladder => None,
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -381,10 +516,14 @@ struct PlayerAnimation {
 struct PlayerArt {
     walk_image: Handle<Image>,
     walk_layout: Handle<TextureAtlasLayout>,
-    hammer_image: Handle<Image>,
-    hammer_layout: Handle<TextureAtlasLayout>,
-    axe_image: Handle<Image>,
-    axe_layout: Handle<TextureAtlasLayout>,
+    /// One entry per `ToolWorkAnimation`, in `ToolWorkAnimation::index` order.
+    work_cycles: Vec<(Handle<Image>, Handle<TextureAtlasLayout>)>,
+}
+
+impl PlayerArt {
+    fn work_cycle(&self, kind: ToolWorkAnimation) -> &(Handle<Image>, Handle<TextureAtlasLayout>) {
+        &self.work_cycles[kind.index()]
+    }
 }
 
 #[derive(Component)]
@@ -398,6 +537,8 @@ enum InteractableKind {
     Sign,
     Kindling,
     Log,
+    Forage,
+    SeedStore,
     Hearth,
     Plank,
     Tool,
@@ -411,6 +552,8 @@ enum InteractableKind {
     Tree,
     Sawbuck,
     StoneOutcrop,
+    GardenPlot,
+    RainCistern,
 }
 
 #[derive(Component)]
@@ -434,6 +577,52 @@ struct StoneOutcrop {
     id: String,
     footprint: ExteriorRect,
     art: ExteriorRect,
+}
+
+/// One bed of ground the Scribe is trying to bring back. Unlike every other
+/// station, what it asks for changes as it goes, so the entity carries only its
+/// identity and reads its state out of the saved `Garden`.
+/// One authored parking bay. Its two content-owned faces and the task that
+/// turns one into the other come from the repair pair; everything after that is
+/// the garden's.
+#[derive(Component)]
+struct GardenPlot {
+    id: String,
+    /// The art currently on the sprite, so the reconciler only reloads on a
+    /// state change rather than every frame.
+    art: String,
+    paved: String,
+    broken: String,
+    break_task: progression::TaskSpec,
+}
+
+impl GardenPlot {
+    /// What this bay is waiting for. Levering the slab up is authored on the
+    /// repair pair; every state after that belongs to the garden.
+    fn work_task(&self, stage: PlotStage) -> Option<progression::TaskSpec> {
+        if stage.is_paved() {
+            return Some(self.break_task.clone());
+        }
+        stage.task()
+    }
+
+    fn art_for(&self, stage: PlotStage, nearly_ripe: bool) -> &str {
+        if let Some(grown) = stage.grown_art(nearly_ripe) {
+            return grown;
+        }
+        if stage.is_paved() {
+            &self.paved
+        } else {
+            &self.broken
+        }
+    }
+}
+
+/// The motel's rain butt. Two states, tracked in the same saved scene-state map
+/// the repair pairs use, so a repaired barrel stays repaired across a save.
+#[derive(Component)]
+struct RainCistern {
+    art: &'static str,
 }
 
 #[derive(Component)]
@@ -465,6 +654,11 @@ struct PortableToolDefinition {
 
 #[derive(Resource, Default)]
 struct PortableToolCatalog(Vec<PortableToolDefinition>);
+
+/// How many bays the authored lot laid down, so the status panel can say
+/// "3 of 9" without loading the scene again.
+#[derive(Resource, Default)]
+struct GardenBeds(usize);
 
 #[derive(Component, Clone)]
 struct TaskTarget {
@@ -529,6 +723,7 @@ struct InteractionResources<'w> {
     interior_state: ResMut<'w, InteriorState>,
     motel_access: ResMut<'w, MotelAccess>,
     progression: ResMut<'w, Progression>,
+    garden: ResMut<'w, Garden>,
 }
 
 #[derive(SystemParam)]
@@ -545,6 +740,7 @@ struct InteractionQueries<'w, 's> {
     >,
     choppable_trees: Query<'w, 's, &'static ChoppableTree>,
     stone_outcrops: Query<'w, 's, &'static StoneOutcrop>,
+    garden_plots: Query<'w, 's, &'static GardenPlot>,
     player_animation: Query<'w, 's, &'static mut PlayerAnimation, With<Player>>,
     mutable_elements: Query<
         'w,
@@ -566,9 +762,13 @@ struct NarrativeResources<'w> {
 }
 
 #[derive(SystemParam)]
-struct UiKnowledge<'w> {
+struct UiKnowledge<'w, 's> {
     interior_state: Res<'w, InteriorState>,
     motel_access: Res<'w, MotelAccess>,
+    garden: Res<'w, Garden>,
+    beds: Res<'w, GardenBeds>,
+    garden_plots: Query<'w, 's, &'static GardenPlot>,
+    rain_cisterns: Query<'w, 's, &'static RainCistern, Without<GardenPlot>>,
 }
 
 #[derive(SystemParam)]
@@ -875,115 +1075,96 @@ impl UiFonts {
 #[derive(Resource, Default)]
 struct Nearby(Option<Entity>);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-enum StoryStage {
-    Arrival,
-    GatherKindling,
-    LightHearth,
-    FindBible,
-    FindPlank,
-    RestoreDesk,
-    Night,
-    MeetTraveler,
-    Dialogue,
-    Interpreting,
-    ChoosePaper,
-    ChooseIllustration,
-    ChooseBorder,
-    FinishedCard,
-    Epilogue,
-}
-
-#[derive(Resource)]
-struct Story {
-    stage: StoryStage,
-    kindling: u8,
-    vignette_index: usize,
-    dialogue_line: usize,
-    result: Option<InterpretResponse>,
-    card: CardRecipe,
+/// The single line of prose the game is allowed to put on screen unasked.
+///
+/// It reports what just happened and never what to do next. There is no
+/// objective here and no next step, because working out what a ruin needs is the
+/// game. Anything that looks like an instruction belongs on the thing it is
+/// about, shown when the player walks up to it and asks.
+#[derive(Resource, Default)]
+struct Journal {
     notice: Option<String>,
 }
+
+impl Journal {
+    fn say(&mut self, notice: impl Into<String>) {
+        self.notice = Some(notice.into());
+    }
+}
+
+/// What the arrival looks like before anybody has told the player anything.
+const ARRIVAL_NOTICE: &str =
+    "The storm has followed you for two days. Then, below the ridge: stone walls.";
 
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 #[derive(Debug, Serialize, Deserialize)]
 struct SaveData {
     version: u8,
-    stage: StoryStage,
-    kindling: u8,
-    vignette_index: usize,
-    dialogue_line: usize,
-    result: Option<InterpretResponse>,
-    card: CardRecipe,
     #[serde(default)]
     interior_states: HashMap<String, String>,
     #[serde(default)]
     motel_keys_found: bool,
     #[serde(default)]
     progression: Progression,
+    #[serde(default)]
+    garden: Garden,
+    #[serde(default)]
+    clock: Clock,
+    #[serde(default)]
+    nights_of_smoke: u32,
+    #[serde(default)]
+    visits_received: u32,
+    #[serde(default)]
+    prints_made: Vec<String>,
+    #[serde(default)]
+    prints_given: Vec<String>,
+    #[serde(default)]
+    print_tier: cards::Tier,
+    #[serde(default)]
+    passages_read: Vec<String>,
+    #[serde(default)]
+    dwelling_on: Option<String>,
+    #[serde(default)]
+    salvaged: Vec<String>,
+}
+
+/// What the world knows about itself, gathered for saving and restoring. The
+/// bundle exists because eleven separate resources will not fit in a system's
+/// parameter list beside everything else a save needs.
+#[derive(SystemParam)]
+struct WorldMemory<'w> {
+    interior_state: Res<'w, InteriorState>,
+    motel_access: Res<'w, MotelAccess>,
+    progression: Res<'w, Progression>,
+    garden: Res<'w, Garden>,
+    clock: Res<'w, Clock>,
+    visitors: Res<'w, Visitors>,
+    collection: Res<'w, Collection>,
+    readings: Res<'w, Readings>,
+    salvaged: Res<'w, Salvaged>,
 }
 
 impl SaveData {
     #[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
-    fn capture(
-        story: &Story,
-        interior_state: &InteriorState,
-        motel_access: &MotelAccess,
-        progression: &Progression,
-    ) -> Self {
+    fn capture(memory: &WorldMemory) -> Self {
+        let (prints_made, prints_given, print_tier) = memory.collection.saved();
+        let (passages_read, dwelling_on) = memory.readings.saved();
         Self {
-            version: 6,
-            stage: story.stage,
-            kindling: story.kindling,
-            vignette_index: story.vignette_index,
-            dialogue_line: story.dialogue_line,
-            result: story.result.clone(),
-            card: story.card.clone(),
-            interior_states: interior_state.0.clone(),
-            motel_keys_found: motel_access.keys_found,
-            progression: progression.clone(),
+            version: 8,
+            interior_states: memory.interior_state.0.clone(),
+            motel_keys_found: memory.motel_access.keys_found,
+            progression: memory.progression.clone(),
+            garden: memory.garden.clone(),
+            clock: *memory.clock,
+            nights_of_smoke: memory.visitors.nights_of_smoke,
+            visits_received: memory.visitors.visits_received,
+            prints_made,
+            prints_given,
+            print_tier,
+            passages_read,
+            dwelling_on,
+            salvaged: memory.salvaged.seen().to_vec(),
         }
-    }
-}
-
-impl Default for Story {
-    fn default() -> Self {
-        Self {
-            stage: StoryStage::Arrival,
-            kindling: 0,
-            vignette_index: 0,
-            dialogue_line: 0,
-            result: None,
-            card: CardRecipe::default(),
-            notice: Some(
-                "The storm has followed you for two days. Then, below the ridge: stone walls."
-                    .to_owned(),
-            ),
-        }
-    }
-}
-
-impl Story {
-    fn vignette_id(&self) -> &'static str {
-        vignettes()[self.vignette_index % vignettes().len()]
-            .id
-            .as_str()
-    }
-
-    fn traveler_name(&self) -> &'static str {
-        vignettes()[self.vignette_index % vignettes().len()]
-            .traveler_name
-            .as_str()
-    }
-
-    fn reset_for_replay(&mut self) {
-        self.stage = StoryStage::Arrival;
-        self.kindling = 0;
-        self.vignette_index = (self.vignette_index + 1) % vignettes().len();
-        self.dialogue_line = 0;
-        self.result = None;
-        self.card = CardRecipe::default();
-        self.notice = Some("Another telling begins at the valley rim.".to_owned());
     }
 }
 
@@ -993,6 +1174,7 @@ type InboxValue = Option<Result<InterpretResponse, String>>;
 struct InterpretInbox(Arc<Mutex<InboxValue>>);
 
 #[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_arguments)]
 fn setup_world(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -1001,6 +1183,7 @@ fn setup_world(
     mut interior_state: ResMut<InteriorState>,
     mut popup: ResMut<NarrativePopup>,
     mut progression: ResMut<Progression>,
+    garden: Res<Garden>,
 ) {
     commands.spawn((
         Camera2d,
@@ -1015,9 +1198,11 @@ fn setup_world(
     commands.insert_resource(world_grid.clone());
     let tree = asset_server.load("world/tree.png");
     let scribe = asset_server.load("world/scribe.png");
-    let scribe_hammer = asset_server.load("world/scribe-hammer.png");
-    let scribe_axe = asset_server.load("world/scribe-axe.png");
+    let work_cycle_images = ToolWorkAnimation::ALL
+        .map(|kind| asset_server.load::<Image>(kind.art_name()))
+        .to_vec();
     let motel = interior::MotelExteriorMap::load();
+    let parking = interior::MotelParkingMap::load();
     let building_ground_y = motel.depth_ground_y();
     for (layer_index, entity) in interior::spawn_building(&mut commands, &asset_server, &motel)
         .into_iter()
@@ -1211,8 +1396,8 @@ fn setup_world(
     spawn_interactable(
         &mut commands,
         InteractableKind::Sign,
-        Vec2::new(-160.0, -245.0),
-        Vec2::new(72.0, 96.0),
+        MOTEL_SIGN_POSITION,
+        MOTEL_SIGN_SIZE,
         Color::srgb(0.37, 0.24, 0.14),
     );
     // Loose tinder is easy to gather. Fallen logs and sound boards become the
@@ -1324,6 +1509,117 @@ fn setup_world(
         });
     }
 
+    // The beds are the motel's parking bays, laid out in `content/buildings/
+    // motel-parking.json` so the lot can be edited rather than recompiled. They
+    // are flat ground art the Scribe walks over, so they skip `spawn_building`
+    // and its layer caches, collision, and depth sorting entirely.
+    commands.insert_resource(GardenBeds(parking.mutable_elements().len()));
+    for element in parking.mutable_elements() {
+        let paved = element
+            .states
+            .get("damaged")
+            .and_then(|visual| visual.image_path.clone());
+        let broken = element
+            .states
+            .get("repaired")
+            .and_then(|visual| visual.image_path.clone());
+        let (Some(paved), Some(broken)) = (paved, broken) else {
+            continue;
+        };
+        let size = element
+            .states
+            .get("damaged")
+            .map_or(GARDEN_PLOT_SIZE, |visual| visual.size);
+        let position = parking.element_center(element, size);
+        pickup_bounds.push(ExteriorRect::new(position, size));
+        exterior_obstacles
+            .prop_exclusions
+            .push(ExteriorRect::new(position, size));
+        let stage = garden.stage(&element.id);
+        let art = stage
+            .grown_art(garden.nearly_ripe(&element.id))
+            .map_or_else(
+                || {
+                    if stage.is_paved() {
+                        paved.clone()
+                    } else {
+                        broken.clone()
+                    }
+                },
+                ToOwned::to_owned,
+            );
+        commands.spawn((
+            Sprite {
+                image: asset_server.load(&art),
+                custom_size: Some(size),
+                flip_x: element.flip_x,
+                flip_y: element.flip_y,
+                ..default()
+            },
+            Transform::from_xyz(position.x, position.y, GARDEN_PLOT_DEPTH),
+            Interactable {
+                kind: InteractableKind::GardenPlot,
+                consumed: false,
+            },
+            GardenPlot {
+                id: element.id.clone(),
+                art,
+                paved,
+                broken,
+                // What it takes to lever this slab up is authored on the pair.
+                break_task: element.task.clone(),
+            },
+        ));
+    }
+
+    // The motel's own rain butt, staved in. It is a repair before it is a water
+    // source, so the garden never gets its water for nothing.
+    let cistern_position = safe_pickup_position(
+        &world_grid,
+        &motel,
+        &tool_shed,
+        &exterior_obstacles,
+        &pickup_bounds,
+        RAIN_CISTERN_POSITION,
+        RAIN_CISTERN_SIZE,
+    );
+    pickup_bounds.push(ExteriorRect::new(cistern_position, RAIN_CISTERN_SIZE));
+    let cistern_repaired = cistern_holds_water(&interior_state);
+    spawn_worked_station(
+        &mut commands,
+        asset_server.load(cistern_art(cistern_repaired)),
+        InteractableKind::RainCistern,
+        progression::TaskSpec::for_drawing_water(),
+        cistern_position,
+        RAIN_CISTERN_SIZE,
+        &mut exterior_obstacles,
+    )
+    .insert(RainCistern {
+        art: cistern_art(cistern_repaired),
+    })
+    // Like a bed, what it asks for depends on whether it holds water yet.
+    .remove::<TaskTarget>();
+
+    // What the valley grows on its own. These are the only free food in the
+    // game, and there are twelve of them.
+    for (index, (x, y, art)) in FORAGE_PLACEMENTS.into_iter().enumerate() {
+        spawn_safe_world_pickup(
+            &mut commands,
+            &progression,
+            &world_grid,
+            &motel,
+            &tool_shed,
+            &exterior_obstacles,
+            &mut pickup_bounds,
+            format!("forage-{index:02}"),
+            InteractableKind::Forage,
+            Vec2::new(x, y),
+            FORAGE_SIZE,
+            Sprite::from_image(asset_server.load(art)),
+            PickupReward::Supply(SupplyId::Ration, FORAGE_RATIONS),
+        );
+    }
+
     let tool_shed_interior = interior::InteriorMap::load(interior::InteriorId::ToolShed);
     let mut portable_tools = tool_shed_interior
         .portable_items()
@@ -1394,20 +1690,26 @@ fn setup_world(
         None,
         None,
     ));
-    let scribe_tool_layout = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
-        UVec2::splat(SCRIBE_TOOL_FRAME_SIZE),
-        SCRIBE_TOOL_COLUMNS,
-        SCRIBE_TOOL_ROWS,
-        None,
-        None,
-    ));
+    let work_cycles = ToolWorkAnimation::ALL
+        .into_iter()
+        .zip(work_cycle_images)
+        .map(|(kind, image)| {
+            (
+                image,
+                texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
+                    UVec2::splat(kind.frame_size()),
+                    kind.columns(),
+                    SCRIBE_TOOL_ROWS,
+                    None,
+                    None,
+                )),
+            )
+        })
+        .collect();
     commands.insert_resource(PlayerArt {
         walk_image: scribe.clone(),
         walk_layout: scribe_layout.clone(),
-        hammer_image: scribe_hammer,
-        hammer_layout: scribe_tool_layout.clone(),
-        axe_image: scribe_axe,
-        axe_layout: scribe_tool_layout,
+        work_cycles,
     });
     let facing = Facing::Down;
     commands.spawn((
@@ -1466,6 +1768,80 @@ fn setup_world(
     commands.insert_resource(Nearby::default());
 }
 
+/// One authored interaction rectangle: the Bible's nightstand, or the seed
+/// shelf. The Bible sits over furniture that is already drawn, so its rectangle
+/// stays invisible; the sack is the only thing on its shelf, so it is its own
+/// sprite and disappears when the shelf is emptied.
+fn spawn_scene_interaction(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    map: &interior::InteriorMap,
+    interior_state: &InteriorState,
+    interaction: &interior::SceneInteraction,
+) {
+    let previously_discovered = interior_state
+        .0
+        .get(&format!("{}/{}", map.id(), interaction.id))
+        .is_some_and(|state| state == DISCOVERY_FOUND_STATE);
+    let kind = match (interaction.kind, interaction.discovery) {
+        (interior::SceneInteractionKind::Search, interior::SceneDiscovery::GideonBible) => {
+            InteractableKind::BibleNightstand
+        }
+        (interior::SceneInteractionKind::Search, interior::SceneDiscovery::SeedStore) => {
+            InteractableKind::SeedStore
+        }
+    };
+    let entity = if kind == InteractableKind::SeedStore {
+        let entity = spawn_interactable_sprite(
+            commands,
+            kind,
+            interaction.center,
+            Sprite {
+                image: asset_server.load("world/seed_sack.png"),
+                custom_size: Some(interaction.size),
+                ..default()
+            },
+        );
+        commands.entity(entity).insert((
+            Transform::from_xyz(
+                interaction.center.x,
+                interaction.center.y,
+                INTERIOR_PLAYER_DEPTH - 1.0,
+            ),
+            if previously_discovered {
+                Visibility::Hidden
+            } else {
+                Visibility::Visible
+            },
+        ));
+        entity
+    } else {
+        spawn_interactable(
+            commands,
+            kind,
+            interaction.center,
+            interaction.size,
+            Color::NONE,
+        )
+    };
+    commands.entity(entity).insert((
+        interior::InteriorSceneEntity,
+        AuthoredInteractionLabel(match (kind, previously_discovered) {
+            (InteractableKind::BibleNightstand, true) => {
+                "nightstand where the little book rests".to_owned()
+            }
+            (InteractableKind::SeedStore, true) => "empty seed shelf".to_owned(),
+            _ => interaction.label.clone(),
+        }),
+        Interactable {
+            kind,
+            // Discovery records knowledge but does not remove the object: the
+            // Scribe deliberately leaves the Bible here to revisit.
+            consumed: false,
+        },
+    ));
+}
+
 fn spawn_interior_scene(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -1522,36 +1898,7 @@ fn spawn_interior_scene(
         }
     }
     for interaction in map.interactions() {
-        let previously_discovered = interior_state
-            .0
-            .get(&format!("{}/{}", map.id(), interaction.id))
-            .is_some_and(|state| state == DISCOVERY_FOUND_STATE);
-        let kind = match (interaction.kind, interaction.discovery) {
-            (interior::SceneInteractionKind::Search, interior::SceneDiscovery::GideonBible) => {
-                InteractableKind::BibleNightstand
-            }
-        };
-        let entity = spawn_interactable(
-            commands,
-            kind,
-            interaction.center,
-            interaction.size,
-            Color::NONE,
-        );
-        commands.entity(entity).insert((
-            interior::InteriorSceneEntity,
-            AuthoredInteractionLabel(if previously_discovered {
-                "nightstand where the little book rests".to_owned()
-            } else {
-                interaction.label.clone()
-            }),
-            Interactable {
-                kind,
-                // Discovery records knowledge but does not remove the object:
-                // the Scribe deliberately leaves the Bible here to revisit.
-                consumed: false,
-            },
-        ));
+        spawn_scene_interaction(commands, asset_server, map, interior_state, interaction);
     }
     let exit = spawn_interactable(
         commands,
@@ -1591,11 +1938,18 @@ const fn motel_door_is_unlocked(
 }
 
 #[cfg(target_arch = "wasm32")]
+#[allow(clippy::too_many_arguments)]
 fn load_story(
-    mut story: ResMut<Story>,
+    mut journal: ResMut<Journal>,
     mut interior_state: ResMut<InteriorState>,
     mut motel_access: ResMut<MotelAccess>,
     mut progression: ResMut<Progression>,
+    mut garden: ResMut<Garden>,
+    mut clock: ResMut<Clock>,
+    mut visitors: ResMut<Visitors>,
+    mut collection: ResMut<Collection>,
+    mut readings: ResMut<Readings>,
+    mut salvaged: ResMut<Salvaged>,
 ) {
     let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     else {
@@ -1607,44 +1961,23 @@ fn load_story(
     let Ok(save) = serde_json::from_str::<SaveData>(&raw) else {
         return;
     };
-    if !matches!(save.version, 1..=6) || save.vignette_index >= vignettes().len() {
+    if !matches!(save.version, 1..=8) {
         return;
     }
-    let migrate_legacy_bible = save.version <= 4 && story_stage_requires_bible(save.stage);
-    story.stage = save.stage;
-    story.kindling = save.kindling.min(3);
-    story.vignette_index = save.vignette_index;
-    story.dialogue_line = save.dialogue_line;
-    story.result = save.result;
-    story.card = save.card;
     interior_state.0 = save.interior_states;
-    if migrate_legacy_bible {
-        interior_state
-            .0
-            .entry(BIBLE_STATE_KEY.to_owned())
-            .or_insert_with(|| DISCOVERY_FOUND_STATE.to_owned());
-    }
     motel_access.keys_found = save.motel_keys_found;
     *progression = save.progression;
-    story.notice = Some("The old trail returns to memory.".to_owned());
-}
-
-#[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
-const fn story_stage_requires_bible(stage: StoryStage) -> bool {
-    matches!(
-        stage,
-        StoryStage::FindPlank
-            | StoryStage::RestoreDesk
-            | StoryStage::Night
-            | StoryStage::MeetTraveler
-            | StoryStage::Dialogue
-            | StoryStage::Interpreting
-            | StoryStage::ChoosePaper
-            | StoryStage::ChooseIllustration
-            | StoryStage::ChooseBorder
-            | StoryStage::FinishedCard
-            | StoryStage::Epilogue
-    )
+    // Saves older than the garden simply have none; every plot reads as ash.
+    *garden = save.garden;
+    // Saves older than the clock start their next morning rather than resuming
+    // an hour they were never written with.
+    *clock = save.clock;
+    visitors.nights_of_smoke = save.nights_of_smoke;
+    visitors.visits_received = save.visits_received;
+    collection.restore(save.prints_made, save.prints_given, save.print_tier);
+    readings.restore(save.passages_read, save.dwelling_on);
+    salvaged.restore(save.salvaged);
+    journal.say("The old trail returns to memory.");
 }
 
 fn bible_found(interior_state: &InteriorState) -> bool {
@@ -1654,13 +1987,10 @@ fn bible_found(interior_state: &InteriorState) -> bool {
         .is_some_and(|state| state == DISCOVERY_FOUND_STATE)
 }
 
-fn record_bible_discovery(story: &mut Story, interior_state: &mut InteriorState) {
+fn record_bible_discovery(interior_state: &mut InteriorState) {
     interior_state
         .0
         .insert(BIBLE_STATE_KEY.to_owned(), DISCOVERY_FOUND_STATE.to_owned());
-    if story.stage == StoryStage::FindBible {
-        story.stage = StoryStage::FindPlank;
-    }
 }
 
 fn story_beat_seen(interior_state: &InteriorState, beat: StoryBeat) -> bool {
@@ -1703,16 +2033,17 @@ fn reconcile_office_realization(popup: &mut NarrativePopup, interior_state: &mut
 const fn load_story() {}
 
 #[cfg(target_arch = "wasm32")]
-fn save_story(
-    story: Res<Story>,
-    interior_state: Res<InteriorState>,
-    motel_access: Res<MotelAccess>,
-    progression: Res<Progression>,
-) {
-    if !story.is_changed()
-        && !interior_state.is_changed()
-        && !motel_access.is_changed()
-        && !progression.is_changed()
+fn save_story(memory: WorldMemory) {
+    // The clock changes every frame, so it is deliberately not a trigger: a save
+    // rides along with something the player actually did.
+    if !memory.interior_state.is_changed()
+        && !memory.motel_access.is_changed()
+        && !memory.progression.is_changed()
+        && !memory.garden.is_changed()
+        && !memory.visitors.is_changed()
+        && !memory.collection.is_changed()
+        && !memory.readings.is_changed()
+        && !memory.salvaged.is_changed()
     {
         return;
     }
@@ -1720,12 +2051,7 @@ fn save_story(
     else {
         return;
     };
-    if let Ok(raw) = serde_json::to_string(&SaveData::capture(
-        &story,
-        &interior_state,
-        &motel_access,
-        &progression,
-    )) {
+    if let Ok(raw) = serde_json::to_string(&SaveData::capture(&memory)) {
         let _ = storage.set_item("waystation-save-v1", &raw);
     }
 }
@@ -2128,14 +2454,14 @@ fn handle_tool_hotkeys(
     popup: Res<NarrativePopup>,
     environment: ToolDropEnvironment,
     mut progression: ResMut<Progression>,
-    mut story: ResMut<Story>,
+    mut journal: ResMut<Journal>,
     player: Query<(&Transform, &PlayerAnimation), With<Player>>,
 ) {
     if popup.is_open() {
         return;
     }
     if keys.just_pressed(KeyCode::Tab) {
-        story.notice = progression.cycle_equipped_tool().map(|tool| {
+        journal.notice = progression.cycle_equipped_tool().map(|tool| {
             format!(
                 "You shift the {} where it is easiest to reach.",
                 tool.label()
@@ -2149,7 +2475,7 @@ fn handle_tool_hotkeys(
         return;
     };
     let Some(equipped_id) = progression.equipped_tool_id() else {
-        story.notice = Some("You are not carrying a portable tool to put down.".to_owned());
+        journal.notice = Some("You are not carrying a portable tool to put down.".to_owned());
         return;
     };
     let Some(definition) = environment
@@ -2200,7 +2526,7 @@ fn handle_tool_hotkeys(
             (position.x, position.y),
         )
     };
-    story.notice = tool.map(|tool| {
+    journal.notice = tool.map(|tool| {
         if returning_home {
             format!(
                 "You return the {} to its place in the tool shed.",
@@ -2434,25 +2760,15 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
 fn move_player(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
-    story: Res<Story>,
+    visitors: Res<Visitors>,
     popup: Res<NarrativePopup>,
     mut environment: MovementEnvironment,
     mut player: Query<(&mut Transform, &mut PlayerAnimation), With<Player>>,
 ) {
     environment.doorway_attempt.0 = None;
-    if popup.is_open()
-        || matches!(
-            story.stage,
-            StoryStage::Night
-                | StoryStage::Dialogue
-                | StoryStage::Interpreting
-                | StoryStage::ChoosePaper
-                | StoryStage::ChooseIllustration
-                | StoryStage::ChooseBorder
-                | StoryStage::FinishedCard
-                | StoryStage::Epilogue
-        )
-    {
+    // Walking away mid-sentence is rude and, worse, leaves a conversation on
+    // screen with nobody in front of it.
+    if popup.is_open() || visitor_holds_the_screen(&visitors) {
         return;
     }
     let Ok((mut transform, mut animation)) = player.single_mut() else {
@@ -2807,7 +3123,7 @@ fn latch_locked_door_bump(
 #[allow(clippy::too_many_arguments)]
 fn handle_automatic_doorways(
     mut commands: Commands,
-    mut story: ResMut<Story>,
+    mut journal: ResMut<Journal>,
     mut location: ResMut<WorldLocation>,
     interior: Res<interior::InteriorMap>,
     motel_access: Res<MotelAccess>,
@@ -2835,7 +3151,7 @@ fn handle_automatic_doorways(
         if !motel_door_is_unlocked(destination, &motel_access) {
             if latch_locked_door_bump(&mut door_bump_latch.0, destination.interior_id) {
                 player_transform.translation.y -= LOCKED_DOOR_BUMP_DISTANCE;
-                story.notice = Some(format!(
+                journal.notice = Some(format!(
                     "The door to {} is locked. The office may still hold its key.",
                     destination.interior_id.door_label()
                 ));
@@ -2859,7 +3175,7 @@ fn handle_automatic_doorways(
         player_transform.translation.y = position.y;
         exterior_return.0 = destination.doorstep;
         *location = WorldLocation::Interior;
-        story.notice = Some(format!(
+        journal.notice = Some(format!(
             "Inside {}, the valley light falls away behind you.",
             next_interior.name()
         ));
@@ -2888,7 +3204,7 @@ fn handle_automatic_doorways(
         for entity in &interior_entities {
             commands.entity(entity).despawn();
         }
-        story.notice = Some("You step back into the valley air.".to_owned());
+        journal.notice = Some("You step back into the valley air.".to_owned());
     }
 }
 
@@ -2902,19 +3218,17 @@ fn animate_player(
     };
     let position = transform.translation.truncate();
     if let Some(mut active) = animation.active_tool {
-        let (image, layout) = match active.kind {
-            ToolWorkAnimation::Hammer => (&art.hammer_image, &art.hammer_layout),
-            ToolWorkAnimation::Axe => (&art.axe_image, &art.axe_layout),
-        };
+        let columns = active.kind.columns() as usize;
+        let (image, layout) = art.work_cycle(active.kind);
         sprite.image = image.clone();
         sprite.texture_atlas = Some(TextureAtlas {
             layout: layout.clone(),
-            index: animation.facing.direction_index() * SCRIBE_TOOL_COLUMNS as usize + active.frame,
+            index: animation.facing.direction_index() * columns + active.frame,
         });
         animation.timer.tick(time.delta());
         if animation.timer.just_finished() {
             active.frame += 1;
-            if active.frame >= SCRIBE_TOOL_COLUMNS as usize {
+            if active.frame >= columns {
                 animation.active_tool = None;
                 animation.frame = 0;
                 animation
@@ -2967,13 +3281,15 @@ fn start_task_animation(
     asset_server: &AssetServer,
     player_animation: &mut Query<&mut PlayerAnimation, With<Player>>,
 ) {
-    if !task.tools.contains(&ToolId::Hammer) {
+    let Some(kind) = ToolWorkAnimation::for_task(task) else {
         return;
-    }
+    };
     if let Ok(mut animation) = player_animation.single_mut() {
-        start_tool_animation(&mut animation, ToolWorkAnimation::Hammer);
+        start_tool_animation(&mut animation, kind);
     }
-    game_audio::play_hammering(commands, asset_server);
+    if task.tools.contains(&ToolId::Hammer) {
+        game_audio::play_hammering(commands, asset_server);
+    }
 }
 
 #[allow(clippy::type_complexity)]
@@ -3075,9 +3391,201 @@ fn trigger_story_hotspots(
     }
 }
 
+/// The only part of the restoration that happens without the Scribe. The clock
+/// runs without marking the garden changed, because a save written every frame
+/// of a two-minute season would be a save written for nothing; ripening is what
+/// is worth recording, and worth interrupting the player to say.
+fn grow_garden(time: Res<Time>, mut garden: ResMut<Garden>, mut journal: ResMut<Journal>) {
+    if !garden.is_growing() {
+        return;
+    }
+    let ripened = garden
+        .bypass_change_detection()
+        .tick(time.delta_secs())
+        .len();
+    if ripened == 0 {
+        return;
+    }
+    garden.set_changed();
+    journal.notice = Some(if ripened == 1 {
+        "Grain is standing in one of the beds. Something in this valley is still willing."
+            .to_owned()
+    } else {
+        format!("{ripened} beds have come ripe at once. You did not expect that.")
+    });
+}
+
+/// A bed's art, and the rain butt's, are functions of saved state, so both are
+/// reconciled here rather than written at every place that state changes.
+fn sync_garden_plots(
+    asset_server: Res<AssetServer>,
+    garden: Res<Garden>,
+    interior_state: Res<InteriorState>,
+    mut plots: Query<(&mut GardenPlot, &mut Sprite)>,
+    mut cisterns: Query<(&mut RainCistern, &mut Sprite), Without<GardenPlot>>,
+) {
+    for (mut plot, mut sprite) in &mut plots {
+        let stage = garden.stage(&plot.id);
+        let wanted = plot.art_for(stage, garden.nearly_ripe(&plot.id)).to_owned();
+        if plot.art == wanted {
+            continue;
+        }
+        sprite.image = asset_server.load(&wanted);
+        plot.art = wanted;
+    }
+    let wanted = cistern_art(cistern_holds_water(&interior_state));
+    for (mut cistern, mut sprite) in &mut cisterns {
+        if cistern.art == wanted {
+            continue;
+        }
+        cistern.art = wanted;
+        sprite.image = asset_server.load(wanted);
+    }
+}
+
+/// What a bed is asking for right now. A plot changes what it wants five times
+/// over, so like the hearth it writes its own line rather than caching one.
+fn garden_plot_prompt(plot: &GardenPlot, garden: &Garden, progression: &Progression) -> String {
+    let stage = garden.stage(&plot.id);
+    let Some(task) = plot.work_task(stage) else {
+        return format!(
+            "Nothing to do here — {}",
+            if garden.nearly_ripe(&plot.id) {
+                "the heads are filling out"
+            } else {
+                "the grain is barely up"
+            }
+        );
+    };
+    let missing = progression.shortfalls(&task);
+    if missing.is_empty() {
+        format!("R — {}     [{}]", stage.work(), task.requirements_text())
+    } else {
+        format!(
+            "R — {}     [still needs {}]",
+            stage.work(),
+            missing.join(" · ")
+        )
+    }
+}
+
+/// The line the Scribe reads after one piece of garden work. Restoration prose
+/// elsewhere is plain because the outcome is certain; here it is not, so each
+/// step is written as something that could have failed and did not.
+fn garden_work_notice(worked: garden::Worked, progression: &Progression) -> String {
+    match worked.from {
+        PlotStage::Paved => format!(
+            "The slab comes up in plates and you lever them aside. Underneath, soil — dark, and deep, and from before. Whatever was here grew in it once. Stone: {}.",
+            progression.supply(SupplyId::Stone)
+        ),
+        PlotStage::Fallow => "You draw the hoe through until the ground lies in rows. It gives more easily than it has any right to.".to_owned(),
+        PlotStage::Tilled => format!(
+            "Seed along the rows, covered over by hand. Seed left: {}.",
+            progression.supply(SupplyId::Seed)
+        ),
+        PlotStage::Sown => format!(
+            "The water goes in without a sound and does not run off. Canfuls left: {}.",
+            progression.supply(SupplyId::Water)
+        ),
+        // Growing has no work; only the clock finishes it.
+        PlotStage::Growing => "The grain is still coming up. Nothing here will be hurried.".to_owned(),
+        PlotStage::Ripe => {
+            let mut notice = format!(
+                "You thresh it out by hand. Rations: {}. Two seeds back for the one that went in.",
+                progression.supply(SupplyId::Ration)
+            );
+            if worked.bonus_rations > 0 {
+                notice.push_str("\nThe bed gave more than it was asked for. You count it twice to be sure.");
+            }
+            notice
+        }
+    }
+}
+
+/// The hearth carries no `TaskSpec`, so it writes its own requirement line in the
+/// same shape the worked stations use.
+fn hearth_prompt(interior_state: &InteriorState, progression: &Progression) -> String {
+    if hearth_is_lit(interior_state) {
+        return "E — tend the hearth".to_owned();
+    }
+    let missing = hearth_blockers(interior_state, progression);
+    if missing.is_empty() {
+        format!("E — light the hearth     [{HEARTH_KINDLING} kindling · cleared chimney]")
+    } else {
+        format!(
+            "E — tend the hearth     [still needs {}]",
+            missing.join(" · ")
+        )
+    }
+}
+
+const fn cistern_art(holds_water: bool) -> &'static str {
+    if holds_water {
+        "world/rain_cistern.png"
+    } else {
+        "world/rain_cistern_damaged.png"
+    }
+}
+
+fn cistern_holds_water(interior_state: &InteriorState) -> bool {
+    interior_state
+        .0
+        .get(RAIN_CISTERN_STATE_KEY)
+        .is_some_and(|state| state == "repaired")
+}
+
+/// Coopering, near enough: new staves off a plank and the hoops nailed back.
+fn cistern_repair_task() -> progression::TaskSpec {
+    progression::TaskSpec::for_kind("door")
+}
+
+/// The cistern owns its prompt for the same reason a bed does — what it wants
+/// depends on whether it holds water yet.
+fn cistern_prompt(interior_state: &InteriorState, progression: &Progression) -> String {
+    let (work, task) = if cistern_holds_water(interior_state) {
+        (
+            "fill the can from the cistern",
+            progression::TaskSpec::for_drawing_water(),
+        )
+    } else {
+        ("rebuild the staved-in rain butt", cistern_repair_task())
+    };
+    let missing = progression.shortfalls(&task);
+    if missing.is_empty() {
+        format!("R — {work}     [{}]", task.requirements_text())
+    } else {
+        format!("R — {work}     [still needs {}]", missing.join(" · "))
+    }
+}
+
+fn hearth_is_lit(interior_state: &InteriorState) -> bool {
+    interior_state
+        .0
+        .get(OFFICE_HEARTH_STATE_KEY)
+        .is_some_and(|state| state == "repaired")
+}
+
+/// Everything the hearth is still waiting on, phrased for a player. Both the
+/// nearby prompt and the failed interaction read from this one list so the fire
+/// can never refuse silently.
+fn hearth_blockers(interior_state: &InteriorState, progression: &Progression) -> Vec<String> {
+    let mut missing = Vec::new();
+    if interior_state
+        .0
+        .get(OFFICE_CHIMNEY_STATE_KEY)
+        .is_none_or(|state| state != "repaired")
+    {
+        missing.push("a cleared chimney".to_owned());
+    }
+    let kindling = progression.supply(SupplyId::Kindling);
+    if kindling < HEARTH_KINDLING {
+        missing.push(format!("{HEARTH_KINDLING} kindling (you have {kindling})"));
+    }
+    missing
+}
+
 const fn interaction_key_matches(
     kind: InteractableKind,
-    stage: StoryStage,
     interact_pressed: bool,
     repair_pressed: bool,
 ) -> bool {
@@ -3086,11 +3594,12 @@ const fn interaction_key_matches(
         | InteractableKind::ExteriorRepairable
         | InteractableKind::Tree
         | InteractableKind::Sawbuck
-        | InteractableKind::StoneOutcrop => repair_pressed,
-        InteractableKind::Tool => interact_pressed || repair_pressed,
-        InteractableKind::Desk if matches!(stage, StoryStage::RestoreDesk) => {
-            interact_pressed || repair_pressed
-        }
+        | InteractableKind::StoneOutcrop
+        | InteractableKind::GardenPlot
+        | InteractableKind::RainCistern => repair_pressed,
+        // A desk can be searched or mended and a tool taken or repaired, so both
+        // keys reach them and the interaction works out which was meant.
+        InteractableKind::Tool | InteractableKind::Desk => interact_pressed || repair_pressed,
         _ => interact_pressed,
     }
 }
@@ -3100,7 +3609,7 @@ fn handle_interaction(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
     nearby: Res<Nearby>,
-    mut story: ResMut<Story>,
+    mut journal: ResMut<Journal>,
     mut popup: ResMut<NarrativePopup>,
     interior: Res<interior::InteriorMap>,
     motel: Res<interior::MotelExteriorMap>,
@@ -3121,7 +3630,7 @@ fn handle_interaction(
     };
     let interact_pressed = keys.just_pressed(KeyCode::KeyE);
     let repair_pressed = keys.just_pressed(KeyCode::KeyR);
-    if !interaction_key_matches(target.kind, story.stage, interact_pressed, repair_pressed) {
+    if !interaction_key_matches(target.kind, interact_pressed, repair_pressed) {
         return;
     }
     if let Ok((portable, label)) = queries.portable_tools.get(entity) {
@@ -3130,14 +3639,14 @@ fn handle_interaction(
         };
         if repair_pressed {
             if record.condition == ToolCondition::Serviceable {
-                story.notice = Some(format!("The {} is already in working order.", label.0));
+                journal.notice = Some(format!("The {} is already in working order.", label.0));
                 return;
             }
             let task = progression::TaskSpec::for_tool_repair(record.tool);
             let outcome = match resources.progression.attempt(&task) {
                 Ok(outcome) => outcome,
                 Err(reason) => {
-                    story.notice = Some(format!(
+                    journal.notice = Some(format!(
                         "You cannot repair the {} yet. {reason}\nRequires: {}.",
                         label.0,
                         task.requirements_text()
@@ -3154,12 +3663,12 @@ fn handle_interaction(
                 }
                 game_audio::play_hammering(&mut commands, &asset_server);
             }
-            story.notice = Some(format!(
+            journal.notice = Some(format!(
                 "You put the {} back into working order. +{} Upkeep experience.",
                 label.0, task.xp
             ));
             if outcome.new_level > outcome.old_level {
-                story.notice = Some(format!(
+                journal.notice = Some(format!(
                     "You put the {} back into working order. Upkeep rises to level {}!",
                     label.0, outcome.new_level
                 ));
@@ -3170,7 +3679,7 @@ fn handle_interaction(
             Ok(tool) => {
                 target.consumed = true;
                 commands.entity(entity).insert(Visibility::Hidden);
-                story.notice = Some(if record.condition == ToolCondition::Broken {
+                journal.notice = Some(if record.condition == ToolCondition::Broken {
                     format!(
                         "You take the {}. It is {}, but perhaps it can be repaired. Carried tools: {}/{}.",
                         label.0,
@@ -3187,7 +3696,7 @@ fn handle_interaction(
                     )
                 });
             }
-            Err(reason) => story.notice = Some(reason),
+            Err(reason) => journal.notice = Some(reason),
         }
         return;
     }
@@ -3196,7 +3705,7 @@ fn handle_interaction(
         let outcome = match resources.progression.attempt(&task) {
             Ok(outcome) => outcome,
             Err(reason) => {
-                story.notice = Some(format!(
+                journal.notice = Some(format!(
                     "You cannot cut this tree yet. {reason}\nRequires: {}.",
                     task.requirements_text()
                 ));
@@ -3214,7 +3723,7 @@ fn handle_interaction(
             start_tool_animation(&mut animation, ToolWorkAnimation::Axe);
         }
         commands.entity(entity).despawn();
-        story.notice = Some(format!(
+        journal.notice = Some(format!(
             "The old axe bites cleanly. You keep two useful logs and gather dry splinters. +{} Upkeep experience{}.",
             task.xp,
             if outcome.new_level > outcome.old_level {
@@ -3228,7 +3737,7 @@ fn handle_interaction(
     if target.kind == InteractableKind::Sawbuck {
         let task = progression::TaskSpec::for_milling();
         if let Err(reason) = resources.progression.attempt(&task) {
-            story.notice = Some(format!(
+            journal.notice = Some(format!(
                 "You cannot mill a plank yet. {reason}\nRequires: {}.",
                 task.requirements_text()
             ));
@@ -3237,7 +3746,7 @@ fn handle_interaction(
         if let Ok(mut animation) = queries.player_animation.single_mut() {
             start_tool_animation(&mut animation, ToolWorkAnimation::Axe);
         }
-        story.notice = Some(format!(
+        journal.notice = Some(format!(
             "You lay a log across the sawbuck and cut it down to {}. Planks: {}. Logs left: {}.",
             task.yields_text(),
             resources.progression.supply(SupplyId::Plank),
@@ -3248,7 +3757,7 @@ fn handle_interaction(
     if let Ok(outcrop) = queries.stone_outcrops.get(entity) {
         let task = progression::TaskSpec::for_quarrying();
         if let Err(reason) = resources.progression.attempt(&task) {
-            story.notice = Some(format!(
+            journal.notice = Some(format!(
                 "You cannot work this stone yet. {reason}\nRequires: {}.",
                 task.requirements_text()
             ));
@@ -3265,10 +3774,93 @@ fn handle_interaction(
             start_tool_animation(&mut animation, ToolWorkAnimation::Hammer);
         }
         commands.entity(entity).despawn();
-        story.notice = Some(format!(
+        journal.notice = Some(format!(
             "The pick rings and the seam gives. You carry off {}. Stone: {}.",
             task.yields_text(),
             resources.progression.supply(SupplyId::Stone)
+        ));
+        return;
+    }
+    if let Ok(plot) = queries.garden_plots.get(entity) {
+        let plot_id = plot.id.clone();
+        let stage = resources.garden.stage(&plot_id);
+        let Some(task) = plot.work_task(stage) else {
+            journal.notice = Some(garden_work_notice(
+                garden::Worked {
+                    from: stage,
+                    to: stage,
+                    bonus_rations: 0,
+                },
+                &resources.progression,
+            ));
+            return;
+        };
+        if let Err(reason) = resources.progression.attempt(&task) {
+            journal.notice = Some(format!(
+                "You cannot {} yet. {reason}\nRequires: {}.",
+                stage.work(),
+                task.requirements_text()
+            ));
+            return;
+        }
+        let worked = resources.garden.advance(&plot_id);
+        if worked.bonus_rations > 0 {
+            resources
+                .progression
+                .add_supply(SupplyId::Ration, worked.bonus_rations);
+        }
+        start_task_animation(
+            &task,
+            &mut commands,
+            &asset_server,
+            &mut queries.player_animation,
+        );
+        journal.notice = Some(garden_work_notice(worked, &resources.progression));
+        return;
+    }
+    if target.kind == InteractableKind::RainCistern {
+        if !cistern_holds_water(&resources.interior_state) {
+            let task = cistern_repair_task();
+            if let Err(reason) = resources.progression.attempt(&task) {
+                journal.notice = Some(format!(
+                    "The rain butt is staved in and holds nothing. {reason}\nRequires: {}.",
+                    task.requirements_text()
+                ));
+                return;
+            }
+            resources
+                .interior_state
+                .0
+                .insert(RAIN_CISTERN_STATE_KEY.to_owned(), "repaired".to_owned());
+            start_task_animation(
+                &task,
+                &mut commands,
+                &asset_server,
+                &mut queries.player_animation,
+            );
+            journal.notice = Some(
+                "New staves, the hoops driven back down. It will take whatever the storms give, which is the one thing they give freely."
+                    .to_owned(),
+            );
+            return;
+        }
+        let task = progression::TaskSpec::for_drawing_water();
+        if let Err(reason) = resources.progression.attempt(&task) {
+            journal.notice = Some(format!(
+                "You cannot draw from the cistern yet. {reason}\nRequires: {}.",
+                task.requirements_text()
+            ));
+            return;
+        }
+        start_task_animation(
+            &task,
+            &mut commands,
+            &asset_server,
+            &mut queries.player_animation,
+        );
+        journal.notice = Some(format!(
+            "Rain the valley had no other use for. You fill the can to the lip. Canfuls of water: {}.",
+            resources.progression.supply(SupplyId::Water)
         ));
         return;
     }
@@ -3280,42 +3872,34 @@ fn handle_interaction(
         commands.entity(entity).insert(Visibility::Hidden);
         match target.kind {
             InteractableKind::Kindling => {
-                story.kindling = story.kindling.saturating_add(1);
-                if matches!(
-                    story.stage,
-                    StoryStage::Arrival | StoryStage::GatherKindling
-                ) {
-                    story.stage = if story.kindling >= 3 {
-                        StoryStage::LightHearth
-                    } else {
-                        StoryStage::GatherKindling
-                    };
-                }
-                story.notice = Some(format!(
+                journal.notice = Some(format!(
                     "Dry wood, sheltered beneath the old growth. Kindling: {}.",
                     resources.progression.supply(SupplyId::Kindling)
                 ));
             }
             InteractableKind::Log => {
-                story.notice = Some(format!(
+                journal.notice = Some(format!(
                     "A fallen log, weathered but sound. Logs: {}.",
                     resources.progression.supply(SupplyId::Log)
                 ));
             }
             InteractableKind::Plank => {
-                if story.stage == StoryStage::FindPlank {
-                    story.stage = StoryStage::RestoreDesk;
-                }
-                story.notice = Some(format!(
+                journal.notice = Some(format!(
                     "Old cedar, still sound. Planks: {}.",
                     resources.progression.supply(SupplyId::Plank)
                 ));
             }
             InteractableKind::Tool => {
-                story.notice = Some(
+                journal.notice = Some(
                     "An old ladder, silvered by weather but still sturdy. It can reach the motel roof."
                         .to_owned(),
                 );
+            }
+            InteractableKind::Forage => {
+                journal.notice = Some(format!(
+                    "Not much. Enough for a day, eaten carefully. More than the ash has offered since you came down off the mountain. Rations: {}.",
+                    resources.progression.supply(SupplyId::Ration)
+                ));
             }
             _ => {}
         }
@@ -3323,35 +3907,52 @@ fn handle_interaction(
     }
     match target.kind {
         InteractableKind::Sign => {
-            story.notice = Some(
-                "MOT—L. A shelter-name from the old speech. An arrow points into the court."
-                    .to_owned(),
+            journal.say(
+                "MOT—L. A shelter-name from the old speech. An arrow points into the court.",
             );
-            if story.stage == StoryStage::Arrival {
-                story.stage = StoryStage::GatherKindling;
-            }
         }
-        InteractableKind::Hearth if story.stage == StoryStage::LightHearth => {
-            if resources
-                .interior_state
-                .0
-                .get("motel-exterior/tall-chimney-01")
-                .is_none_or(|state| state != "repaired")
-            {
-                story.notice = Some(
-                    "Soot and old nests choke the flue. Clear the office chimney from the roof before lighting a fire."
+        InteractableKind::SeedStore => {
+            let key = format!("tool-shed-interior/{SHED_SEED_STORE_ID}");
+            if resources.interior_state.0.contains_key(&key) {
+                journal.notice = Some(
+                    "The shelf is bare now. Whatever seed the waystation sees after this has to be grown, traded for, or given."
                         .to_owned(),
                 );
+                return;
+            }
+            resources
+                .interior_state
+                .0
+                .insert(key, DISCOVERY_FOUND_STATE.to_owned());
+            resources
+                .progression
+                .add_supply(SupplyId::Seed, SHED_SEED_STORE);
+            commands.entity(entity).insert(Visibility::Hidden);
+            journal.notice = Some(format!(
+                "A sack of seed grain, kept dry on the high shelf by somebody who did not get to sow it. Seed: {}.",
+                resources.progression.supply(SupplyId::Seed)
+            ));
+        }
+        InteractableKind::Hearth => {
+            if hearth_is_lit(&resources.interior_state) {
+                journal.notice = Some(
+                    "The fire holds. Warm light reaches into a room untouched for centuries."
+                        .to_owned(),
+                );
+                return;
+            }
+            let missing = hearth_blockers(&resources.interior_state, &resources.progression);
+            if !missing.is_empty() {
+                journal.notice = Some(format!(
+                    "The hearth is cold. It still needs {}.\nDry kindling waits beneath the old growth, and a felled tree gives more; the flue is cleared from the motel roof.",
+                    missing.join(" and ")
+                ));
                 return;
             }
             if !resources
                 .progression
                 .spend_supply(SupplyId::Kindling, HEARTH_KINDLING)
             {
-                story.notice = Some(format!(
-                    "The hearth needs {HEARTH_KINDLING} kindling; you have {}.",
-                    resources.progression.supply(SupplyId::Kindling)
-                ));
                 return;
             }
             if let (Ok((mut instance, mut sprite, mut transform, mut visibility)), Some(element)) = (
@@ -3373,18 +3974,17 @@ fn handle_interaction(
                     &mut visibility,
                 );
             }
-            story.stage = if bible_found(&resources.interior_state) {
-                StoryStage::FindPlank
-            } else {
-                StoryStage::FindBible
-            };
             target.consumed = true;
-            story.notice = Some(
-                "Flame takes. Warm light reaches into a room untouched for centuries.".to_owned(),
+            journal.say(
+                "Flame takes. Warm light reaches into a room untouched for centuries. Whatever else this smoke does, it will be visible from the ridge.",
             );
         }
         InteractableKind::Desk => {
-            if repair_pressed && story.stage == StoryStage::RestoreDesk {
+            let desk_is_broken = queries
+                .mutable_elements
+                .get(entity)
+                .is_ok_and(|(instance, ..)| instance.state != "repaired");
+            if repair_pressed && desk_is_broken {
                 if let (
                     Ok((mut instance, mut sprite, mut transform, mut visibility)),
                     Some(element),
@@ -3395,7 +3995,7 @@ fn handle_interaction(
                     let _outcome = match resources.progression.attempt(&element.task) {
                         Ok(outcome) => outcome,
                         Err(reason) => {
-                            story.notice = Some(format!(
+                            journal.notice = Some(format!(
                                 "You cannot {} the {} yet. {}",
                                 element.task.action.infinitive(),
                                 element.label,
@@ -3425,10 +4025,8 @@ fn handle_interaction(
                         &mut queries.player_animation,
                     );
                 }
-                story.stage = StoryStage::Night;
-                story.notice = Some(
-                    "The desk stands square again; the first careful carpentry lesson is learned."
-                        .to_owned(),
+                journal.say(
+                    "The desk stands square again; the first careful carpentry lesson is learned.",
                 );
                 target.consumed = true;
                 return;
@@ -3450,24 +4048,24 @@ fn handle_interaction(
                 StoryBeat::OfficeLedger,
             );
             reconcile_office_realization(&mut popup, &mut resources.interior_state);
-            story.notice = Some(if discoveries.is_empty() {
+            journal.notice = Some(if discoveries.is_empty() {
                 "The old desk has already yielded its secrets.".to_owned()
             } else {
                 discoveries.join("\n\n")
             });
         }
         InteractableKind::BibleNightstand => {
-            record_bible_discovery(&mut story, &mut resources.interior_state);
+            record_bible_discovery(&mut journal, &mut resources.interior_state);
             popup.present(NarrativeCard::Item(DiscoveredItem::GideonBible));
-            story.notice = Some(
+            journal.notice = Some(
                 "The little book remains safe on the nightstand. Someone left it here for a stranger—and the stranger can read."
                     .to_owned(),
             );
         }
-        InteractableKind::Traveler if story.stage == StoryStage::MeetTraveler => {
-            story.stage = StoryStage::Dialogue;
-            story.dialogue_line = 0;
-            story.notice = None;
+        InteractableKind::Traveler if journal.stage == StoryStage::MeetTraveler => {
+            journal.stage = StoryStage::Dialogue;
+            journal.dialogue_line = 0;
+            journal.notice = None;
         }
         InteractableKind::MotelDoor | InteractableKind::InteriorExit => {}
         InteractableKind::InteriorRepairable => {
@@ -3486,7 +4084,7 @@ fn handle_interaction(
             let outcome = match resources.progression.attempt(&element.task) {
                 Ok(outcome) => outcome,
                 Err(reason) => {
-                    story.notice = Some(format!(
+                    journal.notice = Some(format!(
                         "You cannot {} the {} yet. {}\nRequires: {}.",
                         element.task.action.infinitive(),
                         element.label,
@@ -3506,7 +4104,7 @@ fn handle_interaction(
                 &mut transform,
                 &mut visibility,
             ) {
-                story.notice = Some(format!("{} cannot be repaired yet.", element.label));
+                journal.notice = Some(format!("{} cannot be repaired yet.", element.label));
                 return;
             }
             start_task_animation(
@@ -3516,7 +4114,7 @@ fn handle_interaction(
                 &mut queries.player_animation,
             );
             target.consumed = true;
-            story.notice = Some(task_success_notice(element, &outcome));
+            journal.notice = Some(task_success_notice(element, &outcome));
         }
         InteractableKind::ExteriorRepairable => {
             let Ok((mut instance, mut sprite, mut transform, mut visibility)) =
@@ -3549,7 +4147,7 @@ fn handle_interaction(
             let outcome = match resources.progression.attempt(&element.task) {
                 Ok(outcome) => outcome,
                 Err(reason) => {
-                    story.notice = Some(format!(
+                    journal.notice = Some(format!(
                         "You cannot {} the {} yet. {}\nRequires: {}.",
                         element.task.action.infinitive(),
                         element.label,
@@ -3569,7 +4167,7 @@ fn handle_interaction(
                 &mut transform,
                 &mut visibility,
             ) {
-                story.notice = Some(format!("{} cannot be repaired yet.", element.label));
+                journal.notice = Some(format!("{} cannot be repaired yet.", element.label));
                 return;
             }
             start_task_animation(
@@ -3579,10 +4177,10 @@ fn handle_interaction(
                 &mut queries.player_animation,
             );
             target.consumed = true;
-            story.notice = Some(task_success_notice(element, &outcome));
+            journal.notice = Some(task_success_notice(element, &outcome));
         }
         _ => {
-            story.notice = Some("There may be a use for this later.".to_owned());
+            journal.notice = Some("There may be a use for this later.".to_owned());
         }
     }
 }
@@ -3647,7 +4245,7 @@ fn repair_scene_element(
 
 fn handle_story_input(
     keys: Res<ButtonInput<KeyCode>>,
-    mut story: ResMut<Story>,
+    mut journal: ResMut<Journal>,
     mut popup: ResMut<NarrativePopup>,
     inbox: Res<InterpretInbox>,
 ) {
@@ -3659,19 +4257,19 @@ fn handle_story_input(
         );
         return;
     }
-    if story.stage == StoryStage::Night && keys.just_pressed(KeyCode::Space) {
-        story.stage = StoryStage::MeetTraveler;
-        story.notice = Some(
+    if journal.stage == StoryStage::Night && keys.just_pressed(KeyCode::Space) {
+        journal.stage = StoryStage::MeetTraveler;
+        journal.notice = Some(
             "At first light, a figure follows the thread of smoke down from the ridge.".to_owned(),
         );
         return;
     }
-    if story.stage == StoryStage::Dialogue && keys.just_pressed(KeyCode::Space) {
-        let vignette = &vignettes()[story.vignette_index];
-        story.dialogue_line += 1;
-        if story.dialogue_line >= vignette.lines.len() {
-            story.stage = StoryStage::Interpreting;
-            begin_interpretation(story.vignette_id(), &inbox);
+    if journal.stage == StoryStage::Dialogue && keys.just_pressed(KeyCode::Space) {
+        let vignette = &vignettes()[journal.vignette_index];
+        journal.dialogue_line += 1;
+        if journal.dialogue_line >= vignette.lines.len() {
+            journal.stage = StoryStage::Interpreting;
+            begin_interpretation(journal.vignette_id(), &inbox);
         }
         return;
     }
@@ -3685,27 +4283,27 @@ fn handle_story_input(
         None
     };
     if let Some(choice) = choice {
-        match story.stage {
+        match journal.stage {
             StoryStage::ChoosePaper => {
-                story.card.paper = choice;
-                story.stage = StoryStage::ChooseIllustration;
+                journal.card.paper = choice;
+                journal.stage = StoryStage::ChooseIllustration;
             }
             StoryStage::ChooseIllustration => {
-                story.card.illustration = choice;
-                story.stage = StoryStage::ChooseBorder;
+                journal.card.illustration = choice;
+                journal.stage = StoryStage::ChooseBorder;
             }
             StoryStage::ChooseBorder => {
-                story.card.border = choice;
-                story.stage = StoryStage::FinishedCard;
+                journal.card.border = choice;
+                journal.stage = StoryStage::FinishedCard;
             }
             _ => {}
         }
     }
-    if story.stage == StoryStage::FinishedCard && keys.just_pressed(KeyCode::KeyE) {
-        story.stage = StoryStage::Epilogue;
+    if journal.stage == StoryStage::FinishedCard && keys.just_pressed(KeyCode::KeyE) {
+        journal.stage = StoryStage::Epilogue;
     }
-    if story.stage == StoryStage::Epilogue && keys.just_pressed(KeyCode::Space) {
-        story.reset_for_replay();
+    if journal.stage == StoryStage::Epilogue && keys.just_pressed(KeyCode::Space) {
+        journal.reset_for_replay();
     }
 }
 
@@ -3760,8 +4358,8 @@ fn api_url(path: &str) -> String {
     format!("http://127.0.0.1:7777{path}")
 }
 
-fn poll_interpretation(mut story: ResMut<Story>, inbox: Res<InterpretInbox>) {
-    if story.stage != StoryStage::Interpreting {
+fn poll_interpretation(mut journal: ResMut<Journal>, inbox: Res<InterpretInbox>) {
+    if journal.stage != StoryStage::Interpreting {
         return;
     }
     let result = inbox.0.lock().ok().and_then(|mut slot| slot.take());
@@ -3772,23 +4370,23 @@ fn poll_interpretation(mut story: ResMut<Story>, inbox: Res<InterpretInbox>) {
         Ok(response) => response,
         Err(error) => {
             bevy::log::warn!("API request failed: {error}; using reviewed fixture");
-            fixture_response(story.vignette_id()).expect("every vignette has a fixture")
+            fixture_response(journal.vignette_id()).expect("every vignette has a fixture")
         }
     };
-    story.result = Some(response);
-    story.stage = StoryStage::ChoosePaper;
+    journal.result = Some(response);
+    journal.stage = StoryStage::ChoosePaper;
 }
 
 fn sync_world_state(
-    story: Res<Story>,
+    journal: Res<Journal>,
     mut traveler: Query<(&mut Visibility, &mut Transform), With<Traveler>>,
 ) {
-    if !story.is_changed() {
+    if !journal.is_changed() {
         return;
     }
     if let Ok((mut visibility, mut transform)) = traveler.single_mut() {
         *visibility = if matches!(
-            story.stage,
+            journal.stage,
             StoryStage::MeetTraveler
                 | StoryStage::Dialogue
                 | StoryStage::Interpreting
@@ -3808,7 +4406,7 @@ fn sync_world_state(
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn sync_ui(
-    story: Res<Story>,
+    journal: Res<Journal>,
     progression: Res<Progression>,
     ui_knowledge: UiKnowledge,
     nearby: Res<Nearby>,
@@ -3876,11 +4474,22 @@ fn sync_ui(
     >,
     mut card_art: Query<(&mut ImageNode, &mut Visibility), (With<CardArt>, Without<OverlayRoot>)>,
 ) {
-    let objective = match story.stage {
+    let gathered_kindling;
+    let objective = match journal.stage {
         StoryStage::Arrival => "Explore the standing stones. Find out what this place was.",
-        StoryStage::GatherKindling => "Gather dry kindling for the motel hearth.",
+        StoryStage::GatherKindling => {
+            gathered_kindling = format!(
+                "Gather dry kindling for the motel hearth ({}/{HEARTH_KINDLING}).",
+                progression.supply(SupplyId::Kindling).min(HEARTH_KINDLING)
+            );
+            gathered_kindling.as_str()
+        }
         StoryStage::LightHearth => {
-            "Clear three pieces of debris, find the old ladder, clear the office chimney, then light the hearth."
+            if hearth_blockers(&ui_knowledge.interior_state, &progression).is_empty() {
+                "The flue is clear and the kindling is dry. Light the office hearth."
+            } else {
+                "Clear three pieces of debris, find the old ladder, clear the office chimney, then light the hearth."
+            }
         }
         StoryStage::FindBible => "Search the nightstand beside the bed in room 3.",
         StoryStage::FindPlank => "Find a sound plank in the valley for the office desk.",
@@ -3895,7 +4504,7 @@ fn sync_ui(
         StoryStage::Night | StoryStage::Epilogue => "",
     };
     if let Ok(mut text) = status.single_mut() {
-        **text = story.notice.as_ref().map_or_else(
+        **text = journal.notice.as_ref().map_or_else(
             || format!("THE SCRIBE\n{objective}"),
             |notice| format!("THE SCRIBE\n{objective}\n\n{notice}"),
         );
@@ -3915,8 +4524,20 @@ fn sync_ui(
         } else {
             format!("\n\nKNOWN\n{}", knowledge.join("\n"))
         };
+        // The garden only appears once there is a garden; before the first bed
+        // is broken open there is nothing here but ash, and saying so would be
+        // one more thing the valley has not given yet.
+        let broken = ui_knowledge.garden.broken_ground();
+        let garden_line = if broken == 0 {
+            String::new()
+        } else {
+            format!(
+                "\n\nGARDEN\n{broken} of {} bays out of the asphalt",
+                ui_knowledge.beds.0
+            )
+        };
         **text = format!(
-            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{knowledge}",
+            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{garden_line}{knowledge}",
             progression.skill_tree_summary(),
             progression.tools_summary(),
             if supplies.is_empty() {
@@ -3933,6 +4554,15 @@ fn sync_ui(
         .map_or_else(
             || "Move: WASD/arrows  ·  E interact  ·  R work  ·  Tab tool  ·  Q drop".to_owned(),
             |(entity, item)| {
+                // A bed changes what it wants as it goes, so it is asked first;
+                // the cached `TaskTarget` line every other station uses would be
+                // stale for five of its six states.
+                if let Ok(plot) = ui_knowledge.garden_plots.get(entity) {
+                    return garden_plot_prompt(plot, &ui_knowledge.garden, &progression);
+                }
+                if ui_knowledge.rain_cisterns.get(entity).is_ok() {
+                    return cistern_prompt(&ui_knowledge.interior_state, &progression);
+                }
                 if let Ok(task) = task_targets.get(entity) {
                     // Standing stations are named; anonymous scenery is not.
                     let work = match item.kind {
@@ -3943,6 +4573,9 @@ fn sync_ui(
                         _ => format!("{} this item", task.action.infinitive()),
                     };
                     return format!("R — {work}     [{}]", task.requirements);
+                }
+                if item.kind == InteractableKind::Hearth {
+                    return hearth_prompt(&ui_knowledge.interior_state, &progression);
                 }
                 if item.kind == InteractableKind::BibleNightstand {
                     return interaction_details
@@ -3974,7 +4607,7 @@ fn sync_ui(
                     InteractableKind::Hearth => "E — tend the hearth",
                     InteractableKind::Plank => "E — take the sound plank",
                     InteractableKind::Tool => "E — take this tool",
-                    InteractableKind::Desk if story.stage == StoryStage::RestoreDesk => {
+                    InteractableKind::Desk if journal.stage == StoryStage::RestoreDesk => {
                         "E — search the old desk     R — repair it"
                     }
                     InteractableKind::Desk => "E — search the old desk",
@@ -3987,6 +4620,10 @@ fn sync_ui(
                     InteractableKind::Tree => "R — chop this tree",
                     InteractableKind::Sawbuck => "R — saw a log into planks",
                     InteractableKind::StoneOutcrop => "R — work stone out of this outcrop",
+                    InteractableKind::Forage => "E — gather what is growing here",
+                    InteractableKind::SeedStore => "E — search the seed shelf",
+                    InteractableKind::GardenPlot => "R — work this bed",
+                    InteractableKind::RainCistern => "R — see to the rain butt",
                 }
                 .to_owned()
             },
@@ -3995,7 +4632,7 @@ fn sync_ui(
         **text = nearby_prompt;
     }
 
-    let overlay_content: Option<(String, String, String)> = match story.stage {
+    let overlay_content: Option<(String, String, String)> = match journal.stage {
         StoryStage::Night => Some((
             "A Fire in the Valley".to_owned(),
             "You brace the desk with old cedar. In room 3, the little book waits where the dry walls have guarded it for generations. Smoke rises through a chimney that has been cold longer than any remembered name.\n\nSPACE — sleep until morning"
@@ -4003,8 +4640,8 @@ fn sync_ui(
             String::new(),
         )),
         StoryStage::Dialogue => {
-            let vignette = &vignettes()[story.vignette_index];
-            let line = &vignette.lines[story.dialogue_line.min(vignette.lines.len() - 1)];
+            let vignette = &vignettes()[journal.vignette_index];
+            let line = &vignette.lines[journal.dialogue_line.min(vignette.lines.len() - 1)];
             Some((
                 vignette.traveler_name.clone(),
                 format!("“{line}”\n\nSPACE — listen"),
@@ -4021,40 +4658,40 @@ fn sync_ui(
             "I · Prepare the Leaf".to_owned(),
             "Choose the ground that will carry the words.\n\n1  Warm flax    2  Pale cotton    3  Ash-grey rag"
                 .to_owned(),
-            selection_provenance(&story),
+            selection_provenance(&journal),
         )),
         StoryStage::ChooseIllustration => Some((
             "II · Choose an Illumination".to_owned(),
             "Choose the small image beside the words.\n\n1  Lamp on the road    2  Shelter tree    3  Open hands"
                 .to_owned(),
-            selection_provenance(&story),
+            selection_provenance(&journal),
         )),
         StoryStage::ChooseBorder => Some((
             "III · Mark the Border".to_owned(),
             "Choose how this remembrance will endure.\n\n1  Simple rule    2  Flowering vine    3  Old stone"
                 .to_owned(),
-            selection_provenance(&story),
+            selection_provenance(&journal),
         )),
-        StoryStage::FinishedCard => story.result.as_ref().map(|result| {
+        StoryStage::FinishedCard => journal.result.as_ref().map(|result| {
             (
-                format!("A Remembrance for {}", story.traveler_name()),
+                format!("A Remembrance for {}", journal.traveler_name()),
                 format!(
                     "{}\n\n“{}”\n\n{}\n\nPaper {} · Illumination {} · Border {}\n\nE — give the remembrance",
                     result.need_label,
                     result.passage.content,
                     result.passage.reference,
-                    story.card.paper,
-                    story.card.illustration,
-                    story.card.border
+                    journal.card.paper,
+                    journal.card.illustration,
+                    journal.card.border
                 ),
-                selection_provenance(&story),
+                selection_provenance(&journal),
             )
         }),
         StoryStage::Epilogue => Some((
             "The First Word Carried".to_owned(),
             format!(
                 "{} reads the marks slowly after you speak them aloud. The card disappears into a weathered coat, close to the heart.\n\nBy evening there are new footprints on the old road. Tomorrow, perhaps, there will be another column of smoke answering yours.\n\nSPACE — begin again with another traveler",
-                story.traveler_name()
+                journal.traveler_name()
             ),
             "The Waystation at the Edge of the Ash · Scripture via YouVersion · Interpretation via Gloo AI Studio"
                 .to_owned(),
@@ -4081,14 +4718,14 @@ fn sync_ui(
     }
     if let Ok((mut image, mut visibility)) = card_art.single_mut() {
         *visibility = if matches!(
-            story.stage,
+            journal.stage,
             StoryStage::ChooseIllustration | StoryStage::ChooseBorder | StoryStage::FinishedCard
         ) {
             Visibility::Visible
         } else {
             Visibility::Hidden
         };
-        let motif = story
+        let motif = journal
             .result
             .as_ref()
             .map_or(1, |result| match result.need_id.as_str() {
@@ -4098,7 +4735,7 @@ fn sync_ui(
             });
         image.image = asset_server.load(format!(
             "card/illustration_{motif}_{}.png",
-            story.card.illustration
+            journal.card.illustration
         ));
     }
 }
@@ -4158,8 +4795,8 @@ fn sync_narrative_popup_ui(
     }
 }
 
-fn selection_provenance(story: &Story) -> String {
-    story.result.as_ref().map_or_else(String::new, |result| {
+fn selection_provenance(journal: &Journal) -> String {
+    journal.result.as_ref().map_or_else(String::new, |result| {
         format!(
             "{} via YouVersion · {} / {} via Gloo AI Studio · source: {:?}",
             result.passage.version,
@@ -4177,12 +4814,79 @@ mod tests {
     use super::*;
     use crate::progression::SkillId;
 
+    /// A cleared flue and a full pile, from whichever source.
+    fn hearth_ready() -> (InteriorState, Progression) {
+        let mut interior_state = InteriorState::default();
+        interior_state
+            .0
+            .insert(OFFICE_CHIMNEY_STATE_KEY.to_owned(), "repaired".to_owned());
+        let mut progression = Progression::default();
+        progression.add_supply(SupplyId::Kindling, HEARTH_KINDLING);
+        (interior_state, progression)
+    }
+
+    #[test]
+    fn kindling_from_a_felled_tree_counts_toward_the_hearth() {
+        let mut journal = Journal::default();
+        let mut progression = Progression::default();
+        // Chopping is the second source; it never touched the old pickup counter.
+        progression.add_supply(SupplyId::Kindling, HEARTH_KINDLING);
+        refresh_kindling_stage(&mut journal, &progression);
+        assert_eq!(journal.stage, StoryStage::LightHearth);
+    }
+
+    #[test]
+    fn a_cold_hearth_names_everything_it_is_still_waiting_on() {
+        let interior_state = InteriorState::default();
+        let progression = Progression::default();
+        let missing = hearth_blockers(&interior_state, &progression);
+        assert_eq!(
+            missing,
+            vec![
+                "a cleared chimney".to_owned(),
+                format!("{HEARTH_KINDLING} kindling (you have 0)"),
+            ]
+        );
+        assert!(hearth_prompt(&interior_state, &progression).contains("still needs"));
+    }
+
+    #[test]
+    fn a_ready_hearth_asks_for_nothing_further() {
+        let (interior_state, progression) = hearth_ready();
+        assert!(hearth_blockers(&interior_state, &progression).is_empty());
+        assert!(hearth_prompt(&interior_state, &progression).contains("light the hearth"));
+        assert!(!hearth_is_lit(&interior_state));
+    }
+
+    #[test]
+    fn a_lit_hearth_stops_advertising_its_cost() {
+        let (mut interior_state, progression) = hearth_ready();
+        interior_state
+            .0
+            .insert(OFFICE_HEARTH_STATE_KEY.to_owned(), "repaired".to_owned());
+        assert!(hearth_is_lit(&interior_state));
+        assert_eq!(
+            hearth_prompt(&interior_state, &progression),
+            "E — tend the hearth"
+        );
+    }
+
+    #[test]
+    fn spending_kindling_elsewhere_never_rewinds_a_later_stage() {
+        let mut journal = Journal {
+            stage: StoryStage::RestoreDesk,
+            ..Journal::default()
+        };
+        refresh_kindling_stage(&mut journal, &Progression::default());
+        assert_eq!(journal.stage, StoryStage::RestoreDesk);
+    }
+
     #[test]
     fn replay_rotates_authored_travelers() {
-        let mut story = Story::default();
-        assert_eq!(story.vignette_id(), "mara_grief");
-        story.reset_for_replay();
-        assert_eq!(story.vignette_id(), "oren_weariness");
+        let mut journal = Journal::default();
+        assert_eq!(journal.vignette_id(), "mara_grief");
+        journal.reset_for_replay();
+        assert_eq!(journal.vignette_id(), "oren_weariness");
     }
 
     #[test]
@@ -4195,7 +4899,7 @@ mod tests {
 
     #[test]
     fn save_data_keeps_mutable_room_state_by_stable_id() {
-        let story = Story::default();
+        let journal = Journal::default();
         let mut interior_state = InteriorState::default();
         interior_state
             .0
@@ -4208,9 +4912,18 @@ mod tests {
         let mut progression = Progression::default();
         progression.add_tool(ToolId::Hammer);
         progression.add_supply(SupplyId::Plank, 2);
-        let save = SaveData::capture(&story, &interior_state, &motel_access, &progression);
+        let mut garden = Garden::default();
+        garden.advance("garden-plot-00");
+        let save = SaveData::capture(
+            &journal,
+            &interior_state,
+            &motel_access,
+            &progression,
+            &garden,
+        );
 
-        assert_eq!(save.version, 6);
+        assert_eq!(save.version, 7);
+        assert_eq!(save.garden.stage("garden-plot-00"), PlotStage::Fallow);
         assert_eq!(save.interior_states["motel-room-01/mirror-01"], "repaired");
         assert!(bible_found(&InteriorState(save.interior_states.clone())));
         assert!(save.motel_keys_found);
@@ -4261,16 +4974,16 @@ mod tests {
 
     #[test]
     fn finding_the_room_three_bible_persists_and_advances_its_story_beat() {
-        let mut story = Story {
+        let mut journal = Journal {
             stage: StoryStage::FindBible,
-            ..Story::default()
+            ..Journal::default()
         };
         let mut interior_state = InteriorState::default();
 
-        record_bible_discovery(&mut story, &mut interior_state);
+        record_bible_discovery(&mut journal, &mut interior_state);
 
         assert!(bible_found(&interior_state));
-        assert_eq!(story.stage, StoryStage::FindPlank);
+        assert_eq!(journal.stage, StoryStage::FindPlank);
     }
 
     #[test]
@@ -4432,6 +5145,67 @@ mod tests {
         tasks
     }
 
+    /// Work the world spawns rather than the room files author: the standing
+    /// stations, one felling per authored tree, and one full season on every
+    /// garden bed. Cultivation lives entirely here, so a coverage check that
+    /// reads only the scene JSON would call it unreachable and be wrong.
+    fn standing_station_tasks() -> Vec<progression::TaskSpec> {
+        let mut tasks = vec![
+            progression::TaskSpec::for_milling(),
+            progression::TaskSpec::for_quarrying(),
+            progression::TaskSpec::for_drawing_water(),
+        ];
+        tasks.extend(TREE_PLACEMENTS.map(|_| progression::TaskSpec::for_tree_chopping()));
+        for _ in authored_parking_bays() {
+            tasks.extend([
+                progression::TaskSpec::for_breaking_ground(),
+                progression::TaskSpec::for_tilling(),
+                progression::TaskSpec::for_sowing(),
+                progression::TaskSpec::for_watering(),
+                progression::TaskSpec::for_harvest(),
+            ]);
+        }
+        tasks
+    }
+
+    /// Every bay the lot authors, as the game reads it: id, world centre, and
+    /// size. The tests go through the same content the editor writes.
+    fn authored_parking_bays() -> Vec<(String, Vec2, Vec2)> {
+        let parking = interior::MotelParkingMap::load();
+        parking
+            .mutable_elements()
+            .iter()
+            .map(|element| {
+                let size = element
+                    .states
+                    .get("damaged")
+                    .map_or(GARDEN_PLOT_SIZE, |visual| visual.size);
+                (
+                    element.id.clone(),
+                    parking.element_center(element, size),
+                    size,
+                )
+            })
+            .collect()
+    }
+
+    /// One authored bay, standing in for its component so the prompt and work
+    /// paths can be exercised without a running world.
+    fn bay_plot() -> GardenPlot {
+        let element = interior::MotelParkingMap::load()
+            .mutable_elements()
+            .first()
+            .cloned()
+            .expect("the lot authors at least one bay");
+        GardenPlot {
+            id: element.id,
+            art: String::new(),
+            paved: "paved".to_owned(),
+            broken: "broken".to_owned(),
+            break_task: element.task,
+        }
+    }
+
     fn total_demand(tasks: &[progression::TaskSpec], item: SupplyId) -> u32 {
         tasks
             .iter()
@@ -4490,6 +5264,119 @@ mod tests {
         assert_eq!(total_demand(&tasks, SupplyId::Log), 0);
     }
 
+    /// The garden fails the same silent way the rest of the economy would, but
+    /// worse: a bed that cannot be sown looks identical to one that has not been
+    /// sown yet. There is exactly one sack of seed in the valley and no second
+    /// source but the garden itself, so the loop has to close on its own.
+    #[test]
+    fn the_one_sack_of_seed_can_open_a_garden_that_then_keeps_itself() {
+        let sowing = progression::TaskSpec::for_sowing();
+        let watering = progression::TaskSpec::for_watering();
+        let harvest = progression::TaskSpec::for_harvest();
+        let drawing = progression::TaskSpec::for_drawing_water();
+        let garden_chain = [sowing.clone(), watering, harvest.clone()];
+
+        // The shed shelf has to cover at least the first sowing, or nothing can
+        // ever be planted and no amount of yield will help.
+        assert!(u32::from(SHED_SEED_STORE) >= total_demand(&[sowing], SupplyId::Seed));
+        assert!(
+            !authored_parking_bays().is_empty(),
+            "the lot authors no beds"
+        );
+        // After that the beds are the only seed source there is, so a season
+        // must hand back more than it took or the garden runs down to nothing.
+        assert!(
+            total_yield(&garden_chain, SupplyId::Seed)
+                > total_demand(&garden_chain, SupplyId::Seed)
+        );
+        assert!(
+            yield_per_task(&drawing, SupplyId::Water)
+                >= total_demand(&garden_chain, SupplyId::Water)
+        );
+        // Something has to feed the Scribe before the first harvest, and forage
+        // is the only thing that does.
+        assert!(!FORAGE_PLACEMENTS.is_empty());
+        const { assert!(FORAGE_RATIONS > 0) };
+        // Rations exist to be spent by travellers who have not arrived yet, so
+        // nothing authored may quietly depend on them.
+        assert_eq!(
+            total_demand(&authored_restoration_tasks(), SupplyId::Ration),
+            0
+        );
+        assert!(yield_per_task(&harvest, SupplyId::Ration) > 0);
+    }
+
+    /// The valley hands over nothing manufactured. Seed comes off one shed
+    /// shelf and then only from the garden; the rain butt is a repair before it
+    /// is a water source; and the only thing the Scribe can pick up off the
+    /// ground is what grew there.
+    #[test]
+    fn nothing_manufactured_is_lying_about_the_valley() {
+        let shed = interior::InteriorMap::load(interior::InteriorId::ToolShed);
+        let seed_shelves = shed
+            .interactions()
+            .iter()
+            .filter(|interaction| interaction.discovery == interior::SceneDiscovery::SeedStore)
+            .count();
+        assert_eq!(seed_shelves, 1, "seed comes from exactly one place");
+
+        // Forage is food, never seed: a gathered plant cannot short-circuit the
+        // garden's own seed loop.
+        assert!(FORAGE_PLACEMENTS
+            .iter()
+            .all(|(_, _, art)| art.starts_with("world/forage_")));
+
+        let mut interior_state = InteriorState::default();
+        assert!(!cistern_holds_water(&interior_state));
+        let empty = Progression::default();
+        assert!(cistern_prompt(&interior_state, &empty).contains("rain butt"));
+        interior_state
+            .0
+            .insert(RAIN_CISTERN_STATE_KEY.to_owned(), "repaired".to_owned());
+        assert!(cistern_holds_water(&interior_state));
+        assert!(cistern_prompt(&interior_state, &empty).contains("cistern"));
+    }
+
+    /// A bed asks for something different five times over, and the one state it
+    /// asks for nothing still has to say why.
+    #[test]
+    fn a_bed_names_what_it_wants_at_every_stage_of_its_season() {
+        let mut garden = Garden::default();
+        let mut progression = Progression::default();
+        let plot = &bay_plot();
+
+        // Cultivation is locked until Upkeep 1, and the prompt says so rather
+        // than showing a bare requirement the player cannot read.
+        assert!(garden_plot_prompt(plot, &garden, &progression).contains("still needs"));
+        for _ in 0..3 {
+            progression
+                .attempt(&progression::TaskSpec::for_kind("debris"))
+                .expect("cleaning");
+        }
+        assert!(garden_plot_prompt(plot, &garden, &progression).contains("a pickaxe"));
+        progression.add_tool(ToolId::Pickaxe);
+        progression.add_tool(ToolId::Hoe);
+        progression.add_tool(ToolId::WateringCan);
+
+        for expected in ["tear out", "till", "sow", "water"] {
+            let prompt = garden_plot_prompt(plot, &garden, &progression);
+            assert!(
+                prompt.contains(expected),
+                "{expected} missing from {prompt}"
+            );
+            let task = plot.work_task(garden.stage(&plot.id)).expect("work to do");
+            progression.attempt(&task).ok();
+            garden.advance(&plot.id);
+        }
+
+        // Growing offers no key at all, so it must not read like a refusal.
+        let waiting = garden_plot_prompt(plot, &garden, &progression);
+        assert!(!waiting.starts_with("R —"), "{waiting}");
+        assert!(waiting.contains("barely up"), "{waiting}");
+        garden.tick(garden::RIPEN_SECONDS);
+        assert!(garden_plot_prompt(plot, &garden, &progression).contains("harvest"));
+    }
+
     #[test]
     fn every_tool_an_authored_task_asks_for_exists_in_the_valley() {
         let mut obtainable: BTreeSet<ToolId> =
@@ -4505,11 +5392,7 @@ mod tests {
             .iter()
             .flat_map(|task| task.tools.clone())
             .collect();
-        for station in [
-            progression::TaskSpec::for_milling(),
-            progression::TaskSpec::for_quarrying(),
-            progression::TaskSpec::for_tree_chopping(),
-        ] {
+        for station in standing_station_tasks() {
             required.extend(station.tools);
         }
 
@@ -4524,7 +5407,8 @@ mod tests {
     /// requirement is already met, or the tree deadlocks below the top.
     #[test]
     fn every_skill_has_enough_authored_work_to_reach_its_ceiling() {
-        let tasks = authored_restoration_tasks();
+        let mut tasks = authored_restoration_tasks();
+        tasks.extend(standing_station_tasks());
         for skill in SkillId::ALL {
             let reachable_xp: u16 = tasks
                 .iter()
@@ -4535,6 +5419,113 @@ mod tests {
                 u32::from(reachable_xp) >= progression::xp_for_max_level(),
                 "{} cannot reach its ceiling: {reachable_xp} experience authored at level 0",
                 skill.label()
+            );
+        }
+    }
+
+    /// The lot is authored in `content/buildings/motel-parking.json` so it can be
+    /// laid out in the editor, which means the editor can also walk it into the
+    /// motel, into water, or apart from itself. A run with gaps in it is not a
+    /// parking lot, and a bay inside a wall cannot be reached.
+    #[test]
+    fn the_authored_parking_bays_lie_in_one_row_in_front_of_the_motel() {
+        let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
+        let motel = interior::MotelExteriorMap::load();
+        let bays = authored_parking_bays();
+
+        assert_eq!(
+            bays.len(),
+            9,
+            "six bays for the rooms and three for the office"
+        );
+        let mut previous: Option<(Vec2, Vec2)> = None;
+        for (id, centre, size) in bays {
+            assert!(
+                grid.supports_land_footprint(centre, size),
+                "bay {id} is standing in water"
+            );
+            assert!(
+                motel.is_area_walkable(centre, size),
+                "bay {id} is inside the motel"
+            );
+            for (label, other, other_size) in [
+                ("the motel sign", MOTEL_SIGN_POSITION, MOTEL_SIGN_SIZE),
+                ("the sawbuck", SAWBUCK_POSITION, SAWBUCK_SIZE),
+            ] {
+                assert!(
+                    !ExteriorRect::new(centre, size).overlaps(ExteriorRect::new(other, other_size)),
+                    "bay {id} is laid over {label}"
+                );
+            }
+            if let Some((previous_centre, previous_size)) = previous {
+                assert!(
+                    (centre.y - previous_centre.y).abs() < f32::EPSILON,
+                    "bay {id} has come off the line the others sit on"
+                );
+                assert!(
+                    (centre.x - previous_centre.x - previous_size.x).abs() < f32::EPSILON,
+                    "bay {id} leaves a gap in the run"
+                );
+            }
+            previous = Some((centre, size));
+        }
+    }
+
+    /// Content and code both describe what levering a slab up costs: the pair so
+    /// the editor can show and change it, `for_breaking_ground` so the coverage
+    /// tests can reason about it. They have to agree.
+    #[test]
+    fn the_authored_bay_task_matches_the_one_the_economy_is_checked_against() {
+        let expected = progression::TaskSpec::for_breaking_ground();
+        for element in interior::MotelParkingMap::load().mutable_elements() {
+            assert_eq!(element.task, expected, "bay {} disagrees", element.id);
+        }
+    }
+
+    /// The cistern has to stand with the lot rather than off across the valley.
+    /// Nine bays is a walk from end to end, and that is the lot being long
+    /// rather than the water being misplaced — what matters is that it is on the
+    /// same frontage, at one end of the run, and not standing in a bed.
+    #[test]
+    fn the_cistern_stands_at_the_end_of_the_bays() {
+        let grid = terrain::WorldGrid::generate(terrain::WORLD_SEED);
+        let motel = interior::MotelExteriorMap::load();
+        let tool_shed = interior::ToolShedExteriorMap::load();
+        let obstacles = ExteriorObstacles::default();
+
+        let cistern = safe_pickup_position(
+            &grid,
+            &motel,
+            &tool_shed,
+            &obstacles,
+            &[],
+            RAIN_CISTERN_POSITION,
+            RAIN_CISTERN_SIZE,
+        );
+        assert_eq!(
+            cistern, RAIN_CISTERN_POSITION,
+            "the rain butt slid off its authored spot instead of failing loudly"
+        );
+        assert!(grid.supports_land_footprint(cistern, RAIN_CISTERN_SIZE));
+        assert!(motel.is_area_walkable(cistern, RAIN_CISTERN_SIZE));
+        let bays = authored_parking_bays();
+        let nearest = bays
+            .iter()
+            .map(|(_, centre, _)| centre.distance(cistern))
+            .fold(f32::INFINITY, f32::min);
+        assert!(
+            nearest < 200.0,
+            "the cistern is {nearest} from the nearest bay"
+        );
+        for (id, centre, size) in bays {
+            assert!(
+                (cistern.y - centre.y).abs() < 160.0,
+                "the cistern is off the frontage bay {id} sits on"
+            );
+            assert!(
+                !ExteriorRect::new(cistern, RAIN_CISTERN_SIZE)
+                    .overlaps(ExteriorRect::new(centre, size)),
+                "the cistern is standing in bay {id}"
             );
         }
     }

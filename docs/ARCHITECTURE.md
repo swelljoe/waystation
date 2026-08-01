@@ -54,6 +54,33 @@ art. The manifest selects individual ignored source files and the asset build
 copies only those sounds into `runtime-assets/audio`; open CI builds omit them,
 while strict demo builds require them.
 
+## Looking at the game
+
+The native binary opens a real window, and on a Wayland session no screenshot
+tool can reach it — `import -window root` and `ffmpeg -f x11grab` both come back
+black. The WebAssembly build has no such problem, because its frames come back
+through the debugging protocol rather than the compositor, so the web bundle is
+how the game gets *looked at* as well as exercised.
+
+`make web-smoke` serves `dist`, runs it in headless Chromium with ANGLE pointed
+at SwiftShader (Bevy needs a real WebGL2 context and there is no GPU), clicks the
+page's own start button so the wasm entry point and the audio gesture take a
+player's path, optionally walks the Scribe with dispatched key events, and writes
+PNGs. It also collects `Log.entryAdded` and `Runtime.exceptionThrown` and exits
+non-zero on anything left after filtering the two complaints that are normal for
+this build — Bevy probing for `.meta` files it does not ship, and a browser
+refusing to start an `AudioContext` before the title screen is clicked. That
+filter is the whole reason the runner can fail on console output, so it has its
+own tests in `scripts/test_web_smoke.py`.
+
+`WALK=--walk d:2.2 s:0.35` passes `key:seconds` steps through. The browser window
+size decides how much world is in frame rather than how large it is drawn: the
+camera scale is fixed, so a wider window shows more valley.
+
+This catches placement mistakes that unit tests cannot be written for in advance.
+The parking bays passed every geometric assertion while sitting squarely on top
+of the motel sign's placeholder art, and only a screenshot showed it.
+
 ## Audio
 
 `crates/game/src/game_audio.rs` owns three independent concerns: alternating
@@ -162,11 +189,106 @@ pickaxe, which starts broken, so masonry begins with a tool repair. Masonry lays
 stone with a shovel because no trowel art exists in any licensed pack; `Trowel`
 remains in `ToolId` for whenever one does.
 
-Two tests hold the economy together, because its failure mode is silent — a task
+Because a supply may now arrive from more than one source, opening-stage progress
+reads the supply itself rather than any single act that produces it: kindling
+gathered from the valley floor and kindling split off a felled tree advance the
+hearth identically, and a save written before the second source existed is
+reconciled on load. The hearth is likewise gated on world state — a cleared flue
+and a full pile — instead of on story stage, and it reports whichever half is
+missing both in the nearby prompt and on a refused interaction. Any interaction
+that can decline needs its own reason; the generic fallback line is for scenery
+with no use yet, never for a real action.
+
+## The garden
+
+Every other restoration is repair: something existed, it broke, the Scribe puts
+it back. The garden is the only loop that makes something the valley did not
+have, so it is modelled apart from the repair pairs, in `crates/game/src/garden.rs`.
+
+The beds are the motel's own parking bays — nine of them, six for the rooms and
+three for the office, the way these places were always built. Under the asphalt
+is soil from before the ash, the only ground in the valley that will carry more
+than straggly weeds, and getting at it means levering the slabs up with the pick.
+
+The lot is authored, not compiled: `content/buildings/motel-parking.json` is an
+ordinary building scene, so the editor lists it and lays it out with no editor
+changes at all. Each bay is a mutable instance of a `parking-bay` repair pair,
+which is already the engine's word for "this thing has two states and a job that
+turns one into the other" — cracked asphalt, and the pack's own torn-out bay with
+the kerb still framing bare ground. Three pair variants cycle across the run so
+it does not visibly tile. The pair carries the task too, so what levering a slab
+costs is editable; `TaskSpec::for_breaking_ground` still exists because the
+economy-coverage tests reason about it, and a test holds the two in step.
+
+Content therefore owns the two states the editor can preview, and the garden owns
+the four it cannot. To keep them from reading as different objects, the asset
+build lifts the kerb off the torn-out crop and composites it onto every worked
+state, so a bed keeps the outline of the space it used to be right through
+harvest.
+
+Bays are the only interactable drawn as flat ground — a fixed depth between the
+terrain and every prop, and no collision — so the Scribe walks over them rather
+than around them. They skip `spawn_building` entirely for that reason: no layer
+caches, no depth sorting, no collision. Because the layout is now editable, a
+test reads the authored scene and asserts nine bays on one line with no gaps, on
+land, out of the building, and clear of the motel sign and the sawbuck; an editor
+can put a bay in a wall, and that is what catches it.
+
+A bed is a small state machine — cracked bay, broken ground, tilled rows, sown
+seed, standing grain, harvest — and each state owns exactly one `TaskSpec`
+describing what it is waiting for. Nothing about the sequence lives in the
+engine: the entity carries only a stable plot id, and its sprite, its prompt,
+and the work it will accept are all read back out of the saved `Garden`. Because
+harvested ground returns to broken rather than to paved, a slab comes up once and
+every later season starts from open soil.
+
+Growing is the one step the Scribe cannot do. Its clock runs in `grow_garden`,
+which ticks through `bypass_change_detection` so a two-minute season does not
+write a save every frame; only ripening marks the resource changed, and that is
+also the moment the world interrupts the player to say so. `Cultivation` sits
+behind the same Upkeep 1 unlock as Carpentry and Masonry.
+
+## What the valley does not give
+
+Nothing manufactured lies about waiting to be useful. There is exactly one sack
+of seed grain in the game, on a tool-shed shelf, authored as a second
+`SceneDiscovery` beside the Gideon Bible; every seed after that has to be grown,
+traded for, or given. A sowing costs one seed and a harvest returns two, so the
+one sack is enough to open the garden and the garden is then the only thing that
+widens it.
+
+The water is caught, not fetched, and not found either. The seeded river runs a
+thousand paces down the western rim, and a per-watering round trip that long
+would make the garden an errand rather than a slow reward — but a barrel simply
+standing full in the court would be the valley handing something over. So the
+cistern is the motel's own staved-in rain butt at the corner where the roofline
+drains: it holds nothing until the Scribe rebuilds it, and only then does it
+answer for water. Its two states live in the same saved scene-state map the
+repair pairs use, and like a bed it writes its own prompt, because what it wants
+depends on which state it is in.
+
+What the Scribe eats before the first harvest is forage: twelve wild plants
+across the whole valley, one ration each, and nothing else. They are food and
+never seed, so gathering can never short-circuit the garden's own loop. They are
+deliberately meagre — a bridge to the first harvest, not a living.
+
+Six tests hold the economy together, because its failure mode is silent — a task
 authored with a supply or tool the valley never produces simply leaves its skill
-at zero with nothing in the UI to explain why. One walks the full chain from the
-first cleaned debris to every skill at its ceiling; the other checks all authored
-tasks in every scene against what the world can actually produce.
+at zero with nothing in the UI to explain why, and a bed that cannot be sown
+looks exactly like one that has not been sown yet. One walks the full chain from
+the first cleaned debris to every skill at its ceiling; one checks all authored
+tasks in every scene against what the world can actually produce; one checks that
+every skill has enough level-0 work authored to reach its ceiling, counting the
+standing stations and one full season on every bed alongside the scene files,
+since Cultivation lives entirely outside the room JSON; one checks that the single
+sack of seed can open a garden that then keeps itself; one checks that nothing
+manufactured is obtainable off the ground; and one walks a bed through every
+stage of a season asserting the prompt names what that stage wants, including the
+stage that wants nothing.
+
+`Progression::shortfalls` names everything standing between the Scribe and one
+job, where `attempt` reports only the first thing it hits. Prompts use the former
+because they have room for the whole reason; the work itself uses the latter.
 
 New placements store `position: {grid, x, y}`. Multiplying the signed integer
 coordinates by that placement's grid yields its exact native-pixel offset from

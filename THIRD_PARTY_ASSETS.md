@@ -51,6 +51,9 @@ The web shell links to the complete, revision-pinned Universal LPC Generator
 credits and license catalog for the Scribe sheet. The deliberately comprehensive
 catalog is used because the original per-export selection file was not retained.
 Regenerate the Scribe with its selection-specific credits before a final release.
+The same applies to the generator's hand-tool overlay layers under
+`assets/custom/lpc-tools` — hammer, axe, hoe, shovel, and watering can — which
+the build composites onto the Scribe's own slash and thrust rows.
 
 Scripture text is fetched at runtime from YouVersion. The default development
 fixtures use short passages from the public-domain Berean Standard Bible and are

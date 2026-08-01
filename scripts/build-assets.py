@@ -31,6 +31,13 @@ SCRIBE_TOOL_FRAME_SIZE = 128
 SCRIBE_TOOL_COLUMNS = 6
 SCRIBE_TOOL_ROWS = 4
 SCRIBE_SLASH_FIRST_ROW = 12
+# The LPC long-handled tools ride the thrust cycle instead of the slash cycle,
+# and their overlay layers are drawn at the body's own frame size rather than
+# the oversized swing frames the hammer and axe need.
+SCRIBE_THRUST_FRAME_SIZE = 64
+SCRIBE_THRUST_COLUMNS = 8
+SCRIBE_THRUST_ROWS = 4
+SCRIBE_THRUST_FIRST_ROW = 4
 INTERIOR_ROOT = ROOT / "content/interiors"
 BUILDING_ROOT = ROOT / "content/buildings"
 REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
@@ -508,6 +515,93 @@ def build_scribe_tool_action(
     return action, provenance
 
 
+def draw_fallback_long_tool(kind: str, frame: int, direction: int) -> Image.Image:
+    """Open-build stand-in for one LPC long-handled tool overlay frame."""
+    image = Image.new("RGBA", (SCRIBE_THRUST_FRAME_SIZE, SCRIBE_THRUST_FRAME_SIZE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    # The thrust cycle winds up, drives forward, and recovers; the reach follows.
+    reach = (0, 1, 3, 8, 11, 9, 5, 2)[min(frame, SCRIBE_THRUST_COLUMNS - 1)]
+    facing = (0, -1, 1, 1)[direction]
+    x = 32 + reach * facing
+    y = 42 + (reach // 2 if direction == 0 else -reach // 3)
+    handle = "#8f653c"
+    metal = "#a9adb0"
+    draw.line((x - 9 * facing, y + 16, x + 6 * facing, y - 8), fill=handle, width=3)
+    head = (x + 6 * facing, y - 10, x + 6 * facing, y - 10)
+    if kind == "hoe":
+        draw.rectangle((head[0] - 6, head[1] - 1, head[0] + 6, head[1] + 3), fill=metal)
+    elif kind == "shovel":
+        draw.polygon(
+            [(head[0] - 5, head[1]), (head[0] + 5, head[1]), (head[0], head[1] + 9)], fill=metal
+        )
+    else:
+        draw.rectangle((head[0] - 5, head[1] - 4, head[0] + 4, head[1] + 4), fill=metal)
+        draw.line((head[0] + 4, head[1] - 2, head[0] + 10, head[1] + 4), fill=metal, width=2)
+    return image
+
+
+def build_scribe_thrust_action(
+    source: Path, scribe: Image.Image, kind: str
+) -> tuple[Image.Image, str]:
+    """Compose one LPC long-handled tool action around the Scribe's thrust cycle.
+
+    Unlike the hammer and axe swings these overlays share the body's 64px frame,
+    so the layers stack without an offset and the atlas keeps eight columns.
+    """
+    expected_overlay_size = (
+        SCRIBE_THRUST_COLUMNS * SCRIBE_THRUST_FRAME_SIZE,
+        SCRIBE_THRUST_ROWS * SCRIBE_THRUST_FRAME_SIZE,
+    )
+    overlay_root = source / "custom/lpc-tools"
+    background_path = overlay_root / f"{kind}-bg.png"
+    foreground_path = overlay_root / f"{kind}-fg.png"
+    licensed_layers = background_path.is_file() and foreground_path.is_file()
+    if licensed_layers:
+        background = Image.open(background_path).convert("RGBA")
+        foreground = Image.open(foreground_path).convert("RGBA")
+        if background.size != expected_overlay_size or foreground.size != expected_overlay_size:
+            raise SystemExit(
+                f"LPC {kind} thrust layers must be "
+                f"{expected_overlay_size[0]}x{expected_overlay_size[1]}"
+            )
+    action = Image.new("RGBA", expected_overlay_size, (0, 0, 0, 0))
+    for direction in range(SCRIBE_THRUST_ROWS):
+        for frame in range(SCRIBE_THRUST_COLUMNS):
+            destination = (
+                frame * SCRIBE_THRUST_FRAME_SIZE,
+                direction * SCRIBE_THRUST_FRAME_SIZE,
+            )
+            box = (
+                destination[0],
+                destination[1],
+                destination[0] + SCRIBE_THRUST_FRAME_SIZE,
+                destination[1] + SCRIBE_THRUST_FRAME_SIZE,
+            )
+            work_frame = Image.new(
+                "RGBA", (SCRIBE_THRUST_FRAME_SIZE, SCRIBE_THRUST_FRAME_SIZE), (0, 0, 0, 0)
+            )
+            if licensed_layers:
+                work_frame.alpha_composite(background.crop(box))
+            body_box = (
+                frame * SCRIBE_FRAME_SIZE,
+                (SCRIBE_THRUST_FIRST_ROW + direction) * SCRIBE_FRAME_SIZE,
+                (frame + 1) * SCRIBE_FRAME_SIZE,
+                (SCRIBE_THRUST_FIRST_ROW + direction + 1) * SCRIBE_FRAME_SIZE,
+            )
+            work_frame.alpha_composite(scribe.crop(body_box))
+            if licensed_layers:
+                work_frame.alpha_composite(foreground.crop(box))
+            else:
+                work_frame.alpha_composite(draw_fallback_long_tool(kind, frame, direction))
+            action.alpha_composite(work_frame, destination)
+    provenance = (
+        "LPC Scribe plus LPC long-handled tool action layers"
+        if licensed_layers
+        else "LPC Scribe plus project-authored procedural tool fallback"
+    )
+    return action, provenance
+
+
 def draw_tree() -> Image.Image:
     image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
@@ -624,6 +718,232 @@ def draw_forage_and_tool_props() -> dict[str, Image.Image]:
     }
 
 
+FARM_TERRAIN_SHEET = "Modern_Farm_v1.2/48x48/1_Terrains_48x48.png"
+# An interior cell of the ploughed field in the licensed terrain sheet: furrows
+# that tile in both directions with no grass edge.
+TILLED_FURROW_BOX = (48, 816, 96, 864)
+FARM_SINGLES = "Modern_Farm_v1.2/48x48/Single_Files_48x48/0_Complete_Tileset_48x48"
+VILLAGE_PROPS = "Post-Apocalyptic Village Tileset Pack/tile-B-02.png"
+PARKING_SHEET = "parking/2.png"
+# The torn-out bay in the parking sheet: bare ground with the kerb still framing
+# it. `content/repair-pairs.json` uses this crop as the parking bays' repaired
+# state, and the frame is lifted off it here so a bed keeps the outline of the
+# space it used to be through tilling, sowing, and harvest.
+TORN_BAY_BOX = (288, 288, 384, 384)
+KERB_THICKNESS = 3
+# A bed is one bay: the Scribe tears out the slab and works what is underneath,
+# so every later state has to fill the same square footprint the asphalt did.
+GARDEN_PLOT_SIZE = (96, 96)
+GARDEN_SOIL_TILE = 48
+# Only the worked states are generated. Paved and freshly-broken are the two
+# faces of an authored repair pair, so the lot stays editable.
+GARDEN_PLOT_STATES = {
+    "garden_plot_tilled.png": ("tilled", None),
+    "garden_plot_sown.png": ("tilled", "Seed_Grain_48x48.png"),
+    "garden_plot_sprouting.png": ("tilled", "Crop_Grain_Sprout_48x48.png"),
+    "garden_plot_growing.png": ("tilled", "Crop_Grain_Stage_2_48x48.png"),
+    "garden_plot_ripe.png": ("tilled", "Crop_Grain_Ripe_48x48.png"),
+}
+
+
+def tile_surface(texture: Image.Image) -> Image.Image:
+    """Repeat one soil texture across a whole bed."""
+    bed = Image.new("RGBA", GARDEN_PLOT_SIZE, (0, 0, 0, 0))
+    for row in range(GARDEN_PLOT_SIZE[1] // GARDEN_SOIL_TILE):
+        for column in range(GARDEN_PLOT_SIZE[0] // GARDEN_SOIL_TILE):
+            bed.alpha_composite(texture, (column * GARDEN_SOIL_TILE, row * GARDEN_SOIL_TILE))
+    return bed
+
+
+def draw_fallback_kerb() -> Image.Image:
+    """Open-build stand-in for the concrete edge around a torn-out bay."""
+    frame = Image.new("RGBA", GARDEN_PLOT_SIZE, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(frame)
+    draw.rectangle((0, 0, GARDEN_PLOT_SIZE[0] - 1, GARDEN_PLOT_SIZE[1] - 1), outline="#8f8d88",
+                   width=KERB_THICKNESS)
+    return frame
+
+
+def draw_fallback_plot_surface(kind: str) -> Image.Image:
+    """A readable open-build stand-in for one licensed bed surface."""
+    texture = Image.new("RGBA", (GARDEN_SOIL_TILE, GARDEN_SOIL_TILE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(texture)
+    draw.rectangle((0, 0, GARDEN_SOIL_TILE - 1, GARDEN_SOIL_TILE - 1), fill="#5d452f")
+    if kind == "tilled":
+        for row in range(4, GARDEN_SOIL_TILE, 7):
+            draw.line((0, row, GARDEN_SOIL_TILE - 1, row), fill="#77543b", width=2)
+    else:
+        for step in range(26):
+            x = (step * 29) % GARDEN_SOIL_TILE
+            y = (step * 17) % GARDEN_SOIL_TILE
+            px(draw, (x, y, x + 1, y + 1), "#77543b")
+    return tile_surface(texture)
+
+
+def draw_fallback_crop(stage: str) -> Image.Image:
+    """Open-build grain: scattered seed, a shoot, standing green, ripe heads."""
+    image = Image.new("RGBA", (GARDEN_SOIL_TILE, GARDEN_SOIL_TILE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    if "Seed" in stage:
+        for step in range(9):
+            x = 12 + (step * 13) % 26
+            y = 16 + (step * 7) % 18
+            px(draw, (x, y, x + 1, y + 1), "#c39a5b")
+        return image
+    height, colour = {
+        "Crop_Grain_Sprout_48x48.png": (10, "#78966b"),
+        "Crop_Grain_Stage_2_48x48.png": (24, "#526e42"),
+        "Crop_Grain_Ripe_48x48.png": (26, "#c39a5b"),
+    }[stage]
+    for stalk in range(5):
+        x = 12 + stalk * 6
+        draw.line((x, 40, x - 2, 40 - height), fill=colour, width=2)
+        if colour == "#c39a5b":
+            px(draw, (x - 4, 40 - height - 4, x, 40 - height + 2), "#f1dfad")
+    return image
+
+
+def lift_kerb(torn_bay: Image.Image) -> Image.Image:
+    """Keep only the concrete edge of the torn-out bay, as an overlay."""
+    frame = torn_bay.copy()
+    inner = Image.new("RGBA", GARDEN_PLOT_SIZE, (0, 0, 0, 0))
+    frame.paste(
+        inner.crop(
+            (
+                KERB_THICKNESS,
+                KERB_THICKNESS,
+                GARDEN_PLOT_SIZE[0] - KERB_THICKNESS,
+                GARDEN_PLOT_SIZE[1] - KERB_THICKNESS,
+            )
+        ),
+        (KERB_THICKNESS, KERB_THICKNESS),
+    )
+    return frame
+
+
+def build_garden_plots(source: Path) -> list[tuple[str, Image.Image, str]]:
+    """Build the worked bed states, from tilled rows through standing grain."""
+    terrain_path = source / FARM_TERRAIN_SHEET
+    singles = source / FARM_SINGLES
+    parking_path = source / PARKING_SHEET
+    licensed = terrain_path.is_file() and singles.is_dir() and parking_path.is_file()
+    if licensed:
+        with Image.open(terrain_path) as sheet:
+            furrows = sheet.convert("RGBA").crop(TILLED_FURROW_BOX)
+        with Image.open(singles / "Topsoil_48x48.png") as topsoil:
+            soil = topsoil.convert("RGBA")
+        with Image.open(parking_path) as sheet:
+            torn = sheet.convert("RGBA").crop(TORN_BAY_BOX)
+        kerb = lift_kerb(torn)
+        surfaces = {"soil": tile_surface(soil), "tilled": tile_surface(furrows)}
+    else:
+        kerb = draw_fallback_kerb()
+        surfaces = {kind: draw_fallback_plot_surface(kind) for kind in ("soil", "tilled")}
+
+    plots = []
+    for name, (surface, crop_file) in GARDEN_PLOT_STATES.items():
+        plot = surfaces[surface].copy()
+        if crop_file is not None:
+            if licensed:
+                with Image.open(singles / crop_file) as crop_image:
+                    crop = crop_image.convert("RGBA")
+            else:
+                crop = draw_fallback_crop(crop_file)
+            # Four clumps, one per quarter of the bed, so a whole bay reads as
+            # planted rather than as one tuft sitting in a square of dirt.
+            for row in range(2):
+                for column in range(2):
+                    plot.alpha_composite(
+                        crop,
+                        (
+                            column * GARDEN_SOIL_TILE + (GARDEN_SOIL_TILE - crop.width) // 2,
+                            (row + 1) * GARDEN_SOIL_TILE - crop.height,
+                        ),
+                    )
+        # The bed never stops being a parking space.
+        plot.alpha_composite(kerb)
+        plots.append(
+            (
+                name,
+                plot,
+                "licensed Modern Farm and parking runtime extraction"
+                if licensed
+                else "project-authored procedural fallback",
+            )
+        )
+    return plots
+
+
+# Props the garden and forage loops add. The valley hands over nothing
+# manufactured: the barrel is the motel's own staved-in rain butt in two states,
+# and everything else the Scribe eats before the first harvest is growing wild.
+VILLAGE_GROUND = "Post-Apocalyptic Village Tileset Pack/tile-B-01.png"
+GARDEN_PROP_ART = {
+    "rain_cistern_damaged.png": (VILLAGE_PROPS, (10, 3), (48, 48)),
+    "rain_cistern.png": (VILLAGE_PROPS, (11, 3), (48, 48)),
+    "seed_sack.png": (VILLAGE_PROPS, (11, 4), (48, 48)),
+    "forage_fungus.png": (VILLAGE_GROUND, (6, 9), (48, 48)),
+    "forage_greens.png": (VILLAGE_GROUND, (2, 11), (48, 48)),
+    "forage_agave.png": (VILLAGE_GROUND, (2, 10), (48, 48)),
+}
+
+
+def draw_fallback_garden_prop(name: str) -> Image.Image:
+    image = Image.new("RGBA", GARDEN_PROP_ART[name][2], (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    if name == "seed_sack.png":
+        draw.polygon([(12, 44), (10, 20), (18, 12), (30, 12), (38, 20), (36, 44)], fill="#c39a5b")
+        px(draw, (18, 10, 30, 15), "#9d7748")
+        for step in range(6):
+            px(draw, (16 + step * 3, 44 - step % 3, 18 + step * 3, 46 - step % 3), "#f1dfad")
+    elif name.startswith("rain_cistern"):
+        draw.rounded_rectangle((9, 10, 39, 45), radius=6, fill="#77543b")
+        draw.ellipse((9, 6, 39, 18), fill="#9d7748")
+        if name == "rain_cistern.png":
+            draw.ellipse((12, 8, 36, 16), fill="#2f4a50")
+        else:
+            draw.ellipse((12, 8, 36, 16), fill="#4f3a28")
+            # A staved-in side is the whole reason it holds nothing.
+            draw.polygon([(14, 26), (26, 22), (30, 38), (16, 40)], fill="#34322a")
+        for band in (20, 34):
+            px(draw, (9, band, 39, band + 2), "#8b8f96")
+    elif name == "forage_fungus.png":
+        for cap, (x, y, r) in enumerate([(16, 30, 7), (28, 24, 6), (23, 38, 5)]):
+            px(draw, (x - 1, y, x + 1, y + r), "#c39a5b")
+            draw.ellipse((x - r, y - r + 2, x + r, y + 3), fill="#9d5f55" if cap % 2 else "#77543b")
+    elif name == "forage_greens.png":
+        for leaf in range(5):
+            x = 12 + leaf * 6
+            draw.line((24, 42, x, 42 - 14 - (leaf % 3) * 4), fill="#526e42", width=3)
+    else:
+        for blade in range(7):
+            x = 10 + blade * 5
+            draw.line((24, 43, x, 43 - 20 - (blade % 4) * 3), fill="#78966b", width=2)
+    return image
+
+
+def build_garden_props(source: Path) -> list[tuple[str, Image.Image, str]]:
+    props = []
+    sheets: dict[str, Image.Image] = {}
+    for name, (relative, (cell_x, cell_y), size) in GARDEN_PROP_ART.items():
+        path = source / relative
+        if not path.is_file():
+            props.append(
+                (name, draw_fallback_garden_prop(name), "project-authored procedural fallback")
+            )
+            continue
+        if relative not in sheets:
+            with Image.open(path) as sheet:
+                sheets[relative] = sheet.convert("RGBA")
+        crop = sheets[relative].crop(
+            (cell_x * 48, cell_y * 48, (cell_x + 1) * 48, (cell_y + 1) * 48)
+        )
+        if crop.size != size:
+            crop = crop.resize(size, Image.Resampling.NEAREST)
+        props.append((name, crop, "licensed runtime extraction"))
+    return props
+
+
 WORKED_STATION_ART = {
     # The Scribe returns to these, so they use pack art at the runtime size when
     # the licensed source is present and fall back to the drawn props otherwise.
@@ -695,6 +1015,9 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     for name, image, station_source in build_worked_stations(source):
         image.save(world / name, optimize=False)
         sources[name] = station_source
+    for name, image, garden_source in build_garden_plots(source) + build_garden_props(source):
+        image.save(world / name, optimize=False)
+        sources[name] = garden_source
 
     private_tree = source / "THE NATURAL/Props/Tree 08.png"
     tree = Image.open(private_tree).convert("RGBA") if private_tree.is_file() else draw_tree()
@@ -708,6 +1031,11 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     sources["scribe.png"] = scribe_source
     for tool_kind in ("hammer", "axe"):
         action, action_source = build_scribe_tool_action(source, scribe, tool_kind)
+        action_name = f"scribe-{tool_kind}.png"
+        action.save(world / action_name, optimize=False)
+        sources[action_name] = action_source
+    for tool_kind in ("hoe", "watering-can", "shovel"):
+        action, action_source = build_scribe_thrust_action(source, scribe, tool_kind)
         action_name = f"scribe-{tool_kind}.png"
         action.save(world / action_name, optimize=False)
         sources[action_name] = action_source

@@ -1,0 +1,161 @@
+{
+  "schema_version": 5,
+  "scene_type": "building",
+  "id": "motel-parking",
+  "name": "the motel parking bays",
+  "grid": {
+    "width": 32,
+    "height": 8,
+    "tile_size": 32
+  },
+  "collision": [],
+  "placements": [],
+  "templates": {},
+  "structures": [
+    {
+      "id": "parking-bay-00",
+      "template": "parking-bay-1",
+      "position": {
+        "grid": 48,
+        "x": 2,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "parking-bay-01",
+      "template": "parking-bay-2",
+      "position": {
+        "grid": 48,
+        "x": 4,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "parking-bay-02",
+      "template": "parking-bay-3",
+      "position": {
+        "grid": 48,
+        "x": 6,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "parking-bay-03",
+      "template": "parking-bay-1",
+      "position": {
+        "grid": 48,
+        "x": 8,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "parking-bay-04",
+      "template": "parking-bay-2",
+      "position": {
+        "grid": 48,
+        "x": 10,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "parking-bay-05",
+      "template": "parking-bay-3",
+      "position": {
+        "grid": 48,
+        "x": 12,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "parking-bay-06",
+      "template": "parking-bay-1",
+      "position": {
+        "grid": 48,
+        "x": 14,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "parking-bay-07",
+      "template": "parking-bay-2",
+      "position": {
+        "grid": 48,
+        "x": 16,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    },
+    {
+      "id": "parking-bay-08",
+      "template": "parking-bay-3",
+      "position": {
+        "grid": 48,
+        "x": 18,
+        "y": 2
+      },
+      "width": 2,
+      "height": 2,
+      "initial_state": "damaged",
+      "transform": {
+        "flip_x": false,
+        "flip_y": true
+      }
+    }
+  ],
+  "fixtures": []
+}
