@@ -25,13 +25,13 @@ impl Default for Chance {
 impl Chance {
     /// Folds one frame's duration into the state. Called every frame, before
     /// anything draws from it.
-    pub fn stir(&mut self, delta_nanos: u128) {
+    pub const fn stir(&mut self, delta_nanos: u128) {
         #[allow(clippy::cast_possible_truncation)]
         let entropy = delta_nanos as u64;
         self.state = self.state.rotate_left(17) ^ entropy.wrapping_mul(SEED);
     }
 
-    fn next(&mut self) -> u64 {
+    const fn next(&mut self) -> u64 {
         // xorshift64*, which is short, has no bad seeds beyond zero, and is far
         // better than anything this game can tell the difference from.
         self.state ^= self.state >> 12;
@@ -45,7 +45,7 @@ impl Chance {
 
     /// A number in `0..bound`. Zero for an empty range, so callers that forgot
     /// to check an empty list index nothing rather than panicking on a divide.
-    pub fn below(&mut self, bound: usize) -> usize {
+    pub const fn below(&mut self, bound: usize) -> usize {
         if bound == 0 {
             return 0;
         }
@@ -137,8 +137,10 @@ mod tests {
             let draw = chance.between(4.0, 9.0);
             assert!((4.0..=9.0).contains(&draw), "{draw} escaped its span");
         }
-        assert_eq!(chance.between(5.0, 5.0), 5.0);
-        assert_eq!(chance.between(9.0, 4.0), 9.0);
+        // A span with no width, and a span given the wrong way round, both
+        // collapse to their low end rather than producing nonsense.
+        assert!((chance.between(5.0, 5.0) - 5.0).abs() < f32::EPSILON);
+        assert!((chance.between(9.0, 4.0) - 9.0).abs() < f32::EPSILON);
     }
 
     #[test]

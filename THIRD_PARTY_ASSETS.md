@@ -55,6 +55,15 @@ The same applies to the generator's hand-tool overlay layers under
 `assets/custom/lpc-tools` — hammer, axe, hoe, shovel, and watering can — which
 the build composites onto the Scribe's own slash and thrust rows.
 
+The four visitor sheets are from the same generator and carry the same
+obligation: `redhead-lady.png`, `black-teen.png`, `little-sister.png`, and
+`old-guy.png`, copied by the build into `runtime-assets/people/` as `walker`,
+`elder-sibling`, `younger-sibling`, and `old-hand`. Each has a retained
+`.txt` selection file beside it, so unlike the Scribe these can be regenerated
+with selection-specific credits rather than the comprehensive catalog. A build
+without the private sheets substitutes tinted fallback bodies, so the open
+fallback build still tells one visitor from another.
+
 Scripture text is fetched at runtime from YouVersion. The default development
 fixtures use short passages from the public-domain Berean Standard Bible and are
 identified as fixtures in the UI.

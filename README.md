@@ -263,7 +263,7 @@ Never place credentials in the browser build, source tree, or container image.
 4. YouVersion returns the authoritative passage text for the selected ID.
 5. The player creates a card from the passage and project-authored pixel motifs.
 
-The first five wordless block-print illustrations and exact KJV card overlays
+The first twelve wordless block-print illustrations and exact KJV card overlays
 are cataloged in `content/prints.json`. Run `make prints` after changing a verse
 or its source art. The deterministic compositor renders EB Garamond at low
 resolution with intentionally large type, giving exact Roman serif text an

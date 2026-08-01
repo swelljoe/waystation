@@ -2350,5 +2350,33 @@
       "spawn": "motel-door"
     }
   ],
-  "items": []
+  "items": [],
+  "interactions": [
+    {
+      "id": "office-trash-pile",
+      "label": "heap swept into the corner",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 66,
+        "y": 51
+      },
+      "width": 96,
+      "height": 96
+    },
+    {
+      "id": "office-chair",
+      "label": "cushion of the fireside chair",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 46,
+        "y": 14
+      },
+      "width": 64,
+      "height": 96
+    }
+  ]
 }

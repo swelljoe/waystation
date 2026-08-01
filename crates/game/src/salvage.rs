@@ -61,7 +61,7 @@ impl Salvaged {
     pub fn draw(&mut self, chance: &mut Chance) -> Option<&'static Find> {
         let fresh = finds()
             .iter()
-            .filter(|find| !self.0.iter().any(|seen| *seen == find.id))
+            .filter(|find| !self.0.contains(&find.id))
             .collect::<Vec<_>>();
         let found = if fresh.is_empty() {
             self.0.clear();
@@ -73,6 +73,7 @@ impl Salvaged {
         Some(found)
     }
 
+    #[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
     pub fn restore(&mut self, seen: Vec<String>) {
         self.0 = seen;
     }

@@ -367,3 +367,112 @@ the art's southern edge each frame and lifts the object above them only while
 they stand behind it, so art transparency does the rest and walk-behind depth no
 longer has to be faked with collision. The flag keeps its exterior meaning on
 buildings, where it still governs the crown reveal.
+
+## Time
+
+A day is ten minutes (`daylight::DAY_SECONDS`). Nothing schedules against the
+clock except arrivals; its real job is to make time feel like it is passing, to
+give sleeping a reason, and to give strangers somewhere to arrive *from*.
+
+The light is flat through the working middle of the day and only falls at the
+ends, because a tint the player has to squint through is a fault rather than
+atmosphere. `Clock::tint` returns a wash that leans amber while the light is
+still going and cold once it has gone — the difference between evening and night
+without either word — capped so full dark is still a readable screen. It is laid
+down by a single full-screen UI node at `GlobalZIndex(-1)`, which puts it over
+the world and under every parchment panel; that ordering is the whole reason the
+status and prompt boxes stay legible at midnight.
+
+Sleeping is refused before dusk, so a bed cannot be used to skip a day the player
+does not feel like living through, and sleeping at dusk still costs the whole
+night rather than waking at dusk on the same date. Whatever else the night does
+happens in `advance_clock`, keyed on the date changing rather than on the bed, so
+a player who stands outside until dawn lives the same night as one who slept
+through it.
+
+Beds are authored, not hard-coded: an interaction with `kind: "rest"` and
+`discovery: "bed"`, currently in rooms one and six — the two with a sound roof
+and a door that latches. A test asserts that list, because a bed in a room open
+to the weather is a lie the content can tell silently.
+
+## Strangers
+
+Nobody arrives because the story says so. A fire in a dead valley is the only
+advertisement the waystation has and a frightening one: smoke means strangers,
+and strangers are what everyone left alive has learned to avoid. So the first
+three nights of a lit hearth bring nobody at all, and after that the odds climb
+with each night the fire keeps up and then level off — a waystation becomes
+known, but the wastes never become busy. `Visitors::roll_for_today` throws once
+per day and schedules an hour in the working middle of it; tests cover the cold
+hearth, the early nights, the ceiling, and the once-a-day guarantee.
+
+An arriving party walks in from the western road so it is seen coming, and waits
+about seventy seconds in the open before deciding this was a bad idea. Nothing
+warns the player it is counting. A stranger standing beside a building they do
+not know is taking a risk, and if the keeper of the fire does not come out, the
+sensible thing is to keep walking.
+
+Profiles carry art, a name pool, and which authored vignettes suit them, so the
+same LPC sheet arriving twice across a long game is not the same person twice.
+A profile may have two bodies — the sibling pair walk in together, are addressed
+together, and are offered hospitality as one party.
+
+Greeting opens their story, and the last line sends the vignette to the same
+Gloo/YouVersion listening call the earlier build used. What changed is what the
+answer does: the need it returns now only marks which of the Scribe's own prints
+their hand goes to first. It never removes a choice, and every hospitality screen
+keeps a way out — sharing food, offering a room, and giving a card are each
+either an offer the Scribe can make or a plain statement of why they cannot.
+Turning somebody away is a valid play and the farewell says so without scolding.
+
+A guest given a room goes into it for the night and comes back out at dawn to say
+goodbye; only then does the visit end. Offering a room needs the brass keys,
+which needs having searched the office desk, which is a requirement the player
+meets by exploring rather than by being told.
+
+## What the Scribe does after dark
+
+Prints are cut at night, unasked, from whatever was read that day. Nothing is
+unlocked by making them; it is what the Scribe does with their hands when the
+day's work is finished and the alternative is lying in a strange room thinking
+about people who are not there. `Collection::cut_a_block` prefers a theme
+matching the last passage read, which is the only mechanical link between the
+book and the blocks and is deliberately a preference rather than a rule.
+
+Colour gates the later cards: the catalogue's `stage` field maps to a tier, and
+running out of blocks the Scribe can cut in the colours they have is a quiet,
+findable reason to want dyes. Dyes come from people, which is the point.
+
+`content/prints.json` stays the authority on which cards exist. The asset build
+composes every catalogue entry into `runtime-assets/prints/`, falling back to a
+readable placeholder card when an illustration has not been generated yet — so
+authoring a reviewed verse is never blocked on running the image pipeline, and a
+test asserts every catalogue entry has a card in the runtime tree.
+
+## Nothing tells the player what to do
+
+There is no objective line. The status panel carries the date and the last thing
+that happened, and that is all it has ever been allowed to carry since the
+scripted arc was removed. Working out what a ruin needs is the game.
+
+Requirements live on the thing they are about and appear when the player walks up
+to it. The hearth is the pattern: `hearth_blockers` produces one list, the nearby
+prompt renders it as a terse requirement line, and `hearth_complaint` renders the
+same list as something the Scribe says out loud — "I can't light this fire, no
+telling what's clogging up that chimney." A test asserts the complaint names the
+flue and the fuel and mentions neither the roof, the ladder, nor where kindling
+is found: saying what is wrong is the game's job, and finding out where to fix it
+is the player's.
+
+Searching is worth doing because most of what it turns up is worthless.
+`content/salvage.json` is mostly bent wire, dead batteries, and a photograph of
+two strangers, read by somebody literate enough to describe a television remote
+and not to recognise it. A test caps the share of finds that pay out, because the
+moment searching becomes reliably profitable it stops being curiosity. Search
+spots are authored per scene, give up one find, and are then empty for good.
+
+The Bible is read, not collected. It never leaves room three: the Scribe opens
+it, reads what it falls open at, and puts it back. The first reading is fixed and
+is about taking a stranger in — the idea has to be in the Scribe's head before a
+stranger exists, or the welcome is only a quest step. Everything after is drawn
+without repeating until the book is finished.

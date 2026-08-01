@@ -65,6 +65,85 @@
       "card": "assets/prints/early-light-card.png",
       "stage": "early_monochrome",
       "art_prompt": "A single bright oil lamp burns in the repaired window of a small battered roadside inn at night. Across a bleak, scarred but living valley, a few tiny distant windows answer with lights of their own while dawn faintly begins at the horizon. Avoid electric lights, a modern skyline, neon, weapons, monsters, and total despair."
+    },
+    {
+      "id": "early-great-calm",
+      "title": "A Great Calm",
+      "theme": "hope",
+      "reference": "Mark 4:39",
+      "verse": "And he arose, and rebuked the wind, and said unto the sea, Peace, be still. And the wind ceased, and there was a great calm.",
+      "art": "assets/prints/early-great-calm-art.png",
+      "card": "assets/prints/early-great-calm-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "A small battered open boat carrying several ordinary frightened travelers has just survived a violent night storm. The wind abruptly drops, the sail hangs quiet, the waves settle around the boat, and a break in the clouds reaches calm water. Give no figure supernatural prominence; avoid halo, miracle rays, cross, weapons, shipwreck, drowning, and text."
+    },
+    {
+      "id": "early-this-day",
+      "title": "This Day",
+      "theme": "rest",
+      "reference": "Matthew 6:34b",
+      "verse": "Sufficient unto the day is the evil thereof.",
+      "art": "assets/prints/early-this-day-art.png",
+      "card": "assets/prints/early-this-day-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "At first light, one tired ordinary worker repairs only the single loose plank directly in front of them on a weathered shelter. Their modest tools, cup, and one manageable piece of work are close at hand while a long distant road disappears harmlessly into morning mist. Communicate attending to today's task rather than predicting the future; avoid clocks, calendars, letters, numbers, looming danger, and despair.",
+      "note": "Short closing excerpt, identified with the conventional 'b' suffix."
+    },
+    {
+      "id": "early-forsaken",
+      "title": "When Friends Fail",
+      "theme": "mutual_aid",
+      "reference": "2 Timothy 4:16",
+      "verse": "At my first answer no man stood with me, but all men forsook me: I pray God that it may not be laid to their charge.",
+      "art": "assets/prints/early-forsaken-art.png",
+      "card": "assets/prints/early-forsaken-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "A solitary road-worn traveler stands at a bleak fork where several sets of footprints have departed in different directions. The traveler deliberately sets down a clenched throwing stone and opens the empty hand, choosing not to strike after those who left. Keep the figure upright and wounded but not vengeful; avoid courtroom symbols, execution, weapons, pursuers, religious iconography, and text."
+    },
+    {
+      "id": "early-going-out",
+      "title": "Going Out and Coming In",
+      "theme": "hope",
+      "reference": "Psalm 121:8",
+      "verse": "The LORD shall preserve thy going out and thy coming in from this time forth, and even for evermore.",
+      "art": "assets/prints/early-going-out-art.png",
+      "card": "assets/prints/early-going-out-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "An ordinary young traveler with a small practical pack pauses at the threshold of a repaired roadside shelter at dawn. One set of footprints leads outward onto a long but passable road, while another older set returns safely to the same open doorway and warm lamp. Emphasize departure without exile and the possibility of return; avoid farewell crowd, map, signs, letters, weapons, religious iconography, and text."
+    },
+    {
+      "id": "early-comfortless",
+      "title": "Not Comfortless",
+      "theme": "hope",
+      "reference": "John 14:18",
+      "verse": "I will not leave you comfortless: I will come to you.",
+      "art": "assets/prints/early-comfortless-art.png",
+      "card": "assets/prints/early-comfortless-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "A lone exhausted traveler sits beside a cold roadside marker at dusk, looking up as a second ordinary traveler approaches from the distance carrying a small warm oil lamp and an extra blanket. The approaching person is unmistakably real and human, and there is room beside the seated traveler. Avoid angel wings, halo, apparition, church, weapons, threatening pursuit, and text."
+    },
+    {
+      "id": "early-perfect-weakness",
+      "title": "Strength in Weakness",
+      "theme": "gentleness",
+      "reference": "2 Corinthians 12:9a",
+      "verse": "My grace is sufficient for thee: for my strength is made perfect in weakness.",
+      "art": "assets/prints/early-perfect-weakness-art.png",
+      "card": "assets/prints/early-perfect-weakness-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "Close view of an older traveler's visibly trembling, work-worn hands patiently braiding several thin fragile plant fibers into one strong useful cord. A simple walking stick rests nearby, neither hidden nor treated as shameful. Show quiet skill and adaptation rather than miraculous healing; avoid broken hands, shackles, medical equipment, religious iconography, and text.",
+      "note": "Short opening excerpt, identified with the conventional 'a' suffix."
+    },
+    {
+      "id": "early-out-of-the-mire",
+      "title": "Out of the Mire",
+      "theme": "hope",
+      "reference": "Psalm 40:2",
+      "verse": "He brought me up also out of an horrible pit, out of the miry clay, and set my feet upon a rock, and established my goings.",
+      "art": "assets/prints/early-out-of-the-mire-art.png",
+      "card": "assets/prints/early-out-of-the-mire-card.png",
+      "stage": "early_monochrome",
+      "art_prompt": "A mud-covered exhausted traveler is being helped out of a deep sucking bog onto broad solid rock by the strong outstretched hand of another ordinary person just above. Both of the rescued traveler's feet reach stable stone and the next few safe footholds are visible. Emphasize practical rescue and firm footing; avoid supernatural figures, halo, bottomless abyss, skeletons, weapons, and text."
     }
   ]
 }

@@ -88,6 +88,43 @@ so only the newly cataloged jobs invoke image generation.
 The text is KJV, which is public domain in the United States. The `a` suffix on
 Matthew 12:20 identifies the deliberately short opening excerpt.
 
+## Practical-help expansion
+
+The second set draws directly from the Gideon edition's front-matter index,
+especially its entries for being afraid or anxious, friends failing, leaving
+home, loneliness, pain, and sorrow. The situations stay concrete enough for a
+traveler who does not share the book's beliefs to recognize their own trouble
+in the image and decide what, if anything, to make of its words.
+
+| ID | Need | Passage | Image |
+| --- | --- | --- | --- |
+| `early-great-calm` | fear | Mark 4:39 | A storm settling around a crowded open boat |
+| `early-this-day` | anxiety | Matthew 6:34b | One worker attending to one repair today |
+| `early-forsaken` | friends failing | 2 Timothy 4:16 | Departing tracks, an opened hand, and a stone set down |
+| `early-going-out` | leaving home | Psalm 121:8 | A traveler at a door with tracks going and returning |
+| `early-comfortless` | loneliness | John 14:18 | A real human figure approaching with lamp and blanket |
+| `early-perfect-weakness` | pain or frailty | 2 Corinthians 12:9a | Aging hands braiding weak fibers into strong cord |
+| `early-out-of-the-mire` | sorrow or trouble | Psalm 40:2 | One traveler helping another onto firm rock |
+
+Matthew 6:34b and 2 Corinthians 12:9a are deliberately short excerpts. Keeping
+them short preserves the established 30-pixel type instead of shrinking the
+words beyond what an apprentice could plausibly cut and a player could read.
+
+## Reaching the game
+
+`content/prints.json` is the authority on which cards exist. `make assets`
+composes every catalog entry into `runtime-assets/prints/<id>-card.png`; an entry
+whose `card` PNG has not been composed yet still gets a readable placeholder
+carrying its title and reference, so authoring a reviewed verse is never blocked
+on running the image pipeline. A Rust test asserts every catalog entry has a card
+in the runtime tree.
+
+In game these are not collected or awarded. The Scribe cuts one a night, unasked,
+preferring a theme matching whatever the book last fell open at, and the
+catalog's `stage` field gates which are reachable: running out of blocks that can
+be cut in the colors already learned is the intended, findable reason to want
+dyes. See "What the Scribe does after dark" in `docs/ARCHITECTURE.md`.
+
 ## Build
 
 ```bash
@@ -104,9 +141,9 @@ Every catalog entry retains both paths:
 - `*-art.png` is the wordless image-generation result.
 - `*-card.png` is the deterministic, text-bearing game asset.
 
-## Final image-generation prompt set
+## Original image-generation prompt set
 
-All five assets used the built-in image generator with
+The original five assets used the built-in image generator with
 `assets/prints/sower-pixel.png` as a style-and-format reference only. The shared
 prompt requested a vertical game card, primitive hand-cut woodblock/linocut
 translated into chunky pixel art, one-color black ink on warm fibrous birch-bark
@@ -127,6 +164,12 @@ The five final subject prompts were:
    old tree, with a cup, loaf, and continuing road nearby.
 5. An oil lamp in the repaired window of a battered roadside inn, answered by a
    few distant window lights across a scarred valley as dawn begins.
+
+The seven practical-help illustrations use the same built-in generator, Sower
+style reference, shared visual specification, empty lower panel, and wordless
+constraint. Their reviewed subject prompts live with the exact passages in
+`content/prints.json`; this keeps the resumable generator's inputs and the
+finished catalog from drifting apart.
 
 Future stages should reuse the same catalog rather than baking progression into
 filenames: decorated initial and text only, monochrome motif, one spot color,

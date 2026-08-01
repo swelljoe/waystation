@@ -78,11 +78,54 @@ def free_port() -> int:
         return probe.getsockname()[1]
 
 
+# The listening call the game makes when a visitor finishes their story. A
+# static file server answers POST with 501, which the game correctly treats as a
+# dead service and falls back from — but that turns a working visit into a
+# console error and hides real faults behind it. Answering here exercises the
+# same path a live Gloo/YouVersion deployment takes, with provenance that says
+# plainly where it came from.
+STUB_INTERPRETATION = {
+    "vignette_id": "",
+    "need_id": "belonging",
+    "need_label": "A place of equal dignity",
+    "reflection": "No living soul is extra. A name spoken with welcome becomes part of the shelter.",
+    "passage": {
+        "id": "GAL.3.28",
+        "reference": "Galatians 3:28",
+        "content": (
+            "There is neither Jew nor Greek, slave nor free, male nor female, "
+            "for you are all one in Christ Jesus."
+        ),
+        "version": "BSB",
+        "youversion_deep_link": "https://www.bible.com/bible/3034/GAL.3.28",
+    },
+    "provenance": {
+        "gloo_model": "web-smoke-stub",
+        "routing": "web-smoke",
+        "scripture_source": "fixture",
+    },
+}
+
+
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     """The asset `.meta` probes would otherwise bury the run in 404 lines."""
 
     def log_message(self, *_args) -> None:
         pass
+
+    def do_POST(self) -> None:  # noqa: N802 - the base class names it this
+        if self.path != "/api/interpret":
+            self.send_error(404)
+            return
+        length = int(self.headers.get("Content-Length") or 0)
+        request = json.loads(self.rfile.read(length) or b"{}")
+        reply = dict(STUB_INTERPRETATION, vignette_id=request.get("vignette_id", ""))
+        body = json.dumps(reply).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
 
 def serve(directory: Path) -> tuple[http.server.ThreadingHTTPServer, int]:

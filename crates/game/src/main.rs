@@ -270,8 +270,16 @@ fn run_game() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.08)))
         .insert_resource(UiScale(DEVELOPMENT_PRESENTATION_SCALE))
-        .insert_resource(Journal::default())
+        .insert_resource(Journal {
+            notice: Some(ARRIVAL_NOTICE.to_owned()),
+        })
         .insert_resource(InterpretInbox::default())
+        .init_resource::<Clock>()
+        .init_resource::<Chance>()
+        .init_resource::<Visitors>()
+        .init_resource::<Collection>()
+        .init_resource::<Readings>()
+        .init_resource::<Salvaged>()
         .insert_resource(initial_world_location())
         .insert_resource(MotelAccess::default())
         .insert_resource(Progression::default())
@@ -324,11 +332,12 @@ fn run_game() {
                 trigger_story_hotspots,
                 sync_portable_tool_entities,
                 (grow_garden, sync_garden_plots).chain(),
+                (chance::stir_chance, advance_clock, sync_daylight).chain(),
+                (run_visits, retire_visitors).chain(),
                 update_nearby_interaction,
                 handle_tool_hotkeys,
-                handle_story_input,
+                handle_visit_input,
                 poll_interpretation,
-                sync_world_state,
                 sync_ui,
                 sync_narrative_popup_ui,
                 save_story,
@@ -529,8 +538,28 @@ impl PlayerArt {
 #[derive(Component)]
 struct MainCamera;
 
+/// One body of an arriving party. The index selects its authored sheet and the
+/// offset that keeps a pair from standing inside one another.
 #[derive(Component)]
-struct Traveler;
+struct VisitorBody {
+    index: usize,
+}
+
+/// Visitors walk slower than the Scribe. They have come a long way and they are
+/// not sure about this.
+const VISITOR_SPEED: f32 = 96.0;
+
+/// Where the old road reaches the edge of the valley floor. Parties enter and
+/// leave here, so they are seen coming rather than appearing in the court.
+const fn visitor_road_entry() -> Vec2 {
+    Vec2::new(-1_260.0, -300.0)
+}
+
+/// Where somebody stands when they have come as close as they dare: out in the
+/// open in front of the office, within sight of the door and of the way back.
+const fn visitor_waiting_spot() -> Vec2 {
+    Vec2::new(-540.0, -200.0)
+}
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 enum InteractableKind {
@@ -544,7 +573,9 @@ enum InteractableKind {
     Tool,
     Desk,
     BibleNightstand,
-    Traveler,
+    Visitor,
+    Bed,
+    Salvage,
     MotelDoor,
     InteriorExit,
     InteriorRepairable,
@@ -675,6 +706,11 @@ struct Interactable {
 #[derive(Component)]
 struct AuthoredInteractionLabel(String);
 
+/// Which authored interaction rectangle an entity came from, so emptying it can
+/// be written into save state under the same key the scene uses.
+#[derive(Component)]
+struct SceneInteractionId(String);
+
 #[derive(Component, Clone, Copy)]
 struct StoryHotspot {
     beat: StoryBeat,
@@ -724,6 +760,11 @@ struct InteractionResources<'w> {
     motel_access: ResMut<'w, MotelAccess>,
     progression: ResMut<'w, Progression>,
     garden: ResMut<'w, Garden>,
+    visitors: ResMut<'w, Visitors>,
+    readings: ResMut<'w, Readings>,
+    salvaged: ResMut<'w, Salvaged>,
+    chance: ResMut<'w, Chance>,
+    clock: ResMut<'w, Clock>,
 }
 
 #[derive(SystemParam)]
@@ -741,6 +782,8 @@ struct InteractionQueries<'w, 's> {
     choppable_trees: Query<'w, 's, &'static ChoppableTree>,
     stone_outcrops: Query<'w, 's, &'static StoneOutcrop>,
     garden_plots: Query<'w, 's, &'static GardenPlot>,
+    interaction_labels: Query<'w, 's, &'static AuthoredInteractionLabel>,
+    interaction_ids: Query<'w, 's, &'static SceneInteractionId>,
     player_animation: Query<'w, 's, &'static mut PlayerAnimation, With<Player>>,
     mutable_elements: Query<
         'w,
@@ -767,8 +810,73 @@ struct UiKnowledge<'w, 's> {
     motel_access: Res<'w, MotelAccess>,
     garden: Res<'w, Garden>,
     beds: Res<'w, GardenBeds>,
+    clock: Res<'w, Clock>,
+    visitors: Res<'w, Visitors>,
+    collection: Res<'w, Collection>,
+    readings: Res<'w, Readings>,
     garden_plots: Query<'w, 's, &'static GardenPlot>,
     rain_cisterns: Query<'w, 's, &'static RainCistern, Without<GardenPlot>>,
+}
+
+/// Every widget the full-screen narrative overlay owns. Bundled because a Bevy
+/// system takes at most sixteen parameters and `sync_ui` writes to all of them.
+#[derive(SystemParam)]
+// Each text node excludes every other text marker so Bevy can prove the borrows
+// are disjoint; that is what makes these signatures long, not the logic.
+#[allow(clippy::type_complexity)]
+struct OverlayWidgets<'w, 's> {
+    root: Query<'w, 's, &'static mut Visibility, (With<OverlayRoot>, Without<CardArt>)>,
+    title: Query<
+        'w,
+        's,
+        &'static mut Text,
+        (
+            With<OverlayTitle>,
+            Without<OverlayBody>,
+            Without<StatusText>,
+            Without<PromptText>,
+            Without<ProvenanceText>,
+            Without<ProgressText>,
+        ),
+    >,
+    body: Query<
+        'w,
+        's,
+        &'static mut Text,
+        (
+            With<OverlayBody>,
+            Without<OverlayTitle>,
+            Without<StatusText>,
+            Without<PromptText>,
+            Without<ProvenanceText>,
+            Without<ProgressText>,
+        ),
+    >,
+    provenance: Query<
+        'w,
+        's,
+        &'static mut Text,
+        (
+            With<ProvenanceText>,
+            Without<OverlayTitle>,
+            Without<OverlayBody>,
+            Without<StatusText>,
+            Without<PromptText>,
+            Without<ProgressText>,
+        ),
+    >,
+    card_art: Query<
+        'w,
+        's,
+        (&'static mut ImageNode, &'static mut Visibility),
+        (With<CardArt>, Without<OverlayRoot>),
+    >,
+    prompt_panel: Query<
+        'w,
+        's,
+        &'static mut Visibility,
+        (With<PromptPanel>, Without<OverlayRoot>, Without<CardArt>),
+    >,
 }
 
 #[derive(SystemParam)]
@@ -849,11 +957,20 @@ impl ExteriorObstacles {
     }
 }
 
+/// The full-screen wash that carries the time of day.
+#[derive(Component)]
+struct NightTint;
+
 #[derive(Component)]
 struct StatusText;
 
 #[derive(Component)]
 struct PromptText;
+
+/// The parchment the nearby-interaction prompt sits on. It hides during a
+/// conversation, where "E — go and speak to them" is both wrong and in the way.
+#[derive(Component)]
+struct PromptPanel;
 
 #[derive(Component)]
 struct OverlayRoot;
@@ -966,38 +1083,55 @@ impl StoryBeat {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// One card the game holds up in front of the player. Authored beats carry
+/// static text; a passage read from the book or a thing pulled out of a drawer
+/// is chosen at play time and carries its own.
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum NarrativeCard {
     Item(DiscoveredItem),
     Thought(StoryBeat),
+    /// A page of the book, read and put back.
+    Passage {
+        title: String,
+        body: String,
+    },
+    /// Whatever was in the drawer.
+    Salvage {
+        title: String,
+        body: String,
+    },
 }
 
 impl NarrativeCard {
-    const fn title(self) -> &'static str {
+    fn title(&self) -> &str {
         match self {
             Self::Item(item) => item.title(),
             Self::Thought(beat) => beat.title(),
+            Self::Passage { title, .. } | Self::Salvage { title, .. } => title,
         }
     }
 
-    const fn description(self) -> &'static str {
+    fn description(&self) -> &str {
         match self {
             Self::Item(item) => item.description(),
             Self::Thought(beat) => beat.description(),
+            Self::Passage { body, .. } | Self::Salvage { body, .. } => body,
         }
     }
 
-    const fn image_path(self) -> Option<&'static str> {
+    const fn image_path(&self) -> Option<&'static str> {
         match self {
             Self::Item(item) => Some(item.image_path()),
-            Self::Thought(_) => None,
+            Self::Passage { .. } => Some(BIBLE_ICON_PATH),
+            Self::Thought(_) | Self::Salvage { .. } => None,
         }
     }
 
-    const fn dismiss_label(self) -> &'static str {
+    const fn dismiss_label(&self) -> &'static str {
         match self {
             Self::Item(DiscoveredItem::GideonBible) => "E / SPACE — leave it safe here",
-            Self::Thought(_) => "E / SPACE — continue",
+            Self::Passage { .. } => "E / SPACE — close the book",
+            Self::Thought(_) | Self::Salvage { .. } => "E / SPACE — continue",
         }
     }
 }
@@ -1011,7 +1145,7 @@ struct NarrativePopup {
 
 impl NarrativePopup {
     fn present(&mut self, card: NarrativeCard) {
-        if self.current == Some(card) || self.queue.contains(&card) {
+        if self.current.as_ref() == Some(&card) || self.queue.contains(&card) {
             return;
         }
         if self.current.is_some() {
@@ -1146,25 +1280,51 @@ struct WorldMemory<'w> {
 
 impl SaveData {
     #[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
-    fn capture(memory: &WorldMemory) -> Self {
-        let (prints_made, prints_given, print_tier) = memory.collection.saved();
-        let (passages_read, dwelling_on) = memory.readings.saved();
+    #[allow(clippy::too_many_arguments)]
+    fn capture(
+        interior_state: &InteriorState,
+        motel_access: &MotelAccess,
+        progression: &Progression,
+        garden: &Garden,
+        clock: Clock,
+        visitors: &Visitors,
+        collection: &Collection,
+        readings: &Readings,
+        salvaged: &Salvaged,
+    ) -> Self {
+        let (prints_made, prints_given, print_tier) = collection.saved();
+        let (passages_read, dwelling_on) = readings.saved();
         Self {
             version: 8,
-            interior_states: memory.interior_state.0.clone(),
-            motel_keys_found: memory.motel_access.keys_found,
-            progression: memory.progression.clone(),
-            garden: memory.garden.clone(),
-            clock: *memory.clock,
-            nights_of_smoke: memory.visitors.nights_of_smoke,
-            visits_received: memory.visitors.visits_received,
+            interior_states: interior_state.0.clone(),
+            motel_keys_found: motel_access.keys_found,
+            progression: progression.clone(),
+            garden: garden.clone(),
+            clock,
+            nights_of_smoke: visitors.nights_of_smoke,
+            visits_received: visitors.visits_received,
             prints_made,
             prints_given,
             print_tier,
             passages_read,
             dwelling_on,
-            salvaged: memory.salvaged.seen().to_vec(),
+            salvaged: salvaged.seen().to_vec(),
         }
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    fn from_memory(memory: &WorldMemory) -> Self {
+        Self::capture(
+            &memory.interior_state,
+            &memory.motel_access,
+            &memory.progression,
+            &memory.garden,
+            *memory.clock,
+            &memory.visitors,
+            &memory.collection,
+            &memory.readings,
+            &memory.salvaged,
+        )
     }
 }
 
@@ -1667,17 +1827,6 @@ fn setup_world(
     }
     commands.insert_resource(PortableToolCatalog(portable_tools));
     commands.insert_resource(exterior_obstacles);
-    let traveler = spawn_interactable(
-        &mut commands,
-        InteractableKind::Traveler,
-        Vec2::new(-70.0, -160.0),
-        Vec2::new(30.0, 48.0),
-        Color::srgb(0.47, 0.30, 0.39),
-    );
-    commands
-        .entity(traveler)
-        .insert((Traveler, Visibility::Hidden));
-
     let player_position = if *location == WorldLocation::Interior {
         interior_map.cell_center(interior_map.entry)
     } else {
@@ -1790,7 +1939,23 @@ fn spawn_scene_interaction(
         (interior::SceneInteractionKind::Search, interior::SceneDiscovery::SeedStore) => {
             InteractableKind::SeedStore
         }
+        (interior::SceneInteractionKind::Search, interior::SceneDiscovery::Salvage) => {
+            InteractableKind::Salvage
+        }
+        (interior::SceneInteractionKind::Rest, interior::SceneDiscovery::Bed) => {
+            InteractableKind::Bed
+        }
+        (kind, discovery) => panic!(
+            "{}/{} is authored as {kind:?} yielding {discovery:?}, which the game has no pairing for",
+            map.id(),
+            interaction.id
+        ),
     };
+    // A hiding place that has already been turned out has nothing more in it,
+    // and offering it again would be the game lying to the player.
+    if kind == InteractableKind::Salvage && previously_discovered {
+        return;
+    }
     let entity = if kind == InteractableKind::SeedStore {
         let entity = spawn_interactable_sprite(
             commands,
@@ -1826,6 +1991,7 @@ fn spawn_scene_interaction(
     };
     commands.entity(entity).insert((
         interior::InteriorSceneEntity,
+        SceneInteractionId(format!("{}/{}", map.id(), interaction.id)),
         AuthoredInteractionLabel(match (kind, previously_discovered) {
             (InteractableKind::BibleNightstand, true) => {
                 "nightstand where the little book rests".to_owned()
@@ -2051,7 +2217,7 @@ fn save_story(memory: WorldMemory) {
     else {
         return;
     };
-    if let Ok(raw) = serde_json::to_string(&SaveData::capture(&memory)) {
+    if let Ok(raw) = serde_json::to_string(&SaveData::from_memory(&memory)) {
         let _ = storage.set_item("waystation-save-v1", &raw);
     }
 }
@@ -2548,6 +2714,19 @@ fn load_ui_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
 #[allow(clippy::too_many_lines)]
 fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<UiFonts>) {
     terrain::spawn_debug_legend(&mut commands);
+    // Behind every other panel, so dusk falls on the valley and not on the
+    // writing the player needs to read in it.
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            ..default()
+        },
+        BackgroundColor(Color::NONE),
+        GlobalZIndex(-1),
+        NightTint,
+    ));
     let parchment = BackgroundColor(Color::srgba(0.72, 0.63, 0.45, 0.95));
     let parchment_edge = BorderColor::all(Color::srgb(0.28, 0.20, 0.12));
     let ink = TextColor(Color::srgb(0.16, 0.11, 0.07));
@@ -2622,6 +2801,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                 Val::Px(1.0),
                 Color::srgba(0.06, 0.04, 0.02, 0.55),
             ),
+            PromptPanel,
         ))
         .with_child((TextSpan::new(""), fonts.roman(10.0), ink, PromptText));
 
@@ -2629,15 +2809,15 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Percent(14.0),
-                right: Val::Percent(14.0),
-                top: Val::Percent(15.0),
-                bottom: Val::Percent(15.0),
-                padding: UiRect::all(Val::Px(30.0)),
+                left: Val::Percent(12.0),
+                right: Val::Percent(12.0),
+                top: Val::Percent(4.0),
+                bottom: Val::Percent(4.0),
+                padding: UiRect::all(Val::Px(16.0)),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                row_gap: Val::Px(22.0),
+                row_gap: Val::Px(10.0),
                 ..default()
             },
             BackgroundColor(Color::srgba(0.08, 0.07, 0.06, 0.96)),
@@ -2649,7 +2829,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
         .with_children(|parent| {
             parent.spawn((
                 Text::new(""),
-                fonts.roman(30.0),
+                fonts.roman(22.0),
                 TextColor(Color::srgb(0.95, 0.79, 0.39)),
                 OverlayTitle,
             ));
@@ -2665,10 +2845,10 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
             ));
             parent.spawn((
                 Text::new(""),
-                fonts.roman(20.0),
+                fonts.roman(14.0),
                 TextColor(Color::srgb(0.93, 0.90, 0.80)),
                 Node {
-                    max_width: Val::Px(680.0),
+                    max_width: Val::Px(700.0),
                     ..default()
                 },
                 OverlayBody,
@@ -3584,6 +3764,26 @@ fn hearth_blockers(interior_state: &InteriorState, progression: &Progression) ->
     missing
 }
 
+/// The Scribe's own words about why the fire will not take. Built from the same
+/// blocker list the prompt uses, so the complaint and the requirement line can
+/// never disagree with each other.
+fn hearth_complaint(missing: &[String]) -> String {
+    let flue = missing.iter().any(|item| item.contains("chimney"));
+    let fuel = missing.iter().any(|item| item.contains("kindling"));
+    match (flue, fuel) {
+        (true, true) => {
+            "I can't light this. Nothing dry enough to catch, and no telling what's clogging up that chimney.".to_owned()
+        }
+        (true, false) => {
+            "I can't light this fire. No telling what's clogging up that chimney — it would only smoke us both out.".to_owned()
+        }
+        (false, true) => {
+            "The flue draws clean. Nothing here dry enough to catch, though.".to_owned()
+        }
+        (false, false) => "Something is stopping it, and I cannot see what.".to_owned(),
+    }
+}
+
 const fn interaction_key_matches(
     kind: InteractableKind,
     interact_pressed: bool,
@@ -3943,9 +4143,12 @@ fn handle_interaction(
             }
             let missing = hearth_blockers(&resources.interior_state, &resources.progression);
             if !missing.is_empty() {
-                journal.notice = Some(format!(
-                    "The hearth is cold. It still needs {}.\nDry kindling waits beneath the old growth, and a felled tree gives more; the flue is cleared from the motel roof.",
-                    missing.join(" and ")
+                // The Scribe says what is wrong with the fire in front of them.
+                // Where to fix it is the player's problem, and finding out is the
+                // part worth having.
+                journal.say(format!(
+                    "You crouch at the hearth. {}",
+                    hearth_complaint(&missing)
                 ));
                 return;
             }
@@ -4055,17 +4258,28 @@ fn handle_interaction(
             });
         }
         InteractableKind::BibleNightstand => {
-            record_bible_discovery(&mut journal, &mut resources.interior_state);
-            popup.present(NarrativeCard::Item(DiscoveredItem::GideonBible));
-            journal.notice = Some(
-                "The little book remains safe on the nightstand. Someone left it here for a stranger—and the stranger can read."
-                    .to_owned(),
-            );
+            read_the_book(&mut resources, &mut popup, &mut journal);
         }
-        InteractableKind::Traveler if journal.stage == StoryStage::MeetTraveler => {
-            journal.stage = StoryStage::Dialogue;
-            journal.dialogue_line = 0;
-            journal.notice = None;
+        InteractableKind::Visitor => {
+            greet_visitor(&mut resources.visitors, &mut journal);
+        }
+        InteractableKind::Bed => {
+            sleep_here(&mut resources, &mut journal);
+        }
+        InteractableKind::Salvage => {
+            let label = queries
+                .interaction_labels
+                .get(entity)
+                .map_or_else(|_| "hiding place".to_owned(), |label| label.0.clone());
+            if let Ok(scene_key) = queries.interaction_ids.get(entity) {
+                resources
+                    .interior_state
+                    .0
+                    .insert(scene_key.0.clone(), DISCOVERY_FOUND_STATE.to_owned());
+            }
+            search_for_salvage(&mut resources, &mut popup, &mut journal, &label);
+            target.consumed = true;
+            commands.entity(entity).insert(Visibility::Hidden);
         }
         InteractableKind::MotelDoor | InteractableKind::InteriorExit => {}
         InteractableKind::InteriorRepairable => {
@@ -4243,11 +4457,51 @@ fn repair_scene_element(
     true
 }
 
-fn handle_story_input(
+/// Which rooms have a roof and a door that latches, even before a single repair.
+/// Offering one is the largest thing the Scribe owns to give.
+const GUEST_ROOMS: [(interior::InteriorId, &str); 2] = [
+    (interior::InteriorId::Room01, "room one"),
+    (interior::InteriorId::Room06, "room six"),
+];
+
+/// A guest can only be shown to a room the Scribe can open, which means the
+/// brass keys, which means having searched the office desk.
+fn offerable_room(motel_access: &MotelAccess) -> Option<(interior::InteriorId, &'static str)> {
+    motel_access.keys_found.then(|| GUEST_ROOMS[0])
+}
+
+/// Digits `1`–`9`, as a zero-based choice.
+fn digit_pressed(keys: &ButtonInput<KeyCode>) -> Option<usize> {
+    const DIGITS: [KeyCode; 9] = [
+        KeyCode::Digit1,
+        KeyCode::Digit2,
+        KeyCode::Digit3,
+        KeyCode::Digit4,
+        KeyCode::Digit5,
+        KeyCode::Digit6,
+        KeyCode::Digit7,
+        KeyCode::Digit8,
+        KeyCode::Digit9,
+    ];
+    DIGITS
+        .iter()
+        .position(|&digit| keys.just_pressed(digit))
+}
+
+#[derive(SystemParam)]
+struct VisitInput<'w> {
+    visitors: ResMut<'w, Visitors>,
+    journal: ResMut<'w, Journal>,
+    collection: ResMut<'w, Collection>,
+    progression: ResMut<'w, Progression>,
+    motel_access: Res<'w, MotelAccess>,
+    inbox: Res<'w, InterpretInbox>,
+}
+
+fn handle_visit_input(
     keys: Res<ButtonInput<KeyCode>>,
-    mut journal: ResMut<Journal>,
     mut popup: ResMut<NarrativePopup>,
-    inbox: Res<InterpretInbox>,
+    mut visit: VisitInput,
 ) {
     if popup.is_open() {
         popup.handle_input(
@@ -4257,53 +4511,227 @@ fn handle_story_input(
         );
         return;
     }
-    if journal.stage == StoryStage::Night && keys.just_pressed(KeyCode::Space) {
-        journal.stage = StoryStage::MeetTraveler;
-        journal.notice = Some(
-            "At first light, a figure follows the thread of smoke down from the ridge.".to_owned(),
+    let Some(stage) = visit.visitors.party.as_ref().map(|party| party.stage) else {
+        return;
+    };
+    match stage {
+        VisitStage::Telling => advance_telling(&keys, &mut visit),
+        VisitStage::Deciding => decide_hospitality(&keys, &mut visit),
+        VisitStage::Choosing => choose_a_card(&keys, &mut visit),
+        _ => {}
+    }
+}
+
+fn advance_telling(keys: &ButtonInput<KeyCode>, visit: &mut VisitInput) {
+    if !keys.just_pressed(KeyCode::Space) {
+        return;
+    }
+    let Some(party) = visit.visitors.party.as_mut() else {
+        return;
+    };
+    let spoken = vignette(&party.vignette).map_or(0, |vignette| vignette.lines.len());
+    party.line += 1;
+    if party.line < spoken {
+        return;
+    }
+    party.has_spoken = true;
+    party.stage = VisitStage::Listening;
+    begin_interpretation(&party.vignette, &visit.inbox);
+}
+
+fn decide_hospitality(keys: &ButtonInput<KeyCode>, visit: &mut VisitInput) {
+    if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Escape) {
+        let farewell = visit
+            .visitors
+            .party
+            .as_ref()
+            .map(farewell_notice)
+            .unwrap_or_default();
+        visit.visitors.finish_deciding();
+        visit.journal.say(farewell);
+        return;
+    }
+    let Some(choice) = digit_pressed(keys) else {
+        return;
+    };
+    let rations = visit.progression.supply(SupplyId::Ration);
+    let room = offerable_room(&visit.motel_access);
+    let Some(party) = visit.visitors.party.as_mut() else {
+        return;
+    };
+    match choice {
+        // Sharing food is deliberately allowed down to the last ration. The
+        // Scribe going hungry for a stranger is the whole point of the passage
+        // that put the idea in their head.
+        0 if rations > 0 && !party.given.food => {
+            visit.progression.spend_supply(SupplyId::Ration, 1);
+            party.given.food = true;
+            visit.journal.say(format!(
+                "You divide what you have. {} eats slowly, the way people do when they have learned not to trust a full stomach.",
+                party.address()
+            ));
+        }
+        1 if party.given.room.is_none() => {
+            if let Some((id, label)) = room {
+                party.given.room = Some(label.to_owned());
+                visit.journal.say(format!(
+                    "You hold out the key to {label}. The roof is sound and the door still latches, which is more than the road offers. {} looks at it for a long moment before taking it.",
+                    party.address()
+                ));
+                let _ = id;
+            } else {
+                visit.journal.say(
+                    "You have nowhere to put anybody. The doors are locked and you do not have the keys.",
+                );
+            }
+        }
+        2 if party.given.card.is_none() => {
+            party.stage = VisitStage::Choosing;
+        }
+        _ => {}
+    }
+}
+
+fn choose_a_card(keys: &ButtonInput<KeyCode>, visit: &mut VisitInput) {
+    if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Escape) {
+        if let Some(party) = visit.visitors.party.as_mut() {
+            party.stage = VisitStage::Deciding;
+        }
+        return;
+    }
+    let Some(choice) = digit_pressed(keys) else {
+        return;
+    };
+    let Some(print) = visit.collection.on_hand().get(choice).copied() else {
+        return;
+    };
+    visit.collection.give(&print.id);
+    let Some(party) = visit.visitors.party.as_mut() else {
+        return;
+    };
+    party.given.card = Some(print.id.clone());
+    party.stage = VisitStage::Deciding;
+    // Most people out there cannot read. The Scribe says the words aloud until
+    // the card can be carried without them.
+    visit.journal.say(format!(
+        "You put the block-print into {}'s hands and read it aloud, twice, until they can say it back.\n\n\u{201c}{}\u{201d}\n{}",
+        party.address(),
+        print.verse,
+        print.reference
+    ));
+}
+
+/// Walking up to somebody who is standing in your yard. There is no prompt
+/// telling the player to do this and no penalty for not doing it.
+fn greet_visitor(visitors: &mut Visitors, journal: &mut Journal) {
+    let Some(party) = visitors.party.as_mut() else {
+        return;
+    };
+    if !party.can_be_greeted() {
+        return;
+    }
+    journal.notice = None;
+    if party.has_spoken {
+        // A guest saying goodbye in the morning does not recite their life again.
+        party.stage = VisitStage::Deciding;
+    } else {
+        party.stage = VisitStage::Telling;
+        party.line = 0;
+    }
+}
+
+/// Opening the book. The first time is a discovery and the Scribe says so; every
+/// time after, it is only reading, which is what a book is for. It never leaves
+/// room three.
+fn read_the_book(
+    resources: &mut InteractionResources,
+    popup: &mut NarrativePopup,
+    journal: &mut Journal,
+) {
+    let first_time = !bible_found(&resources.interior_state);
+    record_bible_discovery(&mut resources.interior_state);
+    if first_time {
+        popup.present(NarrativeCard::Item(DiscoveredItem::GideonBible));
+    }
+    let Some(reading) = resources.readings.open(&mut resources.chance) else {
+        return;
+    };
+    popup.present(NarrativeCard::Passage {
+        title: reading.reference.clone(),
+        body: format!(
+            "\u{201c}{}\u{201d}\n\n{}",
+            reading.verse, reading.reflection
+        ),
+    });
+    journal.say("You put the book back exactly where it was.");
+}
+
+/// Searching somewhere nobody has searched since the world ended. Almost
+/// everything found is worthless, and the reading of it is the point.
+fn search_for_salvage(
+    resources: &mut InteractionResources,
+    popup: &mut NarrativePopup,
+    journal: &mut Journal,
+    label: &str,
+) {
+    let Some(find) = resources.salvaged.draw(&mut resources.chance) else {
+        return;
+    };
+    popup.present(NarrativeCard::Salvage {
+        title: find.label.clone(),
+        body: find.line.clone(),
+    });
+    if let Some(reward) = find.reward {
+        resources
+            .progression
+            .add_supply(reward.item, reward.amount);
+        journal.say(format!(
+            "The {label} gives up {} {}.",
+            reward.amount,
+            reward.item.label()
+        ));
+    } else {
+        journal.say(format!("The {label} held on to that for a very long time."));
+    }
+}
+
+/// Lying down. The night goes by at once, because the alternative is standing in
+/// a dark room for ninety seconds waiting for a number to change.
+fn sleep_here(resources: &mut InteractionResources, journal: &mut Journal) {
+    if !resources.clock.is_bedtime() {
+        journal.say(
+            "There is too much light left in the day to lie down, and too much left undone.",
         );
         return;
     }
-    if journal.stage == StoryStage::Dialogue && keys.just_pressed(KeyCode::Space) {
-        let vignette = &vignettes()[journal.vignette_index];
-        journal.dialogue_line += 1;
-        if journal.dialogue_line >= vignette.lines.len() {
-            journal.stage = StoryStage::Interpreting;
-            begin_interpretation(journal.vignette_id(), &inbox);
-        }
-        return;
+    let morning = resources.clock.sleep_until_morning();
+    journal.say(format!(
+        "You sleep, badly at first and then properly, under a roof you mended yourself. Day {morning}."
+    ));
+}
+
+/// The last thing said about a visit, which depends only on what was actually
+/// given. No score, no approval — just an honest account.
+fn farewell_notice(party: &visitors::Party) -> String {
+    let who = party.address();
+    let mut given = Vec::new();
+    if party.given.food {
+        given.push("fed");
     }
-    let choice = if keys.just_pressed(KeyCode::Digit1) {
-        Some(1)
-    } else if keys.just_pressed(KeyCode::Digit2) {
-        Some(2)
-    } else if keys.just_pressed(KeyCode::Digit3) {
-        Some(3)
-    } else {
-        None
-    };
-    if let Some(choice) = choice {
-        match journal.stage {
-            StoryStage::ChoosePaper => {
-                journal.card.paper = choice;
-                journal.stage = StoryStage::ChooseIllustration;
-            }
-            StoryStage::ChooseIllustration => {
-                journal.card.illustration = choice;
-                journal.stage = StoryStage::ChooseBorder;
-            }
-            StoryStage::ChooseBorder => {
-                journal.card.border = choice;
-                journal.stage = StoryStage::FinishedCard;
-            }
-            _ => {}
-        }
+    if party.given.room.is_some() {
+        given.push("housed");
     }
-    if journal.stage == StoryStage::FinishedCard && keys.just_pressed(KeyCode::KeyE) {
-        journal.stage = StoryStage::Epilogue;
+    if party.given.card.is_some() {
+        given.push("sent off with words");
     }
-    if journal.stage == StoryStage::Epilogue && keys.just_pressed(KeyCode::Space) {
-        journal.reset_for_replay();
+    match given.as_slice() {
+        [] => format!(
+            "{who} thanks you for the fire and goes back to the road. You did not have to give anything, and did not."
+        ),
+        _ => format!(
+            "{who} was {} here. Whatever that is worth out there, it is more than this valley had yesterday.",
+            given.join(", ")
+        ),
     }
 }
 
@@ -4358,48 +4786,263 @@ fn api_url(path: &str) -> String {
     format!("http://127.0.0.1:7777{path}")
 }
 
-fn poll_interpretation(mut journal: ResMut<Journal>, inbox: Res<InterpretInbox>) {
-    if journal.stage != StoryStage::Interpreting {
+/// The listening. Gloo reads the need beneath the authored words and the answer
+/// only ever marks which card the Scribe reaches for first; the player is free
+/// to hand over a different one, or none.
+fn poll_interpretation(mut visitors: ResMut<Visitors>, inbox: Res<InterpretInbox>) {
+    let Some(party) = visitors.party.as_mut() else {
+        return;
+    };
+    if party.stage != VisitStage::Listening {
         return;
     }
-    let result = inbox.0.lock().ok().and_then(|mut slot| slot.take());
-    let Some(result) = result else {
+    let Some(result) = inbox.0.lock().ok().and_then(|mut slot| slot.take()) else {
         return;
     };
     let response = match result {
         Ok(response) => response,
         Err(error) => {
             bevy::log::warn!("API request failed: {error}; using reviewed fixture");
-            fixture_response(journal.vignette_id()).expect("every vignette has a fixture")
+            fixture_response(&party.vignette).expect("every vignette has a fixture")
         }
     };
-    journal.result = Some(response);
-    journal.stage = StoryStage::ChoosePaper;
+    party.need = Some(response);
+    party.stage = VisitStage::Deciding;
 }
 
-fn sync_world_state(
-    journal: Res<Journal>,
-    mut traveler: Query<(&mut Visibility, &mut Transform), With<Traveler>>,
+/// Runs the clock, and does the night's business whenever the date changes —
+/// whether the player slept through it or stood outside watching it happen.
+#[allow(clippy::too_many_arguments)]
+fn advance_clock(
+    time: Res<Time>,
+    interior_state: Res<InteriorState>,
+    readings: Res<Readings>,
+    mut clock: ResMut<Clock>,
+    mut last_day: Local<u32>,
+    mut visitors: ResMut<Visitors>,
+    mut collection: ResMut<Collection>,
+    mut chance: ResMut<Chance>,
+    mut journal: ResMut<Journal>,
 ) {
-    if !journal.is_changed() {
+    clock.tick(time.delta_secs());
+    if *last_day == clock.day {
         return;
     }
-    if let Ok((mut visibility, mut transform)) = traveler.single_mut() {
-        *visibility = if matches!(
-            journal.stage,
-            StoryStage::MeetTraveler
-                | StoryStage::Dialogue
-                | StoryStage::Interpreting
-                | StoryStage::ChoosePaper
-                | StoryStage::ChooseIllustration
-                | StoryStage::ChooseBorder
-                | StoryStage::FinishedCard
-        ) {
+    // Zero is the first frame of a session, not a night that passed.
+    let starting_up = *last_day == 0;
+    *last_day = clock.day;
+    if starting_up {
+        return;
+    }
+    if hearth_is_lit(&interior_state) {
+        visitors.nights_of_smoke += 1;
+    }
+    visitors.wake_guests();
+    // The block-cutting is the Scribe's own business: nobody asked for it, and
+    // it only happens once there is something read to cut.
+    if readings.has_read_anything() {
+        if let Some(print) = collection.cut_a_block(&mut chance, readings.dwelling_on.as_deref()) {
+            journal.say(format!(
+                "You cut a block last night, badly at first. \u{201c}{}\u{201d} — {}. It kept your hands busy, which was the point.",
+                print.title, print.reference
+            ));
+        }
+    }
+}
+
+/// Lays the failing light over everything. Kept below the parchment panels so a
+/// night scene is still a readable screen.
+fn sync_daylight(clock: Res<Clock>, mut tint: Query<&mut BackgroundColor, With<NightTint>>) {
+    if let Ok(mut colour) = tint.single_mut() {
+        colour.0 = clock.tint();
+    }
+}
+
+/// What pressing E at a stranger will actually do, which depends on whether
+/// they have got here yet and whether they have already spoken.
+fn visitor_prompt(visitors: &Visitors) -> &'static str {
+    match visitors
+        .party
+        .as_ref()
+        .map(|party| (party.stage, party.has_spoken))
+    {
+        Some((VisitStage::Approaching, _)) => "They are still coming down the road.",
+        Some((VisitStage::Waiting, true)) => "E — see them off",
+        _ => "E — go and speak to them",
+    }
+}
+
+/// True while a conversation owns the screen.
+fn visitor_holds_the_screen(visitors: &Visitors) -> bool {
+    visitors
+        .party
+        .as_ref()
+        .is_some_and(|party| party.stage.holds_the_screen())
+}
+
+/// Rolls for arrivals, walks parties in and out, and counts down the patience of
+/// anyone standing in the open.
+#[allow(clippy::too_many_arguments)]
+fn run_visits(
+    time: Res<Time>,
+    clock: Res<Clock>,
+    interior_state: Res<InteriorState>,
+    mut chance: ResMut<Chance>,
+    mut visitors: ResMut<Visitors>,
+    mut journal: ResMut<Journal>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut bodies: Query<(&VisitorBody, &mut Transform, &mut Sprite, &mut Visibility)>,
+) {
+    let fire_is_lit = hearth_is_lit(&interior_state);
+    visitors.roll_for_today(*clock, fire_is_lit, &mut chance);
+    if visitors.arrival_is_due(*clock) {
+        let sighting = visitors.arrive(&mut chance).profile().sighting;
+        spawn_visitor_bodies(
+            &mut commands,
+            &asset_server,
+            &mut layouts,
+            visitors.party.as_ref().expect("a party just arrived"),
+        );
+        journal.say(format!(
+            "Somebody is on the old road, coming down towards the court. {sighting}"
+        ));
+    }
+    if visitors.tick_patience(time.delta_secs()) {
+        journal.say(
+            "You look up and the court is empty. Whoever it was decided a stranger's fire was not worth the risk after all.",
+        );
+    }
+
+    let Some(party) = visitors.party.as_mut() else {
+        return;
+    };
+    let target = match party.stage {
+        VisitStage::Leaving => visitor_road_entry(),
+        _ => visitor_waiting_spot(),
+    };
+    // Bodies are spawned through `Commands`, so on the frame a party arrives the
+    // query is still empty. Counting them keeps an empty query from reading as
+    // "everybody has arrived" and teleporting the visit to its waiting stage
+    // with nobody ever having walked down the road.
+    let mut walking = 0_usize;
+    let mut still_travelling = 0_usize;
+    for (body, mut transform, mut sprite, mut visibility) in &mut bodies {
+        let Some(offset) = party
+            .profile()
+            .bodies
+            .get(body.index)
+            .map(|authored| authored.offset)
+        else {
+            continue;
+        };
+        let goal = target + offset;
+        let here = transform.translation.truncate();
+        let step = VISITOR_SPEED * time.delta_secs();
+        let to_go = goal - here;
+        if party.stage.is_walking() && to_go.length() > step {
+            let moved = here + to_go.normalize_or_zero() * step;
+            transform.translation.x = moved.x;
+            transform.translation.y = moved.y;
+            transform.translation.z = exterior_depth(moved.y + PLAYER_GROUND_OFFSET_Y);
+            still_travelling += 1;
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                let facing = if to_go.x.abs() > to_go.y.abs() {
+                    if to_go.x < 0.0 {
+                        Facing::Left
+                    } else {
+                        Facing::Right
+                    }
+                } else if to_go.y > 0.0 {
+                    Facing::Up
+                } else {
+                    Facing::Down
+                };
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                let frame = ((time.elapsed_secs() / SCRIBE_WALK_SECONDS_PER_FRAME) as usize)
+                    % SCRIBE_WALK_FRAMES;
+                atlas.index = facing.walk_row() * SCRIBE_ATLAS_COLUMNS as usize + frame;
+            }
+        } else if !party.stage.is_walking() {
+            // Standing still, facing out into the court rather than at the wall:
+            // this is somebody waiting to be met, not somebody about to knock.
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                atlas.index = Facing::Down.walk_row() * SCRIBE_ATLAS_COLUMNS as usize;
+            }
+        }
+        *visibility = if party.stage.is_present() {
             Visibility::Visible
         } else {
             Visibility::Hidden
         };
-        transform.translation.x = -70.0;
+        walking += 1;
+    }
+    if walking == 0 || still_travelling > 0 {
+        return;
+    }
+    match party.stage {
+        VisitStage::Approaching => party.stage = VisitStage::Waiting,
+        VisitStage::Leaving => party.gone = true,
+        _ => {}
+    }
+}
+
+/// Clears away a party that has walked off the map.
+fn retire_visitors(
+    mut commands: Commands,
+    mut visitors: ResMut<Visitors>,
+    bodies: Query<Entity, With<VisitorBody>>,
+) {
+    if !visitors.party.as_ref().is_some_and(|party| party.gone) {
+        return;
+    }
+    for entity in &bodies {
+        commands.entity(entity).despawn();
+    }
+    visitors.clear_departed();
+}
+
+fn spawn_visitor_bodies(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    layouts: &mut Assets<TextureAtlasLayout>,
+    party: &visitors::Party,
+) {
+    let layout = layouts.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(SCRIBE_FRAME_SIZE),
+        SCRIBE_ATLAS_COLUMNS,
+        SCRIBE_ATLAS_ROWS,
+        None,
+        None,
+    ));
+    let entry = visitor_road_entry();
+    for (index, body) in party.profile().bodies.iter().enumerate() {
+        let position = entry + body.offset;
+        commands.spawn((
+            Sprite {
+                image: asset_server.load(body.art),
+                texture_atlas: Some(TextureAtlas {
+                    layout: layout.clone(),
+                    index: Facing::Right.walk_row() * SCRIBE_ATLAS_COLUMNS as usize,
+                }),
+                ..default()
+            },
+            Transform::from_xyz(
+                position.x,
+                position.y,
+                exterior_depth(position.y + PLAYER_GROUND_OFFSET_Y),
+            ),
+            ExteriorYSort {
+                ground_offset_y: PLAYER_GROUND_OFFSET_Y,
+                depth_bias: 0.0,
+            },
+            VisitorBody { index },
+            Interactable {
+                kind: InteractableKind::Visitor,
+                consumed: false,
+            },
+        ));
     }
 }
 
@@ -4438,75 +5081,16 @@ fn sync_ui(
             Without<ProvenanceText>,
         ),
     >,
-    mut overlay: Query<&mut Visibility, (With<OverlayRoot>, Without<CardArt>)>,
-    mut title: Query<
-        &mut Text,
-        (
-            With<OverlayTitle>,
-            Without<OverlayBody>,
-            Without<StatusText>,
-            Without<PromptText>,
-            Without<ProvenanceText>,
-            Without<ProgressText>,
-        ),
-    >,
-    mut body: Query<
-        &mut Text,
-        (
-            With<OverlayBody>,
-            Without<OverlayTitle>,
-            Without<StatusText>,
-            Without<PromptText>,
-            Without<ProvenanceText>,
-            Without<ProgressText>,
-        ),
-    >,
-    mut provenance: Query<
-        &mut Text,
-        (
-            With<ProvenanceText>,
-            Without<OverlayTitle>,
-            Without<OverlayBody>,
-            Without<StatusText>,
-            Without<PromptText>,
-            Without<ProgressText>,
-        ),
-    >,
-    mut card_art: Query<(&mut ImageNode, &mut Visibility), (With<CardArt>, Without<OverlayRoot>)>,
+    mut overlay: OverlayWidgets,
 ) {
-    let gathered_kindling;
-    let objective = match journal.stage {
-        StoryStage::Arrival => "Explore the standing stones. Find out what this place was.",
-        StoryStage::GatherKindling => {
-            gathered_kindling = format!(
-                "Gather dry kindling for the motel hearth ({}/{HEARTH_KINDLING}).",
-                progression.supply(SupplyId::Kindling).min(HEARTH_KINDLING)
-            );
-            gathered_kindling.as_str()
-        }
-        StoryStage::LightHearth => {
-            if hearth_blockers(&ui_knowledge.interior_state, &progression).is_empty() {
-                "The flue is clear and the kindling is dry. Light the office hearth."
-            } else {
-                "Clear three pieces of debris, find the old ladder, clear the office chimney, then light the hearth."
-            }
-        }
-        StoryStage::FindBible => "Search the nightstand beside the bed in room 3.",
-        StoryStage::FindPlank => "Find a sound plank in the valley for the office desk.",
-        StoryStage::RestoreDesk => "Repair the writing desk.",
-        StoryStage::MeetTraveler => "Welcome the traveler who followed your smoke.",
-        StoryStage::Dialogue => "Listen.",
-        StoryStage::Interpreting => "Listen for the need beneath the words.",
-        StoryStage::ChoosePaper | StoryStage::ChooseIllustration | StoryStage::ChooseBorder => {
-            "Make a remembrance for the traveler."
-        }
-        StoryStage::FinishedCard => "Give the remembrance to the traveler.",
-        StoryStage::Night | StoryStage::Epilogue => "",
-    };
+    // There is no objective line. Working out what a ruin needs is the game, and
+    // a corner of the screen telling the player the answer would be the game
+    // playing itself. All this says is the date and the last thing that happened.
     if let Ok(mut text) = status.single_mut() {
+        let when = ui_knowledge.clock.describe();
         **text = journal.notice.as_ref().map_or_else(
-            || format!("THE SCRIBE\n{objective}"),
-            |notice| format!("THE SCRIBE\n{objective}\n\n{notice}"),
+            || format!("THE SCRIBE\n{when}"),
+            |notice| format!("THE SCRIBE\n{when}\n\n{notice}"),
         );
     }
 
@@ -4516,8 +5100,15 @@ fn sync_ui(
         if ui_knowledge.motel_access.keys_found {
             knowledge.push("Numbered motel keys — office");
         }
+        let read = ui_knowledge.readings.count();
+        let read_line;
         if bible_found(&ui_knowledge.interior_state) {
-            knowledge.push("Old Gideon Bible — room 3");
+            read_line = if read <= 1 {
+                "Old Gideon Bible — room 3".to_owned()
+            } else {
+                format!("Old Gideon Bible — room 3 ({read} passages read)")
+            };
+            knowledge.push(read_line.as_str());
         }
         let knowledge = if knowledge.is_empty() {
             String::new()
@@ -4536,8 +5127,15 @@ fn sync_ui(
                 ui_knowledge.beds.0
             )
         };
+        // The block-cutting only shows up once there is a block. Before the
+        // first night's work it is not a thing the Scribe does yet.
+        let prints_line = if ui_knowledge.collection.made().is_empty() {
+            String::new()
+        } else {
+            format!("\n\nPRINTS\n{}", ui_knowledge.collection.describe())
+        };
         **text = format!(
-            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{garden_line}{knowledge}",
+            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{garden_line}{prints_line}{knowledge}",
             progression.skill_tree_summary(),
             progression.tools_summary(),
             if supplies.is_empty() {
@@ -4607,12 +5205,11 @@ fn sync_ui(
                     InteractableKind::Hearth => "E — tend the hearth",
                     InteractableKind::Plank => "E — take the sound plank",
                     InteractableKind::Tool => "E — take this tool",
-                    InteractableKind::Desk if journal.stage == StoryStage::RestoreDesk => {
-                        "E — search the old desk     R — repair it"
-                    }
-                    InteractableKind::Desk => "E — search the old desk",
+                    InteractableKind::Desk => "E — search the old desk     R — repair it",
                     InteractableKind::BibleNightstand => "E — search here",
-                    InteractableKind::Traveler => "E — welcome the traveler",
+                    InteractableKind::Visitor => visitor_prompt(&ui_knowledge.visitors),
+                    InteractableKind::Bed => "E — sleep",
+                    InteractableKind::Salvage => "E — turn this out",
                     InteractableKind::MotelDoor => "Walk through the motel door",
                     InteractableKind::InteriorExit => "Walk onto the exit to step outside",
                     InteractableKind::InteriorRepairable => "R — restore this part of the room",
@@ -4632,112 +5229,208 @@ fn sync_ui(
         **text = nearby_prompt;
     }
 
-    let overlay_content: Option<(String, String, String)> = match journal.stage {
-        StoryStage::Night => Some((
-            "A Fire in the Valley".to_owned(),
-            "You brace the desk with old cedar. In room 3, the little book waits where the dry walls have guarded it for generations. Smoke rises through a chimney that has been cold longer than any remembered name.\n\nSPACE — sleep until morning"
-                .to_owned(),
-            String::new(),
-        )),
-        StoryStage::Dialogue => {
-            let vignette = &vignettes()[journal.vignette_index];
-            let line = &vignette.lines[journal.dialogue_line.min(vignette.lines.len() - 1)];
-            Some((
-                vignette.traveler_name.clone(),
-                format!("“{line}”\n\nSPACE — listen"),
-                String::new(),
-            ))
-        }
-        StoryStage::Interpreting => Some((
-            "The Scribe Listens".to_owned(),
-            "The traveler's words settle beside what you have been reading in room 3. You search for the need beneath them…"
-                .to_owned(),
-            "Gloo AI is selecting from a reviewed passage catalog.".to_owned(),
-        )),
-        StoryStage::ChoosePaper => Some((
-            "I · Prepare the Leaf".to_owned(),
-            "Choose the ground that will carry the words.\n\n1  Warm flax    2  Pale cotton    3  Ash-grey rag"
-                .to_owned(),
-            selection_provenance(&journal),
-        )),
-        StoryStage::ChooseIllustration => Some((
-            "II · Choose an Illumination".to_owned(),
-            "Choose the small image beside the words.\n\n1  Lamp on the road    2  Shelter tree    3  Open hands"
-                .to_owned(),
-            selection_provenance(&journal),
-        )),
-        StoryStage::ChooseBorder => Some((
-            "III · Mark the Border".to_owned(),
-            "Choose how this remembrance will endure.\n\n1  Simple rule    2  Flowering vine    3  Old stone"
-                .to_owned(),
-            selection_provenance(&journal),
-        )),
-        StoryStage::FinishedCard => journal.result.as_ref().map(|result| {
-            (
-                format!("A Remembrance for {}", journal.traveler_name()),
-                format!(
-                    "{}\n\n“{}”\n\n{}\n\nPaper {} · Illumination {} · Border {}\n\nE — give the remembrance",
-                    result.need_label,
-                    result.passage.content,
-                    result.passage.reference,
-                    journal.card.paper,
-                    journal.card.illustration,
-                    journal.card.border
-                ),
-                selection_provenance(&journal),
-            )
-        }),
-        StoryStage::Epilogue => Some((
-            "The First Word Carried".to_owned(),
-            format!(
-                "{} reads the marks slowly after you speak them aloud. The card disappears into a weathered coat, close to the heart.\n\nBy evening there are new footprints on the old road. Tomorrow, perhaps, there will be another column of smoke answering yours.\n\nSPACE — begin again with another traveler",
-                journal.traveler_name()
-            ),
-            "The Waystation at the Edge of the Ash · Scripture via YouVersion · Interpretation via Gloo AI Studio"
-                .to_owned(),
-        )),
-        _ => None,
-    };
-    if let Ok(mut visibility) = overlay.single_mut() {
+    let visit = ui_knowledge.visitors.party.as_ref();
+    let overlay_content = visit.and_then(|party| {
+        visit_overlay(
+            party,
+            &ui_knowledge.collection,
+            &progression,
+            &ui_knowledge.motel_access,
+        )
+    });
+    if let Ok(mut visibility) = overlay.root.single_mut() {
         *visibility = if overlay_content.is_some() {
             Visibility::Visible
         } else {
             Visibility::Hidden
         };
     }
+    if let Ok(mut visibility) = overlay.prompt_panel.single_mut() {
+        *visibility = if overlay_content.is_some() {
+            Visibility::Hidden
+        } else {
+            Visibility::Visible
+        };
+    }
     if let Some((heading, content, credit)) = overlay_content {
-        if let Ok(mut text) = title.single_mut() {
+        if let Ok(mut text) = overlay.title.single_mut() {
             **text = heading;
         }
-        if let Ok(mut text) = body.single_mut() {
+        if let Ok(mut text) = overlay.body.single_mut() {
             **text = content;
         }
-        if let Ok(mut text) = provenance.single_mut() {
+        if let Ok(mut text) = overlay.provenance.single_mut() {
             **text = credit;
         }
     }
-    if let Ok((mut image, mut visibility)) = card_art.single_mut() {
-        *visibility = if matches!(
-            journal.stage,
-            StoryStage::ChooseIllustration | StoryStage::ChooseBorder | StoryStage::FinishedCard
-        ) {
+    if let Ok((mut image, mut visibility)) = overlay.card_art.single_mut() {
+        let showing = visit.and_then(|party| match party.stage {
+            VisitStage::Choosing => ui_knowledge
+                .collection
+                .on_hand()
+                .first()
+                .map(|print| print.art_path()),
+            VisitStage::Deciding => party
+                .given
+                .card
+                .as_deref()
+                .and_then(cards::print)
+                .map(cards::Print::art_path),
+            _ => None,
+        });
+        *visibility = if showing.is_some() {
             Visibility::Visible
         } else {
             Visibility::Hidden
         };
-        let motif = journal
-            .result
-            .as_ref()
-            .map_or(1, |result| match result.need_id.as_str() {
-                "rest" | "courage" => 2,
-                "belonging" | "mercy" => 3,
-                _ => 1,
-            });
-        image.image = asset_server.load(format!(
-            "card/illustration_{motif}_{}.png",
-            journal.card.illustration
+        if let Some(path) = showing {
+            image.image = asset_server.load(path);
+        }
+    }
+}
+
+/// The screen a visit puts in front of the player. Only the conversation states
+/// draw one; a party walking in or standing in the court leaves the world alone.
+fn visit_overlay(
+    party: &visitors::Party,
+    collection: &Collection,
+    progression: &Progression,
+    motel_access: &MotelAccess,
+) -> Option<(String, String, String)> {
+    match party.stage {
+        VisitStage::Telling => {
+            let lines = vignette(&party.vignette).map(|vignette| vignette.lines.as_slice())?;
+            let line = lines.get(party.line.min(lines.len().saturating_sub(1)))?;
+            Some((
+                party.address(),
+                format!("\u{201c}{line}\u{201d}\n\nSPACE — listen"),
+                String::new(),
+            ))
+        }
+        VisitStage::Listening => Some((
+            "The Scribe Listens".to_owned(),
+            "Their words settle beside what you have been reading in room three. You go looking for the need underneath them…"
+                .to_owned(),
+            "Gloo AI is selecting from a reviewed passage catalogue.".to_owned(),
+        )),
+        VisitStage::Deciding => Some(deciding_overlay(
+            party,
+            collection,
+            progression,
+            motel_access,
+        )),
+        VisitStage::Choosing => Some(choosing_overlay(party, collection)),
+        _ => None,
+    }
+}
+
+/// What the Scribe could do, phrased as things they have rather than things they
+/// must. Every line is either an offer they can make or a plain statement of why
+/// they cannot, and letting the visitor go is always on the list.
+fn deciding_overlay(
+    party: &visitors::Party,
+    collection: &Collection,
+    progression: &Progression,
+    motel_access: &MotelAccess,
+) -> (String, String, String) {
+    let mut lines = Vec::new();
+    if let Some(need) = party.need.as_ref() {
+        lines.push(format!(
+            "{}\n\n\u{201c}{}\u{201d}\n{}\n",
+            need.reflection, need.passage.content, need.passage.reference
         ));
     }
+    let rations = progression.supply(SupplyId::Ration);
+    lines.push(if party.given.food {
+        "1  — shared already".to_owned()
+    } else if rations > 0 {
+        format!("1  Share food ({rations} in the pack)")
+    } else {
+        "1  — you have nothing to eat yourself".to_owned()
+    });
+    lines.push(party.given.room.as_ref().map_or_else(
+        || {
+            offerable_room(motel_access).map_or_else(
+                || "2  — every door here is locked and you have no key".to_owned(),
+                |(_, label)| format!("2  Offer them {label}"),
+            )
+        },
+        |room| format!("2  — {room} is theirs for the night"),
+    ));
+    let on_hand = collection.on_hand();
+    lines.push(party.given.card.as_ref().map_or_else(
+        || card_offer_line(party, collection, on_hand.len()),
+        |id| {
+            cards::print(id).map_or_else(
+                || "3  — given".to_owned(),
+                |print| format!("3  — you gave them \u{201c}{}\u{201d}", print.title),
+            )
+        },
+    ));
+    lines.push("\nSPACE — let them go".to_owned());
+    (
+        party.address(),
+        lines.join("\n"),
+        party.need.as_ref().map_or_else(String::new, |need| {
+            format!(
+                "{} via YouVersion · {} / {} via Gloo AI Studio · source: {:?}",
+                need.passage.version,
+                need.provenance.gloo_model,
+                need.provenance.routing,
+                need.provenance.scripture_source
+            )
+        }),
+    )
+}
+
+/// The card line, before anything has been handed over. Naming the one the
+/// Scribe reaches for is the whole of what the listening buys; it never removes
+/// a choice.
+fn card_offer_line(party: &visitors::Party, collection: &Collection, on_hand: usize) -> String {
+    if on_hand == 0 {
+        return "3  — you have cut nothing yet".to_owned();
+    }
+    party
+        .need
+        .as_ref()
+        .and_then(|need| collection.suggestion_for(&need.need_id))
+        .map_or_else(
+            || format!("3  Give them one of your prints ({on_hand})"),
+            |print| {
+                format!(
+                    "3  Give them one of your prints ({on_hand}) — your hand goes to \u{201c}{}\u{201d}",
+                    print.title
+                )
+            },
+        )
+}
+
+fn choosing_overlay(party: &visitors::Party, collection: &Collection) -> (String, String, String) {
+    let suggestion = party
+        .need
+        .as_ref()
+        .and_then(|need| collection.suggestion_for(&need.need_id))
+        .map(|print| print.id.clone());
+    let mut lines = vec!["What you have cut, and kept.\n".to_owned()];
+    for (index, print) in collection.on_hand().iter().enumerate() {
+        let marker = if Some(&print.id) == suggestion.as_ref() {
+            "  ·  the one your hand went to"
+        } else {
+            ""
+        };
+        lines.push(format!(
+            "{}  \u{201c}{}\u{201d} — {}{marker}",
+            index + 1,
+            print.title,
+            print.reference
+        ));
+    }
+    lines.push("\nSPACE — keep them all for now".to_owned());
+    (
+        "The Block-Prints".to_owned(),
+        lines.join("\n"),
+        String::new(),
+    )
 }
 
 #[allow(clippy::type_complexity)]
@@ -4766,7 +5459,7 @@ fn sync_narrative_popup_ui(
         ),
     >,
 ) {
-    let Some(card) = popup.current else {
+    let Some(card) = popup.current.as_ref() else {
         if let Ok(mut visibility) = root.single_mut() {
             *visibility = Visibility::Hidden;
         }
@@ -4795,18 +5488,6 @@ fn sync_narrative_popup_ui(
     }
 }
 
-fn selection_provenance(journal: &Journal) -> String {
-    journal.result.as_ref().map_or_else(String::new, |result| {
-        format!(
-            "{} via YouVersion · {} / {} via Gloo AI Studio · source: {:?}",
-            result.passage.version,
-            result.provenance.gloo_model,
-            result.provenance.routing,
-            result.provenance.scripture_source
-        )
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -4823,16 +5504,6 @@ mod tests {
         let mut progression = Progression::default();
         progression.add_supply(SupplyId::Kindling, HEARTH_KINDLING);
         (interior_state, progression)
-    }
-
-    #[test]
-    fn kindling_from_a_felled_tree_counts_toward_the_hearth() {
-        let mut journal = Journal::default();
-        let mut progression = Progression::default();
-        // Chopping is the second source; it never touched the old pickup counter.
-        progression.add_supply(SupplyId::Kindling, HEARTH_KINDLING);
-        refresh_kindling_stage(&mut journal, &progression);
-        assert_eq!(journal.stage, StoryStage::LightHearth);
     }
 
     #[test]
@@ -4872,34 +5543,14 @@ mod tests {
     }
 
     #[test]
-    fn spending_kindling_elsewhere_never_rewinds_a_later_stage() {
-        let mut journal = Journal {
-            stage: StoryStage::RestoreDesk,
-            ..Journal::default()
-        };
-        refresh_kindling_stage(&mut journal, &Progression::default());
-        assert_eq!(journal.stage, StoryStage::RestoreDesk);
-    }
-
-    #[test]
-    fn replay_rotates_authored_travelers() {
-        let mut journal = Journal::default();
-        assert_eq!(journal.vignette_id(), "mara_grief");
-        journal.reset_for_replay();
-        assert_eq!(journal.vignette_id(), "oren_weariness");
-    }
-
-    #[test]
-    fn every_story_vignette_is_registered() {
-        for item in vignettes() {
-            assert!(waystation_shared::vignette(&item.id).is_some());
+    fn every_vignette_a_visitor_can_tell_has_a_reviewed_fallback() {
+        for item in waystation_shared::vignettes() {
             assert!(fixture_response(&item.id).is_some());
         }
     }
 
     #[test]
     fn save_data_keeps_mutable_room_state_by_stable_id() {
-        let journal = Journal::default();
         let mut interior_state = InteriorState::default();
         interior_state
             .0
@@ -4915,14 +5566,18 @@ mod tests {
         let mut garden = Garden::default();
         garden.advance("garden-plot-00");
         let save = SaveData::capture(
-            &journal,
             &interior_state,
             &motel_access,
             &progression,
             &garden,
+            Clock::default(),
+            &Visitors::default(),
+            &Collection::default(),
+            &Readings::default(),
+            &Salvaged::default(),
         );
 
-        assert_eq!(save.version, 7);
+        assert_eq!(save.version, 8);
         assert_eq!(save.garden.stage("garden-plot-00"), PlotStage::Fallow);
         assert_eq!(save.interior_states["motel-room-01/mirror-01"], "repaired");
         assert!(bible_found(&InteriorState(save.interior_states.clone())));
@@ -4935,55 +5590,280 @@ mod tests {
     fn repairables_use_r_while_search_and_interaction_use_e() {
         assert!(interaction_key_matches(
             InteractableKind::InteriorRepairable,
-            StoryStage::FindBible,
             false,
             true,
         ));
         assert!(!interaction_key_matches(
             InteractableKind::InteriorRepairable,
-            StoryStage::FindBible,
             true,
             false,
         ));
         assert!(interaction_key_matches(
             InteractableKind::BibleNightstand,
-            StoryStage::FindBible,
             true,
             false,
         ));
         assert!(!interaction_key_matches(
             InteractableKind::BibleNightstand,
-            StoryStage::FindBible,
             false,
             true,
         ));
+        // A bed and a stranger both answer to E, never to the work key.
+        assert!(interaction_key_matches(InteractableKind::Bed, true, false));
+        assert!(!interaction_key_matches(InteractableKind::Bed, false, true));
         assert!(interaction_key_matches(
-            InteractableKind::Desk,
-            StoryStage::RestoreDesk,
-            false,
+            InteractableKind::Visitor,
             true,
+            false
         ));
+        // The desk can be searched or mended, so it takes either.
+        assert!(interaction_key_matches(InteractableKind::Desk, false, true));
+        assert!(interaction_key_matches(InteractableKind::Desk, true, false));
     }
 
     #[test]
-    fn completed_legacy_story_stages_imply_the_bible_was_already_found() {
-        assert!(!story_stage_requires_bible(StoryStage::FindBible));
-        assert!(story_stage_requires_bible(StoryStage::FindPlank));
-        assert!(story_stage_requires_bible(StoryStage::Epilogue));
-    }
-
-    #[test]
-    fn finding_the_room_three_bible_persists_and_advances_its_story_beat() {
-        let mut journal = Journal {
-            stage: StoryStage::FindBible,
-            ..Journal::default()
-        };
+    fn finding_the_room_three_bible_is_remembered_across_a_save() {
         let mut interior_state = InteriorState::default();
-
-        record_bible_discovery(&mut journal, &mut interior_state);
-
+        assert!(!bible_found(&interior_state));
+        record_bible_discovery(&mut interior_state);
         assert!(bible_found(&interior_state));
-        assert_eq!(journal.stage, StoryStage::FindPlank);
+    }
+
+    #[test]
+    fn a_cold_hearth_says_what_is_wrong_with_it_and_never_where_to_go() {
+        let nothing = hearth_blockers(&InteriorState::default(), &Progression::default());
+        let complaint = hearth_complaint(&nothing);
+        assert!(
+            complaint.contains("chimney"),
+            "the Scribe should name the flue: {complaint}"
+        );
+        assert!(
+            complaint.contains("catch"),
+            "the Scribe should notice there is no dry fuel: {complaint}"
+        );
+
+        let (interior_state, progression) = hearth_ready();
+        assert!(
+            hearth_blockers(&interior_state, &progression).is_empty(),
+            "a cleared flue and a full pile leave nothing to complain about"
+        );
+
+        // Nothing in any complaint tells the player where to solve it. Finding
+        // the ladder, the roof, and the deadfall is the game.
+        let mut kindling_only = Progression::default();
+        kindling_only.add_supply(SupplyId::Kindling, HEARTH_KINDLING);
+        for missing in [
+            hearth_blockers(&InteriorState::default(), &Progression::default()),
+            hearth_blockers(&InteriorState::default(), &kindling_only),
+            hearth_blockers(&interior_state, &Progression::default()),
+        ] {
+            let complaint = hearth_complaint(&missing);
+            for direction in ["roof", "ladder", "beneath the old growth", "Requires"] {
+                assert!(
+                    !complaint.contains(direction),
+                    "the hearth is giving directions: {complaint}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_room_cannot_be_offered_before_the_keys_are_found() {
+        assert!(offerable_room(&MotelAccess::default()).is_none());
+        let (interior_id, label) =
+            offerable_room(&MotelAccess { keys_found: true }).expect("a room to offer");
+        assert_eq!(interior_id, interior::InteriorId::Room01);
+        assert!(!label.is_empty());
+    }
+
+    #[test]
+    fn the_farewell_reports_only_what_was_actually_given() {
+        let mut party = visitors::Visitors::default()
+            .arrive(&mut Chance::default())
+            .clone();
+        party.names = vec!["Mara".to_owned()];
+
+        let empty_handed = farewell_notice(&party);
+        assert!(empty_handed.contains("Mara"));
+        assert!(
+            empty_handed.contains("did not"),
+            "turning somebody away should be stated plainly, not scolded: {empty_handed}"
+        );
+
+        party.given.food = true;
+        party.given.room = Some("room one".to_owned());
+        let generous = farewell_notice(&party);
+        assert!(generous.contains("fed"), "{generous}");
+        assert!(generous.contains("housed"), "{generous}");
+        assert!(
+            !generous.contains("did not"),
+            "a fed and housed guest was still described as turned away: {generous}"
+        );
+    }
+
+    /// A party parked in one stage, for exercising the screens.
+    fn party_at(stage: VisitStage) -> visitors::Party {
+        let mut party = visitors::Visitors::default()
+            .arrive(&mut Chance::default())
+            .clone();
+        party.stage = stage;
+        party.names = vec!["Mara".to_owned()];
+        party
+    }
+
+    #[test]
+    fn only_a_conversation_takes_the_screen_away_from_the_valley() {
+        let collection = Collection::default();
+        let progression = Progression::default();
+        let access = MotelAccess::default();
+        for stage in [
+            VisitStage::Approaching,
+            VisitStage::Waiting,
+            VisitStage::Lodging,
+            VisitStage::Leaving,
+        ] {
+            assert!(
+                visit_overlay(&party_at(stage), &collection, &progression, &access).is_none(),
+                "{stage:?} should leave the player looking at the world"
+            );
+            assert!(!stage.holds_the_screen(), "{stage:?} should not lock movement");
+        }
+        for stage in [
+            VisitStage::Telling,
+            VisitStage::Listening,
+            VisitStage::Deciding,
+            VisitStage::Choosing,
+        ] {
+            assert!(
+                visit_overlay(&party_at(stage), &collection, &progression, &access).is_some(),
+                "{stage:?} needs something on screen"
+            );
+            assert!(stage.holds_the_screen(), "{stage:?} should hold the screen");
+        }
+    }
+
+    #[test]
+    fn the_choosing_screen_always_offers_a_way_out_of_giving_anything() {
+        let party = party_at(VisitStage::Deciding);
+        let (_, body, _) = deciding_overlay(
+            &party,
+            &Collection::default(),
+            &Progression::default(),
+            &MotelAccess::default(),
+        );
+        assert!(
+            body.contains("SPACE"),
+            "there must always be a way to simply let somebody go: {body}"
+        );
+        // With nothing in the pack, nothing locked, and nothing cut, every offer
+        // reads as a plain statement of what the Scribe does not have.
+        assert!(body.contains("nothing to eat"), "{body}");
+        assert!(body.contains("locked"), "{body}");
+        assert!(body.contains("cut nothing"), "{body}");
+    }
+
+    #[test]
+    fn the_scribe_reaches_for_a_card_without_ever_removing_the_choice() {
+        let mut collection = Collection::default();
+        let mut chance = Chance::default();
+        while collection.cut_a_block(&mut chance, None).is_some() {}
+        let mut party = party_at(VisitStage::Deciding);
+        party.need = Some(fixture_response("mara_grief").expect("a reviewed fixture"));
+
+        let offer = card_offer_line(&party, &collection, collection.on_hand().len());
+        assert!(
+            offer.starts_with('3'),
+            "the card offer keeps its number: {offer}"
+        );
+        let (_, body, _) = choosing_overlay(&party, &collection);
+        for (index, print) in collection.on_hand().iter().enumerate() {
+            assert!(
+                body.contains(&print.title),
+                "{} is on hand but not listed",
+                print.id
+            );
+            assert!(body.contains(&format!("{}  ", index + 1)));
+        }
+        assert!(
+            body.contains("SPACE"),
+            "keeping every card must stay possible: {body}"
+        );
+    }
+
+    #[test]
+    fn the_deciding_screen_carries_the_provenance_of_whatever_was_heard() {
+        let mut party = party_at(VisitStage::Deciding);
+        party.need = Some(fixture_response("mara_grief").expect("a reviewed fixture"));
+        let (_, _, provenance) = deciding_overlay(
+            &party,
+            &Collection::default(),
+            &Progression::default(),
+            &MotelAccess::default(),
+        );
+        assert!(provenance.contains("YouVersion"), "{provenance}");
+        assert!(provenance.contains("Gloo"), "{provenance}");
+    }
+
+    #[test]
+    fn every_profile_a_visitor_can_arrive_as_has_art_in_the_runtime_tree() {
+        for profile in &visitors::PROFILES {
+            for body in profile.bodies {
+                let path = std::path::Path::new("runtime-assets").join(body.art);
+                assert!(
+                    path.is_file(),
+                    "{} needs {} built; run `make assets`",
+                    profile.id,
+                    body.art
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_print_the_scribe_can_cut_has_a_card_in_the_runtime_tree() {
+        for print in cards::prints() {
+            let path = std::path::Path::new("runtime-assets").join(print.art_path());
+            assert!(
+                path.is_file(),
+                "{} has no composed card; run `make assets`",
+                print.id
+            );
+        }
+    }
+
+    #[test]
+    fn every_authored_interaction_can_actually_be_stood_next_to() {
+        // A search rectangle behind a wall, inside a bed, or in the middle of a
+        // collision block looks perfectly correct in the JSON and is simply
+        // unreachable in play. Nothing else would catch it: the scene loads, the
+        // entity spawns, and the player can never get close enough to notice.
+        for interior_id in interior::InteriorId::ALL {
+            let room = interior::InteriorMap::load(interior_id);
+            for interaction in room.interactions() {
+                // Proximity is measured to a rectangle's centre, so the test
+                // has to ask the real question: is there anywhere at all inside
+                // that radius the Scribe can put their feet?
+                let reachable = (1_u8..=9).any(|ring| {
+                    (0_u8..24).any(|step| {
+                        #[allow(clippy::cast_precision_loss)]
+                        let angle = f32::from(step) * std::f32::consts::TAU / 24.0;
+                        #[allow(clippy::cast_precision_loss)]
+                        let reach = f32::from(ring) * INTERACT_DISTANCE / 9.0;
+                        let stand = interaction.center + Vec2::from_angle(angle) * reach;
+                        room.is_area_walkable(
+                            stand + PLAYER_COLLISION_OFFSET,
+                            PLAYER_COLLISION_SIZE,
+                        )
+                    })
+                });
+                assert!(
+                    reachable,
+                    "{}/{} is authored where the Scribe can never stand beside it",
+                    room.id(),
+                    interaction.id
+                );
+            }
+        }
     }
 
     #[test]

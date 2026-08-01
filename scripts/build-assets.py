@@ -38,6 +38,24 @@ SCRIBE_THRUST_FRAME_SIZE = 64
 SCRIBE_THRUST_COLUMNS = 8
 SCRIBE_THRUST_ROWS = 4
 SCRIBE_THRUST_FIRST_ROW = 4
+# Everyone else who walks into the valley. Each is a complete LPC action sheet in
+# the same geometry as the Scribe, so the walk cycle needs no special handling.
+VISITOR_SHEETS = {
+    "walker.png": "custom/redhead-lady.png",
+    "elder-sibling.png": "custom/black-teen.png",
+    "younger-sibling.png": "custom/little-sister.png",
+    "old-hand.png": "custom/old-guy.png",
+}
+# Tints for the open fallback bodies, so a build without the private sheets still
+# tells one visitor from another.
+VISITOR_FALLBACK_TINTS = {
+    "walker.png": "#a2564a",
+    "elder-sibling.png": "#4a5c72",
+    "younger-sibling.png": "#7c6a94",
+    "old-hand.png": "#6b6455",
+}
+PRINT_CATALOG_PATH = ROOT / "content/prints.json"
+PRINT_CARD_SIZE = (512, 768)
 INTERIOR_ROOT = ROOT / "content/interiors"
 BUILDING_ROOT = ROOT / "content/buildings"
 REPAIR_PAIR_PATH = ROOT / "content/repair-pairs.json"
@@ -1052,6 +1070,115 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     return records
 
 
+def write_people_art(source: Path, output: Path) -> list[dict[str, object]]:
+    """Visitor action sheets, with a recognisable open fallback for each."""
+    people = output / "people"
+    people.mkdir(parents=True, exist_ok=True)
+    expected = (SCRIBE_COLUMNS * SCRIBE_FRAME_SIZE, SCRIBE_ROWS * SCRIBE_FRAME_SIZE)
+    records = []
+    for name, relative in VISITOR_SHEETS.items():
+        private = source / relative
+        if private.is_file():
+            sheet = Image.open(private).convert("RGBA")
+            if sheet.size != expected:
+                raise SystemExit(
+                    f"visitor sheet must be {expected[0]}x{expected[1]}: "
+                    f"{private} is {sheet.width}x{sheet.height}"
+                )
+            origin = "custom LPC-based character action sheet"
+        else:
+            sheet = draw_fallback_person(VISITOR_FALLBACK_TINTS[name], expected)
+            origin = "generated fallback"
+        destination = people / name
+        sheet.save(destination, optimize=False)
+        records.append(
+            {
+                "path": str(destination.relative_to(output)),
+                "sha256": sha256(destination),
+                "size": list(sheet.size),
+                "source": origin,
+            }
+        )
+    return records
+
+
+def draw_fallback_person(tint: str, size: tuple[int, int]) -> Image.Image:
+    """A body the same shape as the Scribe's, in a different coat."""
+    frame = draw_scribe()
+    coat = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+    ImageDraw.Draw(coat).rectangle((0, 0, frame.width, frame.height), fill=tint)
+    frame = Image.composite(Image.blend(frame, coat, 0.45), frame, frame.split()[3])
+    sheet = Image.new("RGBA", size, (0, 0, 0, 0))
+    offset = (
+        (SCRIBE_FRAME_SIZE - frame.width) // 2,
+        SCRIBE_FRAME_SIZE - frame.height,
+    )
+    for row in range(SCRIBE_ROWS):
+        for column in range(SCRIBE_COLUMNS):
+            sheet.alpha_composite(
+                frame,
+                (
+                    column * SCRIBE_FRAME_SIZE + offset[0],
+                    row * SCRIBE_FRAME_SIZE + offset[1],
+                ),
+            )
+    return sheet
+
+
+def write_print_cards(source: Path, output: Path) -> list[dict[str, object]]:
+    """Composed block-print cards, one per catalog entry.
+
+    The catalog is the authority on which cards exist. An entry whose card has
+    not been composed yet still gets a readable placeholder, so authoring a verse
+    is never blocked on generating its illustration.
+    """
+    catalog = json.loads(PRINT_CATALOG_PATH.read_text(encoding="utf-8"))
+    prints = output / "prints"
+    prints.mkdir(parents=True, exist_ok=True)
+    records = []
+    for entry in catalog["prints"]:
+        composed = ROOT / entry["card"]
+        destination = prints / f"{entry['id']}-card.png"
+        if composed.is_file():
+            card = Image.open(composed).convert("RGBA")
+            origin = "composed print card"
+        else:
+            card = draw_placeholder_card(entry)
+            origin = "generated placeholder pending illustration"
+        card.save(destination, optimize=False)
+        records.append(
+            {
+                "path": str(destination.relative_to(output)),
+                "sha256": sha256(destination),
+                "size": list(card.size),
+                "source": origin,
+            }
+        )
+    return records
+
+
+def draw_placeholder_card(entry: dict[str, object]) -> Image.Image:
+    """Paper, a border, and the reference. Enough to know which card this is."""
+    card = Image.new("RGBA", PRINT_CARD_SIZE, "#d8c8a4")
+    draw = ImageDraw.Draw(card)
+    margin = 18
+    draw.rectangle(
+        (margin, margin, PRINT_CARD_SIZE[0] - margin, PRINT_CARD_SIZE[1] - margin),
+        outline="#221a12",
+        width=6,
+    )
+    # A blank plate where the illustration will go, in the same proportion the
+    # generated art uses, so a placeholder card reads at the same size.
+    plate = (margin + 26, margin + 26, PRINT_CARD_SIZE[0] - margin - 26, int(PRINT_CARD_SIZE[1] * 0.67))
+    draw.rectangle(plate, outline="#221a12", width=3)
+    draw.line((plate[0], plate[1], plate[2], plate[3]), fill="#221a12", width=2)
+    draw.line((plate[0], plate[3], plate[2], plate[1]), fill="#221a12", width=2)
+    draw.text((margin + 34, plate[3] + 40), str(entry["title"]), fill="#221a12")
+    draw.text((margin + 34, plate[3] + 60), str(entry["reference"]), fill="#3b2c1c")
+    draw.text((margin + 34, plate[3] + 96), "block not yet cut", fill="#5a4630")
+    return card
+
+
 def private_asset_path(source: Path, relative: str) -> Path:
     path = (source / relative).resolve()
     try:
@@ -1574,6 +1701,8 @@ def main() -> None:
     generated.extend(write_interior_art(args.source, args.output))
     generated.extend(write_building_art(args.source, args.output))
     generated.extend(write_portable_item_art(args.source, args.output))
+    generated.extend(write_people_art(args.source, args.output))
+    generated.extend(write_print_cards(args.source, args.output))
     fonts = write_bundled_fonts(manifest, args.output)
     audio = write_licensed_audio(manifest, args.output, ROOT, args.strict_private)
     report = {

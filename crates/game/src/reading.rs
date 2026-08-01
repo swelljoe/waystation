@@ -55,11 +55,11 @@ pub struct Readings {
 }
 
 impl Readings {
-    pub fn has_read_anything(&self) -> bool {
+    pub const fn has_read_anything(&self) -> bool {
         !self.read.is_empty()
     }
 
-    pub fn count(&self) -> usize {
+    pub const fn count(&self) -> usize {
         self.read.len()
     }
 
@@ -74,7 +74,7 @@ impl Readings {
         } else {
             let unread = readings()
                 .iter()
-                .filter(|reading| !self.read.iter().any(|seen| *seen == reading.id))
+                .filter(|reading| !self.read.contains(&reading.id))
                 .collect::<Vec<_>>();
             if unread.is_empty() {
                 // A book you have finished is a book you start again. Keep the
@@ -95,6 +95,7 @@ impl Readings {
         Some(chosen)
     }
 
+    #[allow(dead_code)]
     pub fn restore(&mut self, read: Vec<String>, dwelling_on: Option<String>) {
         self.read = read;
         self.dwelling_on = dwelling_on;

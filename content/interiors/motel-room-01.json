@@ -1024,5 +1024,46 @@
       }
     }
   ],
-  "fixtures": []
+  "fixtures": [],
+  "interactions": [
+    {
+      "id": "room-01-bed",
+      "label": "bed with a sound roof over it",
+      "kind": "rest",
+      "discovery": "bed",
+      "position": {
+        "grid": 8,
+        "x": 14,
+        "y": 18
+      },
+      "width": 96,
+      "height": 48
+    },
+    {
+      "id": "room-01-nightstand",
+      "label": "nightstand drawer",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 24,
+        "y": 10
+      },
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "room-01-love-seat",
+      "label": "split seam of the love seat",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 36,
+        "y": 4
+      },
+      "width": 96,
+      "height": 96
+    }
+  ]
 }

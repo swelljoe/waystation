@@ -1046,5 +1046,33 @@
       "initial_state": "damaged"
     }
   ],
-  "fixtures": []
+  "fixtures": [],
+  "interactions": [
+    {
+      "id": "room-02-nightstand",
+      "label": "nightstand drawer",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 24,
+        "y": 10
+      },
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "room-02-under-bed",
+      "label": "dust under the bed",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 14,
+        "y": 24
+      },
+      "width": 96,
+      "height": 32
+    }
+  ]
 }

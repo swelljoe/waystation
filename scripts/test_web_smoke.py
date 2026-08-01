@@ -59,5 +59,29 @@ class Arguments(unittest.TestCase):
             self.assertGreater(key_code, 0, name)
 
 
+class Interpretation(unittest.TestCase):
+    """The stub stands in for Gloo and YouVersion.
+
+    Without it a completed visit ends in a 501 the runner reports as a fault,
+    which is both wrong and loud enough to hide a real one. Its shape has to
+    match `waystation_shared::InterpretResponse` or the game silently falls back
+    to its own fixture and the stub proves nothing.
+    """
+
+    def test_the_stub_carries_every_field_the_game_deserializes(self):
+        reply = web_smoke.STUB_INTERPRETATION
+        for field in ("vignette_id", "need_id", "need_label", "reflection"):
+            self.assertIn(field, reply)
+        for field in ("id", "reference", "content", "version", "youversion_deep_link"):
+            self.assertIn(field, reply["passage"])
+        for field in ("gloo_model", "routing", "scripture_source"):
+            self.assertIn(field, reply["provenance"])
+
+    def test_the_stub_says_plainly_that_it_is_not_a_live_answer(self):
+        provenance = web_smoke.STUB_INTERPRETATION["provenance"]
+        self.assertIn("smoke", provenance["gloo_model"])
+        self.assertEqual(provenance["scripture_source"], "fixture")
+
+
 if __name__ == "__main__":
     unittest.main()

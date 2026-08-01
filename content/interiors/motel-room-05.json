@@ -1024,5 +1024,33 @@
       }
     }
   ],
-  "fixtures": []
+  "fixtures": [],
+  "interactions": [
+    {
+      "id": "room-05-under-bed",
+      "label": "dust under the bed",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 14,
+        "y": 24
+      },
+      "width": 96,
+      "height": 32
+    },
+    {
+      "id": "room-05-chair",
+      "label": "cushion of the ruined chair",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 44,
+        "y": 26
+      },
+      "width": 64,
+      "height": 96
+    }
+  ]
 }

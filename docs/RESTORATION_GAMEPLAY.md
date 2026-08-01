@@ -17,18 +17,25 @@ Upkeep 1 ─┬─ Carpentry 1 ── Roofing
 - Skills currently have three levels. Tools have persistent condition and
   location; supplies are consumed.
 
-The initial playable route is: gather kindling, clean three debris items in the
-office/room 5, find the fallen ladder in the valley, clear the office chimney,
-and light the hearth. Searching the office desk yields the motel keys and nails.
-The authored tool shed behind the motel holds the working hammer, wood axe,
-shovel, and a broken pickaxe. Fallen logs, kindling, and sound planks are
-scattered across the expanded valley for later work.
+There is no quest list and nothing announces a next step. What the valley can
+support is: kindling under the old growth, three debris items in the office and
+room 5, a fallen ladder somewhere in the grass, a chimney that has to be reached
+from the roof, and then a fire. Searching the office desk yields the motel keys
+and nails. The authored tool shed behind the motel holds the working hammer, wood
+axe, shovel, and a broken pickaxe. Fallen logs, kindling, and sound planks are
+scattered across the expanded valley.
+
+None of that is stated to the player. Requirements appear on the thing they
+belong to, when the Scribe walks up to it — the cold hearth says what is stopping
+it, and does not say where to go about it. Whether the player ever lights the
+fire is up to them; everything the waystation becomes afterwards simply does not
+happen if they do not.
 
 `R` performs authored restoration tasks, including cleaning, clearing, restoring,
 and literal repairs. `E` remains the contextual interaction key for inspecting,
-searching, gathering, tending the hearth, and welcoming travelers. Keeping those
-paths separate prevents a search target beside damaged scenery from silently
-choosing the wrong action.
+searching, gathering, sleeping, tending the hearth, and speaking to whoever has
+come down the road. Keeping those paths separate prevents a search target beside
+damaged scenery from silently choosing the wrong action.
 
 ## Portable tools
 
@@ -129,3 +136,18 @@ nightstand containing the Gideon Bible:
 Interaction positions use the same native-pixel top-left coordinate convention
 as placements. Discovery state persists under `room-id/interaction-id` without
 requiring the furniture to become a repair pair.
+
+The same mechanism carries three other discoveries, so a scene can author what a
+piece of furniture is for without any new engine code:
+
+| `kind` | `discovery` | What it does |
+| --- | --- | --- |
+| `search` | `gideon_bible` | Opens the book, reads a passage, puts it back |
+| `search` | `seed_store` | The one sack of seed grain, once |
+| `search` | `salvage` | One draw from `content/salvage.json`, then empty |
+| `rest` | `bed` | Sleeps until morning, if the light has started to go |
+
+An unknown pairing panics at load with the scene and interaction named, rather
+than silently spawning something that answers to no key. Salvage spots record
+themselves as found under the same `scene-id/interaction-id` key, so a drawer
+already turned out does not offer itself again after a reload.

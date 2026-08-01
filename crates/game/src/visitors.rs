@@ -56,6 +56,7 @@ pub struct Body {
 /// the same sheet can arrive twice across a long game without being the same
 /// person, which is the cheapest replayability there is.
 pub struct Profile {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub id: &'static str,
     pub bodies: &'static [Body],
     /// Authored vignettes that suit this party. A lone walker cannot tell the
@@ -76,7 +77,7 @@ pub const PROFILES: [Profile; 3] = [
             offset: Vec2::ZERO,
         }],
         vignettes: &["mara_grief", "oren_weariness"],
-        sighting: "A woman with a pack that has been mended more often than it was made.",
+        sighting: "A woman, alone, with a much-mended pack.",
     },
     Profile {
         id: "siblings",
@@ -93,7 +94,7 @@ pub const PROFILES: [Profile; 3] = [
             },
         ],
         vignettes: &["fen_belonging"],
-        sighting: "Two of them, one small, keeping to the edge of the road where the ash is thin.",
+        sighting: "Two of them, and one of those is small.",
     },
     Profile {
         id: "old-hand",
@@ -103,7 +104,7 @@ pub const PROFILES: [Profile; 3] = [
             offset: Vec2::ZERO,
         }],
         vignettes: &["oren_weariness", "mara_grief"],
-        sighting: "An old man walking slower than he means to, and looking at your roofline, not at you.",
+        sighting: "An old man, looking at your roofline rather than at you.",
     },
 ];
 
@@ -121,6 +122,8 @@ pub enum Stage {
     Listening,
     /// The player is choosing what, if anything, to offer.
     Deciding,
+    /// Leafing through the cards on hand for one to hand over.
+    Choosing,
     /// Given a room, and gone into it for the night.
     Lodging,
     /// Walking back out to the road.
@@ -131,7 +134,10 @@ impl Stage {
     /// True while the party owns the screen. Movement and world interaction stop
     /// so the player is not walking away mid-sentence.
     pub const fn holds_the_screen(self) -> bool {
-        matches!(self, Self::Telling | Self::Listening | Self::Deciding)
+        matches!(
+            self,
+            Self::Telling | Self::Listening | Self::Deciding | Self::Choosing
+        )
     }
 
     pub const fn is_walking(self) -> bool {
@@ -182,7 +188,7 @@ impl Party {
         }
     }
 
-    pub fn profile(&self) -> &'static Profile {
+    pub const fn profile(&self) -> &'static Profile {
         &PROFILES[self.profile % PROFILES.len()]
     }
 
@@ -328,23 +334,14 @@ impl Visitors {
 mod tests {
     use super::*;
 
-    fn clock_at(day: u32, fraction: f32) -> Clock {
-        let mut clock = Clock {
-            day,
-            ..Clock::default()
-        };
-        clock.tick(crate::daylight::DAY_SECONDS * fraction - clock.fraction() * crate::daylight::DAY_SECONDS);
-        clock
-    }
-
     #[test]
     fn nobody_comes_to_a_cold_hearth_however_many_days_pass() {
         let mut visitors = Visitors::default();
         let mut chance = Chance::default();
         for day in 1..40 {
-            visitors.roll_for_today(clock_at(day, 0.1), false, &mut chance);
+            visitors.roll_for_today(Clock::at(day, 0.1), false, &mut chance);
             assert!(
-                !visitors.arrival_is_due(clock_at(day, 0.9)),
+                !visitors.arrival_is_due(Clock::at(day, 0.9)),
                 "someone walked up to a dead building on day {day}"
             );
         }
@@ -355,9 +352,8 @@ mod tests {
         let mut visitors = Visitors::default();
         for nights in 0..NIGHTS_OF_SMOKE_BEFORE_ANYONE_RISKS_IT {
             visitors.nights_of_smoke = nights;
-            assert_eq!(
-                visitors.odds_today(),
-                0.0,
+            assert!(
+                visitors.odds_today() < f32::EPSILON,
                 "a fire {nights} nights old is still a warning, not an invitation"
             );
         }
@@ -367,8 +363,10 @@ mod tests {
 
     #[test]
     fn a_long_kept_fire_becomes_known_but_never_busy() {
-        let mut visitors = Visitors::default();
-        visitors.nights_of_smoke = 400;
+        let visitors = Visitors {
+            nights_of_smoke: 400,
+            ..Visitors::default()
+        };
         assert!(
             (visitors.odds_today() - BEST_ODDS).abs() < f32::EPSILON,
             "the wastes should never fill up with travellers"
@@ -377,15 +375,17 @@ mod tests {
 
     #[test]
     fn the_dice_are_thrown_once_a_day_and_the_hour_falls_in_daylight() {
-        let mut visitors = Visitors::default();
-        visitors.nights_of_smoke = 40;
+        let mut visitors = Visitors {
+            nights_of_smoke: 40,
+            ..Visitors::default()
+        };
         let mut chance = Chance::default();
         let mut arrivals = 0;
         for day in 1..300 {
-            visitors.roll_for_today(clock_at(day, 0.05), true, &mut chance);
+            visitors.roll_for_today(Clock::at(day, 0.05), true, &mut chance);
             // Rolling again the same day must not get a second chance at it.
             let before = visitors.scheduled;
-            visitors.roll_for_today(clock_at(day, 0.06), true, &mut chance);
+            visitors.roll_for_today(Clock::at(day, 0.06), true, &mut chance);
             assert_eq!(before, visitors.scheduled, "day {day} was rolled twice");
             if let Some((_, hour)) = visitors.scheduled {
                 assert!((EARLIEST_ARRIVAL..=LATEST_ARRIVAL).contains(&hour));
@@ -400,13 +400,15 @@ mod tests {
 
     #[test]
     fn an_arrival_waits_for_its_hour_and_then_fires_exactly_once() {
-        let mut visitors = Visitors::default();
-        visitors.scheduled = Some((6, 0.4));
-        assert!(!visitors.arrival_is_due(clock_at(6, 0.2)), "too early");
-        assert!(!visitors.arrival_is_due(clock_at(5, 0.9)), "wrong day");
-        assert!(visitors.arrival_is_due(clock_at(6, 0.41)));
+        let mut visitors = Visitors {
+            scheduled: Some((6, 0.4)),
+            ..Visitors::default()
+        };
+        assert!(!visitors.arrival_is_due(Clock::at(6, 0.2)), "too early");
+        assert!(!visitors.arrival_is_due(Clock::at(5, 0.9)), "wrong day");
+        assert!(visitors.arrival_is_due(Clock::at(6, 0.41)));
         assert!(
-            !visitors.arrival_is_due(clock_at(6, 0.5)),
+            !visitors.arrival_is_due(Clock::at(6, 0.5)),
             "the same arrival landed twice"
         );
     }

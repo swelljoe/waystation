@@ -175,6 +175,7 @@ struct SceneDefinition {
 #[serde(rename_all = "snake_case")]
 pub enum SceneInteractionKind {
     Search,
+    Rest,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
@@ -182,6 +183,11 @@ pub enum SceneInteractionKind {
 pub enum SceneDiscovery {
     GideonBible,
     SeedStore,
+    /// A drawer, a wardrobe, a gap behind a skirting board. Gives up one thing
+    /// from the salvage catalogue and is then empty.
+    Salvage,
+    /// A bed in a room dry enough to lie down in.
+    Bed,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1272,9 +1278,11 @@ mod tests {
     #[test]
     fn room_three_authors_the_bible_nightstand_search_at_native_size() {
         let room = InteriorMap::load(InteriorId::Room03);
-        let [interaction] = room.interactions() else {
-            panic!("room 3 should have exactly one authored interaction");
-        };
+        let interaction = room
+            .interactions()
+            .iter()
+            .find(|interaction| interaction.id == "bible-nightstand")
+            .expect("room 3 authors the nightstand the little book rests on");
 
         assert_eq!(interaction.id, "bible-nightstand");
         assert_eq!(interaction.label, "dusty nightstand");
@@ -1285,6 +1293,58 @@ mod tests {
             INTERIOR_ORIGIN + Vec2::new(-64.0, 152.0)
         );
         assert_eq!(interaction.size, Vec2::new(32.0, 48.0));
+    }
+
+    #[test]
+    fn every_authored_interaction_sits_inside_the_scene_it_belongs_to() {
+        for interior_id in InteriorId::ALL {
+            let room = InteriorMap::load(interior_id);
+            let half = room.world_size() / 2.0;
+            let origin = INTERIOR_ORIGIN;
+            for interaction in room.interactions() {
+                let offset = interaction.center - origin;
+                assert!(
+                    offset.x.abs() <= half.x && offset.y.abs() <= half.y,
+                    "{}/{} is authored outside its own walls at {offset:?}",
+                    room.id(),
+                    interaction.id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn interaction_ids_are_unique_within_a_scene() {
+        for interior_id in InteriorId::ALL {
+            let room = InteriorMap::load(interior_id);
+            let mut ids = room
+                .interactions()
+                .iter()
+                .map(|interaction| interaction.id.as_str())
+                .collect::<Vec<_>>();
+            ids.sort_unstable();
+            let authored = ids.len();
+            ids.dedup();
+            assert_eq!(authored, ids.len(), "duplicate interaction id in {}", room.id());
+        }
+    }
+
+    #[test]
+    fn only_the_rooms_with_a_sound_roof_offer_a_bed() {
+        let sleepable = InteriorId::ALL
+            .into_iter()
+            .filter(|&interior_id| {
+                InteriorMap::load(interior_id)
+                    .interactions()
+                    .iter()
+                    .any(|interaction| interaction.discovery == SceneDiscovery::Bed)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sleepable,
+            vec![InteriorId::Room01, InteriorId::Room06],
+            "rooms one and six are the dry ones; a bed anywhere else is a lie"
+        );
     }
 
     #[test]

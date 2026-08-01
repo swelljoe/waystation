@@ -1024,5 +1024,33 @@
       }
     }
   ],
-  "fixtures": []
+  "fixtures": [],
+  "interactions": [
+    {
+      "id": "room-04-nightstand",
+      "label": "nightstand drawer",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 24,
+        "y": 10
+      },
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "room-04-chair",
+      "label": "cushion of the ruined chair",
+      "kind": "search",
+      "discovery": "salvage",
+      "position": {
+        "grid": 8,
+        "x": 44,
+        "y": 26
+      },
+      "width": 64,
+      "height": 96
+    }
+  ]
 }

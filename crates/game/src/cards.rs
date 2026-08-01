@@ -11,6 +11,7 @@
 //! to walk back into the ash and the Scribe finds they want them to have
 //! something.
 
+use std::fmt::Write as _;
 use std::sync::OnceLock;
 
 use bevy::prelude::*;
@@ -132,7 +133,7 @@ impl Collection {
         &self.made
     }
 
-    pub fn given_count(&self) -> usize {
+    pub const fn given_count(&self) -> usize {
         self.given.len()
     }
 
@@ -200,17 +201,18 @@ impl Collection {
     /// What the Scribe can currently manage, for the corner of the screen.
     pub fn describe(&self) -> String {
         let on_hand = self.on_hand().len();
-        let given = self.given.len();
+        let given = self.given_count();
         let mut line = format!("{on_hand} cut and kept · {}", self.tier.label());
         if given > 0 {
             let word = if given == 1 { "card" } else { "cards" };
-            line.push_str(&format!("\n{given} {word} carried away"));
+            let _ = write!(line, "\n{given} {word} carried away");
         }
         line
     }
 
     /// Restores a saved collection. Unknown ids are dropped rather than kept,
     /// so removing a print from the catalogue cannot strand a save.
+    #[cfg_attr(not(any(target_arch = "wasm32", test)), allow(dead_code))]
     pub fn restore(&mut self, made: Vec<String>, given: Vec<String>, tier: Tier) {
         self.made = made.into_iter().filter(|id| print(id).is_some()).collect();
         self.given = given
