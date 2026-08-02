@@ -429,6 +429,33 @@ default-branch build that has not received the licensed art fails rather than
 quietly publishing stand-in art to the demo link. See
 [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md).
 
+### The hosted demo
+
+Pages is a static host and has no `/api/interpret` to answer. Left alone, every
+request there 404s and every traveler falls back to the reviewed fixture — a game
+that looks identical but doesn't support other languages and won't support dynamic
+NPC interactions.
+
+CI builds the published bundle with `WAYSTATION_API_ORIGIN`
+pointing at the Fly app, and the server names the Pages host in
+`WAYSTATION_ALLOWED_ORIGINS` so the browser will carry the request. Neither side
+is trusted to have been configured: the workflow greps the built wasm for the
+origin and fails rather than publish a bundle that would quietly serve fixtures.
+
+`make deploy` ships the API and a same-origin copy of the game to Fly, where no
+absolute URL is needed at all. Configuration is in [`fly.toml`](fly.toml). The
+deploy runs in fixture mode until the Gloo pair is set:
+
+```bash
+fly secrets set API_MODE=live GLOO_CLIENT_ID=... GLOO_CLIENT_SECRET=...
+fly secrets set YVP_APP_KEY=...   # optional; adds the player's own language
+```
+
+Gloo is the half that decides, so it alone turns live mode on. YouVersion only
+supplies the wording afterwards, and without a key the reviewed English in
+`content/passages.ron` is served and labelled `reviewed_local` rather than
+credited to a translation that did not send it.
+
 The code is public for competition review but remains all rights reserved unless
 the project wins. If selected, the submitted source will be relicensed under MIT
 OR Apache-2.0 as required by the competition rules. Third-party assets remain

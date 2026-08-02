@@ -11,7 +11,7 @@ use anyhow::{anyhow, Context};
 use axum::{
     body::Body,
     extract::{DefaultBodyLimit, State},
-    http::{header, HeaderValue, Request, Response, StatusCode},
+    http::{header, HeaderValue, Method, Request, Response, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -22,6 +22,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::{Mutex, RwLock};
 use tower_http::{
+    cors::{AllowOrigin, CorsLayer},
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
     validate_request::{ValidateRequest, ValidateRequestHeaderLayer},
@@ -63,6 +64,9 @@ struct Config {
     bible_id: u32,
     static_dir: PathBuf,
     gate: Option<Credential>,
+    /// Origins other than our own that may reach the API, from
+    /// `WAYSTATION_ALLOWED_ORIGINS` as a comma-separated list.
+    allowed_origins: Vec<String>,
 }
 
 /// One shared username and password for the hosted demo.
@@ -148,6 +152,13 @@ impl Config {
             static_dir: env::var("WAYSTATION_STATIC_DIR")
                 .map_or_else(|_| PathBuf::from("dist"), PathBuf::from),
             gate: Credential::from_env(),
+            allowed_origins: env::var("WAYSTATION_ALLOWED_ORIGINS")
+                .unwrap_or_default()
+                .split(',')
+                .map(str::trim)
+                .filter(|origin| !origin.is_empty())
+                .map(str::to_owned)
+                .collect(),
         }
     }
 
@@ -275,12 +286,45 @@ fn build_router(state: AppState) -> Router {
         Some(gate) => waystation.layer(ValidateRequestHeaderLayer::custom(gate)),
         None => waystation,
     };
-    Router::new()
+    let router = Router::new()
         .route("/api/health", get(health))
         .merge(waystation)
         .layer(DefaultBodyLimit::max(4 * 1_024))
-        .layer(TraceLayer::new_for_http())
-        .with_state(state)
+        .layer(TraceLayer::new_for_http());
+    // Outermost on purpose. A preflight carries no credentials, so a gate placed
+    // above this one would refuse the question the browser has to ask before it
+    // will carry the real request.
+    let router = match cross_origin(&state.config.allowed_origins) {
+        Some(cors) => router.layer(cors),
+        None => router,
+    };
+    router.with_state(state)
+}
+
+/// Permission for the submitted demo link to reach this API.
+///
+/// The link in the submission is a static host and cannot be moved. It has no
+/// `/api/interpret` of its own, so the game asks this server for one, and the
+/// browser will not carry a request across origins until the far side says it
+/// may. Named origins only: a wildcard here would let any page on the internet
+/// spend our Gloo quota.
+///
+/// Unset, no header is sent at all and the server answers only the page it
+/// serves itself, which is what a local `make server-live` wants.
+fn cross_origin(origins: &[String]) -> Option<CorsLayer> {
+    let allowed: Vec<HeaderValue> = origins
+        .iter()
+        .filter_map(|origin| HeaderValue::from_str(origin).ok())
+        .collect();
+    if allowed.is_empty() {
+        return None;
+    }
+    Some(
+        CorsLayer::new()
+            .allow_origin(AllowOrigin::list(allowed))
+            .allow_methods([Method::GET, Method::POST])
+            .allow_headers([header::ACCEPT, header::CONTENT_TYPE]),
+    )
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
@@ -587,10 +631,49 @@ async fn fetch_passage(
     Ok(Passage {
         id: passage_id.to_owned(),
         reference: reference.to_owned(),
-        content: strip_simple_html(content),
+        content: clean_passage_text(content),
         version: version.abbreviation.clone(),
         youversion_deep_link: format!("https://www.bible.com/bible/{}/{passage_id}", version.id),
     })
+}
+
+/// The wording as it should read on a traveler's card.
+///
+/// The same tidying `scripts/fetch-verses.py` does for the printed cards, so a
+/// passage that arrives at runtime reads exactly as one baked in at build time.
+/// Doing less here would mean the live path is the one that shows its seams.
+fn clean_passage_text(input: &str) -> String {
+    let without_markup = drop_editorial_marks(&strip_simple_html(input));
+    let collapsed = without_markup
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    close_the_quotation(&collapsed).to_owned()
+}
+
+/// Drops a quotation mark that has nothing to pair with.
+///
+/// `MAT.11.28-30` ends `…and My burden is light.”` — the passage is a cut out of
+/// a longer speech and the mark that opened it lies in a verse nobody asked for.
+/// The card puts its own quotation marks around whatever it is handed, so the
+/// stray one arrives as `light.””`. A mark at the very edge with no partner
+/// anywhere in the text belongs to the cut rather than to the words, and only
+/// that one is taken; a passage whose quotation opens and closes within itself
+/// is punctuation somebody wrote and is left alone.
+fn close_the_quotation(text: &str) -> &str {
+    let opened = text.matches('\u{201c}').count();
+    let closed = text.matches('\u{201d}').count();
+    if closed > opened {
+        if let Some(trimmed) = text.strip_suffix('\u{201d}') {
+            return trimmed;
+        }
+    }
+    if opened > closed {
+        if let Some(trimmed) = text.strip_prefix('\u{201c}') {
+            return trimmed;
+        }
+    }
+    text
 }
 
 fn strip_simple_html(input: &str) -> String {
@@ -608,9 +691,36 @@ fn strip_simple_html(input: &str) -> String {
         .replace("&nbsp;", " ")
         .replace("&amp;", "&")
         .replace("&quot;", "\"")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+}
+
+/// Drops the editor's marks and keeps the editor's words.
+///
+/// `Matthew 6:34` comes back ending `own.[’’]` — a bracketed note about where a
+/// quotation mark belongs, not Scripture. A bracketed group holding any letter
+/// or digit is a textual-doubt marker around real words, and cutting it would
+/// change what the verse says, so only the wordless groups go.
+fn drop_editorial_marks(input: &str) -> String {
+    let mut output = String::with_capacity(input.len());
+    let mut rest = input;
+    while let Some(open) = rest.find('[') {
+        let (before, from_bracket) = rest.split_at(open);
+        output.push_str(before);
+        let Some(close) = from_bracket.find(']') else {
+            // An unclosed bracket is not a mark, it is part of the text.
+            rest = from_bracket;
+            break;
+        };
+        let inside = &from_bracket[1..close];
+        if inside
+            .chars()
+            .any(|character| character.is_alphanumeric() || character == '_')
+        {
+            output.push_str(&from_bracket[..=close]);
+        }
+        rest = &from_bracket[close + 1..];
+    }
+    output.push_str(rest);
+    output
 }
 
 async fn shutdown_signal() {
@@ -631,9 +741,48 @@ mod tests {
     #[test]
     fn strips_basic_html_from_passages() {
         assert_eq!(
-            strip_simple_html("<p>The <span class=\"wj\">old words</span> remain.</p>"),
+            clean_passage_text("<p>The <span class=\"wj\">old words</span> remain.</p>"),
             "The old words remain."
         );
+    }
+
+    /// `scripts/fetch-verses.py` learned this from the API for the printed
+    /// cards; the runtime path serves the same verses and has to read the same.
+    #[test]
+    fn editorial_marks_go_and_bracketed_words_stay() {
+        assert_eq!(
+            clean_passage_text("<p>trouble of its own.[’’]</p>"),
+            "trouble of its own."
+        );
+        assert_eq!(clean_passage_text("a mark [*] here"), "a mark here");
+        assert_eq!(
+            clean_passage_text("<p>the Lord [of hosts] spoke</p>"),
+            "the Lord [of hosts] spoke"
+        );
+        // An unclosed bracket is text, not a mark, and survives whole.
+        assert_eq!(clean_passage_text("half [a bracket"), "half [a bracket");
+    }
+
+    /// One of the six passages a traveler can be handed is a cut out of a longer
+    /// speech, and arrives carrying the mark that closed it. The card supplies
+    /// its own quotation marks, so left alone that reads `light.””`.
+    #[test]
+    fn a_quotation_mark_with_nothing_to_pair_with_is_not_punctuation() {
+        assert_eq!(
+            clean_passage_text("For My yoke is easy and My burden is light.\u{201d}"),
+            "For My yoke is easy and My burden is light."
+        );
+        assert_eq!(
+            clean_passage_text("\u{201c}Come to Me, all you who are weary"),
+            "Come to Me, all you who are weary"
+        );
+        // A quotation that opens and closes inside the passage is somebody's
+        // punctuation and stays exactly as it was written.
+        let whole = "He said, \u{201c}Peace be with you.\u{201d}";
+        assert_eq!(clean_passage_text(whole), whole);
+        // Only the mark at the edge goes; one buried mid-sentence is speech.
+        let inner = "then he said \u{201d} and stopped";
+        assert_eq!(clean_passage_text(inner), inner);
     }
 
     #[test]
@@ -653,6 +802,7 @@ mod tests {
                 bible_id: DEFAULT_BIBLE_ID,
                 static_dir: PathBuf::from("dist"),
                 gate: None,
+                allowed_origins: Vec::new(),
             },
             http: Client::new(),
             token: Arc::new(Mutex::new(None)),
@@ -870,6 +1020,99 @@ mod tests {
             status_of(state_with(ApiMode::Fixture, None), "/", None).await,
             StatusCode::UNAUTHORIZED
         );
+    }
+
+    fn origin_of(response: &Response<Body>) -> Option<&str> {
+        response
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|value| value.to_str().ok())
+    }
+
+    async fn preflight(state: AppState, origin: &str) -> Response<Body> {
+        build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("OPTIONS")
+                    .uri("/api/interpret")
+                    .header("origin", origin)
+                    .header("access-control-request-method", "POST")
+                    .header("access-control-request-headers", "content-type")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+    }
+
+    fn state_allowing(origins: &[&str]) -> AppState {
+        let mut state = state_with(ApiMode::Fixture, None);
+        state.config.allowed_origins = origins.iter().map(|o| (*o).to_owned()).collect();
+        state
+    }
+
+    /// The submitted demo link is a static host and cannot be moved, so the page
+    /// and the API sit on different origins. The browser asks first, and a
+    /// server that does not answer means every traveler silently falls back to
+    /// the reviewed fixture on the one link that was published.
+    #[tokio::test]
+    async fn the_submitted_page_is_allowed_to_reach_the_api_from_its_own_host() {
+        const PAGES: &str = "https://swelljoe.github.io";
+
+        let asked = preflight(state_allowing(&[PAGES]), PAGES).await;
+        assert!(asked.status().is_success(), "{:?}", asked.status());
+        assert_eq!(origin_of(&asked), Some(PAGES));
+
+        let posted = build_router(state_allowing(&[PAGES]))
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/interpret")
+                    .header("origin", PAGES)
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"vignette_id":"mara_grief"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(posted.status(), StatusCode::OK);
+        assert_eq!(origin_of(&posted), Some(PAGES));
+    }
+
+    /// Named origins only. A wildcard would let any page on the internet spend
+    /// the Gloo quota this server pays for.
+    #[tokio::test]
+    async fn a_page_nobody_named_is_not_answered() {
+        let state = state_allowing(&["https://swelljoe.github.io"]);
+        let response = preflight(state, "https://not-ours.example").await;
+        assert_eq!(origin_of(&response), None);
+    }
+
+    /// Local development names no origin and must keep behaving exactly as it
+    /// did before any of this existed: no header, no preflight handling, and the
+    /// page this server serves itself still works because it shares the origin.
+    #[tokio::test]
+    async fn an_unnamed_deployment_sends_no_cross_origin_header_at_all() {
+        let state = state_with(ApiMode::Fixture, None);
+        assert!(state.config.allowed_origins.is_empty());
+        let response = preflight(state, "https://swelljoe.github.io").await;
+        assert_eq!(origin_of(&response), None);
+    }
+
+    /// A preflight carries no credentials by design. If the gate were layered
+    /// above the permission check, the browser's question would come back 401
+    /// and the real request would never be sent — a gated deployment would look
+    /// like a broken one rather than a locked one.
+    #[tokio::test]
+    async fn the_browsers_question_is_answered_before_the_door_is_consulted() {
+        const PAGES: &str = "https://swelljoe.github.io";
+        let mut state = state_allowing(&[PAGES]);
+        state.config.gate = Credential::parse("judge:let-me-in");
+
+        let response = preflight(state, PAGES).await;
+
+        assert_ne!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(origin_of(&response), Some(PAGES));
     }
 
     #[test]

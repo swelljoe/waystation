@@ -123,10 +123,10 @@ without the private sheets substitutes tinted fallback bodies, so the open
 fallback build still tells one visitor from another.
 
 Scripture text is fetched from YouVersion, at runtime for a traveler's passage
-and at build time for the print cards and the Gideon Bible readings. All of it
-is the Berean Standard Bible, which its translation committee dedicated to the
-public domain (CC0) on 30 April 2023; attribution is appreciated and not
-required:
+and at build time for the print cards and the Gideon Bible readings. Everything
+in this repository is the Berean Standard Bible, which its translation committee
+dedicated to the public domain (CC0) on 30 April 2023; attribution is
+appreciated and not required:
 
 > The Holy Bible, Berean Standard Bible, BSB is produced in cooperation with
 > Bible Hub, Discovery Bible, OpenBible.com, and the Berean Bible Translation
@@ -136,3 +136,12 @@ Development fixtures use the same text and are identified as fixtures in the UI.
 Changing translation with `make verses VERSION=…` puts a different version's
 wording in the repository, and whether that version permits it is a question the
 YouVersion licence for that version answers, not this file.
+
+What a running server hands a player is not always BSB. With `YVP_APP_KEY` set,
+`content/bible-versions.json` picks a translation for the player's own language,
+and those editions carry their own terms — `scripts/fetch-bible-versions.py`
+knows the licence of four public-domain ones and says so about the rest. None of
+that text is redistributed here; it is fetched per request and displayed, which
+is what the API is for. The traveler's card names any edition that is not the
+BSB beside the reference, so a committee whose work is only lent to us is
+credited with it; the public-domain BSB asks for nothing and is left unnamed.

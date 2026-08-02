@@ -35,8 +35,25 @@ jobs:
           tool: trunk
       - name: Asset build dependencies
         run: sudo apt-get update && sudo apt-get install -y python3-pil
+      # The submitted demo link is a GitHub Pages URL and cannot be moved. Pages
+      # is a static host with no `/api/interpret` to answer, so this build is
+      # told where the listening actually lives; the server names this origin in
+      # WAYSTATION_ALLOWED_ORIGINS so the browser will carry the request.
       - name: Build browser game
+        env:
+          WAYSTATION_API_ORIGIN: https://waystation.fly.dev
         run: make web
+
+      # A build that lost the origin is the quiet failure: every request 404s,
+      # every traveler falls back to the reviewed fixture, and the game looks
+      # exactly like one that is thinking. Check the bundle, not the variable.
+      - name: Refuse to publish a build that cannot reach the API
+        run: |
+          if ! grep -qa "https://waystation.fly.dev" dist/*.wasm; then
+            echo "::error::the built bundle carries no API origin, so the"
+            echo "published game would silently serve reviewed fixtures."
+            exit 1
+          fi
       # The licensed art reaches the browser bundle from a separate private
       # repository, never from this one. A Release inherits its repository's
       # visibility and has none of its own, so a tarball here would be an asset

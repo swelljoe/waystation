@@ -35,7 +35,9 @@ use salvage::Salvaged;
 use serde::{Deserialize, Serialize};
 use terrain::{MAP_HALF_HEIGHT, MAP_HALF_WIDTH};
 use visitors::{Stage as VisitStage, Visitors};
-use waystation_shared::{fixture_response, InterpretRequest, InterpretResponse};
+use waystation_shared::{
+    fixture_response, InterpretRequest, InterpretResponse, DEFAULT_BIBLE_ABBREVIATION,
+};
 
 const PLAYER_SPEED: f32 = 210.0;
 const INTERACT_DISTANCE: f32 = 72.0;
@@ -5382,9 +5384,26 @@ fn player_language() -> Option<String> {
     Some(tag.to_owned())
 }
 
+/// Where the listening lives.
+///
+/// Served by our own server, the page and the API share an origin and a relative
+/// path is both correct and the least to go wrong. The submitted demo link is a
+/// static host that has no `/api/interpret` to answer, and it cannot be moved, so
+/// that build is told at compile time to ask elsewhere. `WAYSTATION_API_ORIGIN`
+/// unset or empty means same-origin, which is what local development wants.
+///
+/// A build that should have been given an origin and was not is the dangerous
+/// case: every request 404s, every traveler falls back to the reviewed fixture,
+/// and the game looks exactly like one that is working. CI checks the built
+/// bundle for the origin rather than trusting that the variable was set.
 #[cfg(target_arch = "wasm32")]
 fn api_url(path: &str) -> String {
-    path.to_owned()
+    match option_env!("WAYSTATION_API_ORIGIN") {
+        Some(origin) if !origin.trim().is_empty() => {
+            format!("{}{path}", origin.trim().trim_end_matches('/'))
+        }
+        _ => path.to_owned(),
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -6104,6 +6123,20 @@ fn visit_overlay(
     }
 }
 
+/// The name of whoever put the passage into the traveler's language, when that
+/// was somebody other than the edition this game is written around.
+///
+/// The Berean Standard Bible is in the public domain and asks for nothing, so
+/// naming it would be machinery on the screen for no one's benefit. A traveler
+/// who arrives speaking Spanish is handed a different committee's work, under
+/// terms that are theirs and not ours, and their name goes with their words.
+fn translation_credit(version: &str) -> String {
+    if version.is_empty() || version == DEFAULT_BIBLE_ABBREVIATION {
+        return String::new();
+    }
+    format!(" \u{b7} {version}")
+}
+
 /// What the Scribe could do, phrased as things they have rather than things they
 /// must. Every line is either an offer they can make or a plain statement of why
 /// they cannot, and letting the visitor go is always on the list.
@@ -6117,8 +6150,11 @@ fn deciding_overlay(
     let mut lines = Vec::new();
     if let Some(need) = party.need.as_ref() {
         lines.push(format!(
-            "{}\n\n\u{201c}{}\u{201d}\n{}\n",
-            need.reflection, need.passage.content, need.passage.reference
+            "{}\n\n\u{201c}{}\u{201d}\n{}{}\n",
+            need.reflection,
+            need.passage.content,
+            need.passage.reference,
+            translation_credit(&need.passage.version)
         ));
     }
     lines.push(if party.given.food {
@@ -6955,6 +6991,10 @@ mod tests {
     /// that chose their passage — not the model, not the routing, not the
     /// catalogue it came from. Whoever wants to know where the words came from
     /// can read the repository; the Scribe just hands over a card.
+    ///
+    /// A translation that is not the public-domain one is the single exception,
+    /// and it is a credit rather than machinery — see
+    /// `a_translation_that_is_not_ours_to_give_is_named_on_the_card`.
     #[test]
     fn no_screen_a_traveler_puts_up_ever_names_the_technology_behind_it() {
         const MACHINERY: [&str; 7] = [
@@ -6996,6 +7036,35 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// With a `YouVersion` key the passage arrives in the traveler's own
+    /// language, from a committee whose edition is not in the public domain the
+    /// way the Berean Standard Bible is. Those words are lent, not given, and
+    /// the card says whose they are. English asks for nothing and is told
+    /// nothing, so the demo reads exactly as it always has.
+    #[test]
+    fn a_translation_that_is_not_ours_to_give_is_named_on_the_card() {
+        let shown = |version: &str| {
+            let mut party = party_at(VisitStage::Deciding);
+            let mut need = fixture_response("mara_grief").expect("a reviewed fixture");
+            need.passage.version = version.to_owned();
+            party.need = Some(need);
+            let (_, body) = deciding_overlay(
+                &party,
+                &Collection::default(),
+                &Progression::default(),
+                &upkeep::Upkeep::default(),
+                &MotelAccess::default(),
+            );
+            body
+        };
+
+        assert!(shown("NVI").contains("Psalm 34:18 \u{b7} NVI"));
+        assert!(shown(DEFAULT_BIBLE_ABBREVIATION).contains("Psalm 34:18\n"));
+        assert!(!shown(DEFAULT_BIBLE_ABBREVIATION).contains('\u{b7}'));
+        // A server that sends no version at all must not print a bare separator.
+        assert!(!shown("").contains('\u{b7}'));
     }
 
     #[test]

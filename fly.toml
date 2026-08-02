@@ -1,19 +1,20 @@
-# The hosted demo.
+# The hosted demo, and the only place the game can actually listen.
 #
-# GitHub Pages cannot host this game. Two reasons, and the second is the one that
-# decided it:
-#
-#   1. The browser build serves purchased art that may not be redistributed. A
-#      public URL would be publishing it. WAYSTATION_GATE is the door.
-#   2. On wasm the game asks for `/api/interpret` as a relative path, so on a
-#      static host the request 404s and every traveler silently falls back to the
-#      reviewed fixture. Served from here, the listening is real.
+# GitHub Pages serves the same build and serves it well, but on wasm the game
+# asks for `/api/interpret` as a relative path. On a static host that request
+# 404s and every traveler quietly falls back to the reviewed fixture — a game
+# that looks identical and has stopped thinking. Served from here, from one
+# origin, the listening is real and no absolute URL or CORS rule is needed.
 #
 # First time:
 #
-#   fly launch --no-deploy --copy-config     # claims the name, keeps this file
-#   fly secrets set WAYSTATION_GATE='judge:some-passphrase'
-#   fly deploy
+#   fly launch --no-deploy --copy-config --name waystation --org personal \
+#     --region iad --yes
+#
+# That claims the name and then rewrites this file from its own idea of it,
+# dropping every comment here. It has already been run; if it is ever run again,
+# `git checkout fly.toml` afterwards and keep only the app name and region it
+# chose.
 #
 # To turn the listening on, which is the whole point of hosting it ourselves:
 #
@@ -22,14 +23,26 @@
 # Optionally YVP_APP_KEY, for the passage in the player's own language. Without
 # it the reviewed local wording is served and labelled as such, never miscredited.
 #
+# WAYSTATION_GATE puts one shared username and password over everything but the
+# health check. Nothing sets it; the art is licensed for use in games and ships
+# as flattened scenes and single sprites rather than as anything liftable. It
+# stays supported for whoever wants a door on a work in progress.
+#
 # Deploys build the WebAssembly from source on Fly's builder, which is a release
-# Bevy build and takes its time. That is the cost of the licensed art never
-# touching a machine we do not control.
+# Bevy build and takes its time.
 
 app = "waystation"
+primary_region = "iad"
 
 [build]
   dockerfile = "Containerfile"
+
+[env]
+  # The submitted demo link is a GitHub Pages URL and cannot be moved, so the
+  # page and this API are on different origins and the browser asks permission
+  # before it will carry a request between them. Named hosts only: a wildcard
+  # would let any page on the internet spend the Gloo quota.
+  WAYSTATION_ALLOWED_ORIGINS = "https://swelljoe.github.io"
 
 [http_service]
   internal_port = 7777
