@@ -402,6 +402,75 @@ Beds are authored, not hard-coded: an interaction with `kind: "rest"` and
 and a door that latches. A test asserts that list, because a bed in a room open
 to the weather is a lie the content can tell silently.
 
+## What a day costs
+
+Everything else in the game is paid for once. A mended roof stays mended; before
+`crates/game/src/upkeep.rs` the hearth lit on day three would still have been
+burning on day three hundred. That made hospitality free, and free hospitality is
+not hospitality — a bowl given away has to be a bowl the Scribe was going to eat.
+
+So the night is settled. `Upkeep::settle_night` runs inside `advance_clock`,
+which means it happens on the date changing rather than on the bed: sleeping
+through the night and standing outside all night both cost the same, except that
+sleeping is the only thing that makes the night *dry*.
+
+Three things are counted, and the count is not a resource bar:
+
+- **Fed.** The Scribe eats a bowl out of the pot, or out of the pack if the pot
+  is empty, or does not eat. Hungry nights accumulate until a real supper clears
+  them.
+- **Warm.** A lit hearth burns a night of banked wood. With none banked the fire
+  goes out — the state key flips back to `damaged`, which stops the smoke, which
+  stops the arrivals. That last consequence needed no new code; it is the same
+  gate that keeps travellers away on the first cold nights.
+- **Dry.** Slept in a bed, once, that night.
+
+Fed, warm, and dry is a good day, and good days are the only score kept. A bad
+night has one other cost: no block gets cut, because nobody has hands for
+carving after a night in a cold room on an empty stomach.
+
+### The pot
+
+A perpetual stew, never emptied and never washed. It carries two numbers: how
+many bowls are in it, and how much food is actually in it, in eighths of a bowl.
+A ration adds two bowls at full strength. A canful of water adds one bowl and no
+food, which is the whole argument for a stew — the same supper, stretched, and
+worse. Below a quarter strength a bowl stops being food and becomes hot water,
+which is the limit on stretching and the reason it is a decision rather than a
+free multiplier. One ration and enough water is six thin bowls.
+
+Mending every wall section in the office is the one repair that goes on paying:
+a room that holds its heat gets three nights out of a log instead of two.
+Nothing announces it. `walls_hold_the_heat` reads the scene's own element list
+rather than a hard-coded set of ids, and a test walks the walls one at a time to
+prove the dividend only lands when the last one is done.
+
+Tending a lit hearth is one key with a fixed order of business: wood on the fire
+first, then a ration in the pot, then water in the pot. The prompt names whichever
+one the press would actually do, in the same shape every worked station uses, so
+the Scribe is never asked to choose from a menu they would not have needed.
+
+### Sharing
+
+The hospitality screen's first offer is now whatever is nearest to hand and
+thinnest: a bowl with another left over, the *last* bowl halved, a ration, or the
+last ration halved. `food_offer` writes both the line on screen and what the key
+does, so the two cannot promise different things.
+
+Halving is the point. It is offered exactly when there is only one left, both
+people eat, and neither of them has eaten — a half does not clear a hungry
+stretch. That is the decision the whole system exists to make expensive.
+
+### What grows back
+
+One taken pickup comes back each night, drawn at random from the ones that have
+been taken. Deadfall keeps falling and plants keep growing, so forage, kindling,
+and fallen logs regrow; felled trees and quarried outcrops do not. Twenty-six
+regrowable spots against a fire that wants half a log a night means the valley
+alone does not quite keep a hearth going — the eighteen standing trees are the
+difference, and they are finite. Nothing in the game is sustainable for ever on
+purpose; it is sustainable for much longer than anybody will play.
+
 ## Strangers
 
 Nobody arrives because the story says so. A fire in a dead valley is the only

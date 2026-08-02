@@ -29,6 +29,7 @@ use crate::cards::Collection;
 use crate::chance::Chance;
 use crate::daylight::Clock;
 use crate::progression::{Progression, SupplyId};
+use crate::upkeep::Upkeep;
 use crate::visitors::{Visitors, Wanted, PROFILES};
 use crate::{InteriorState, MotelAccess, OFFICE_CHIMNEY_STATE_KEY, OFFICE_HEARTH_STATE_KEY};
 
@@ -43,6 +44,12 @@ const BEAT_BETWEEN_VISITS: f32 = 3.0;
 /// exercise every branch of the hospitality screen twice over.
 const STARTING_RATIONS: u16 = 6;
 const STARTING_BLOCKS: usize = 4;
+
+/// A pot with something in it, so a rehearsed visit can be offered a bowl
+/// rather than only a ration, and wood enough that the fire is not the thing
+/// under test.
+const STARTING_POT_RATIONS: u16 = 2;
+const STARTING_LOGS: u16 = 4;
 
 /// Nights of smoke a rehearsed waystation claims to have kept. Only the arrival
 /// odds read it, which rehearsal overrides anyway; it is set so the ledger does
@@ -227,6 +234,7 @@ pub fn warm_the_waystation(
     mut collection: ResMut<Collection>,
     mut visitors: ResMut<Visitors>,
     mut chance: ResMut<Chance>,
+    mut upkeep: ResMut<Upkeep>,
 ) {
     if !rehearsal.on {
         return;
@@ -240,6 +248,14 @@ pub fn warm_the_waystation(
             .insert(OFFICE_HEARTH_STATE_KEY.to_owned(), "repaired".to_owned());
         motel_access.keys_found = true;
         progression.add_supply(SupplyId::Ration, STARTING_RATIONS);
+        progression.add_supply(SupplyId::Log, STARTING_LOGS);
+        // A fire that has been kept has been fed, and a kept fire has a pot
+        // over it. Both branches of the food offer are reachable from here.
+        upkeep.lay_a_fire();
+        upkeep.feed_the_fire(&mut progression, false);
+        for _ in 0..STARTING_POT_RATIONS {
+            upkeep.add_a_ration(&mut progression);
+        }
         // The tier is left where a real game leaves it. Colour waits on dyes,
         // dyes come from travellers, and rehearsing a visit is not a reason to
         // hand the Scribe a workshop they have not earned.
@@ -253,7 +269,7 @@ pub fn warm_the_waystation(
     // player could read it — and the journal panel is only a few lines tall.
     info!(
         "{SWITCH}: {}",
-        rehearsal_summary(&rehearsal, &collection, &progression)
+        rehearsal_summary(&rehearsal, &collection, &progression, &upkeep)
     );
 }
 
@@ -261,6 +277,7 @@ fn rehearsal_summary(
     rehearsal: &Rehearsal,
     collection: &Collection,
     progression: &Progression,
+    upkeep: &Upkeep,
 ) -> String {
     let mut parts = vec![if rehearsal.repeat {
         "somebody arrives now, and again whenever the court empties".to_owned()
@@ -277,9 +294,10 @@ fn rehearsal_summary(
         "Cold start: nothing to offer them".to_owned()
     } else {
         format!(
-            "Fire lit, keys found, {} rations, {} blocks cut",
+            "Fire lit, keys found, {} rations, {} blocks cut, {}",
             progression.supply(SupplyId::Ration),
-            collection.on_hand().len()
+            collection.on_hand().len(),
+            upkeep.summary(true)
         )
     });
     parts.join(". ")

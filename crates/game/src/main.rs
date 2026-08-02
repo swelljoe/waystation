@@ -14,6 +14,7 @@ mod reading;
 mod rehearsal;
 mod salvage;
 mod terrain;
+mod upkeep;
 mod visitors;
 
 use std::{
@@ -172,6 +173,11 @@ const HEARTH_KINDLING: u16 = 3;
 /// Saved state keys for the two halves of that fire: smoke needs somewhere to go
 /// before a flame is worth striking.
 const OFFICE_HEARTH_STATE_KEY: &str = "motel-office/stone-fireplace-1-01";
+
+/// Every wall section in the office shares this prefix. When all of them are
+/// mended the room holds its heat, which is the one place in the game where a
+/// finished repair goes on paying.
+const OFFICE_WALL_PREFIX: &str = "old-room-wall";
 const OFFICE_CHIMNEY_STATE_KEY: &str = "motel-exterior/tall-chimney-01";
 
 /// Stone lies where the ash-scoured rim broke, away from the motel court, so
@@ -265,13 +271,13 @@ pub fn start_web_game() {
     run_game();
 }
 
-fn run_game() {
-    App::new()
-        .insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.08)))
+/// Everything the world starts out knowing about itself. Split out from
+/// `run_game` because the registration list is long enough on its own to bury
+/// the schedule that follows it.
+fn install_resources(app: &mut App) -> &mut App {
+    app.insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.08)))
         .insert_resource(UiScale(DEVELOPMENT_PRESENTATION_SCALE))
-        .insert_resource(Journal {
-            notice: Some(ARRIVAL_NOTICE.to_owned()),
-        })
+        .insert_resource(Journal::at_arrival())
         .insert_resource(InterpretInbox::default())
         .init_resource::<Clock>()
         .init_resource::<Chance>()
@@ -291,10 +297,18 @@ fn run_game() {
         .init_resource::<DoorBumpLatch>()
         .init_resource::<terrain::TerrainDebugOverlay>()
         .init_resource::<InteriorState>()
+        .init_resource::<SceneVisualsDirty>()
+        // What the waystation spends every night it stands. See `mod upkeep`.
+        .init_resource::<upkeep::Upkeep>()
         // Off unless `WAYSTATION_VISITORS` says otherwise, in which case a
         // traveller is already coming down the road. See `mod rehearsal`.
         .insert_resource(rehearsal::Rehearsal::from_environment())
         .init_resource::<rehearsal::Rehearsed>()
+}
+
+fn run_game() {
+    let mut app = App::new();
+    install_resources(&mut app)
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -345,7 +359,13 @@ fn run_game() {
                 trigger_story_hotspots,
                 sync_portable_tool_entities,
                 (grow_garden, sync_garden_plots).chain(),
-                (chance::stir_chance, advance_clock, sync_daylight).chain(),
+                (
+                    chance::stir_chance,
+                    advance_clock,
+                    reconcile_scene_visuals,
+                    sync_daylight,
+                )
+                    .chain(),
                 (
                     npc_art::compose_visitor_art,
                     rehearsal::summon_visitors,
@@ -782,6 +802,13 @@ struct DoorBumpLatch(Option<interior::InteriorId>);
 #[derive(Resource, Default)]
 struct InteriorState(HashMap<String, String>);
 
+/// Set when something other than an interaction moved a scene element's state,
+/// so `reconcile_scene_visuals` can stay asleep the rest of the time. Ordinary
+/// change detection is no use here: half the game holds `InteriorState` mutably
+/// and marks it changed without touching it.
+#[derive(Resource, Default)]
+struct SceneVisualsDirty(bool);
+
 #[derive(SystemParam)]
 struct InteractionResources<'w> {
     interior_state: ResMut<'w, InteriorState>,
@@ -793,6 +820,7 @@ struct InteractionResources<'w> {
     salvaged: ResMut<'w, Salvaged>,
     chance: ResMut<'w, Chance>,
     clock: ResMut<'w, Clock>,
+    upkeep: ResMut<'w, upkeep::Upkeep>,
 }
 
 #[derive(SystemParam)]
@@ -842,6 +870,7 @@ struct UiKnowledge<'w, 's> {
     visitors: Res<'w, Visitors>,
     collection: Res<'w, Collection>,
     readings: Res<'w, Readings>,
+    upkeep: Res<'w, upkeep::Upkeep>,
     garden_plots: Query<'w, 's, &'static GardenPlot>,
     rain_cisterns: Query<'w, 's, &'static RainCistern, Without<GardenPlot>>,
 }
@@ -1311,6 +1340,13 @@ struct Journal {
 }
 
 impl Journal {
+    /// The one line already on screen when the game starts.
+    fn at_arrival() -> Self {
+        Self {
+            notice: Some(ARRIVAL_NOTICE.to_owned()),
+        }
+    }
+
     fn say(&mut self, notice: impl Into<String>) {
         self.notice = Some(notice.into());
     }
@@ -1350,6 +1386,8 @@ struct SaveData {
     dwelling_on: Option<String>,
     #[serde(default)]
     salvaged: Vec<String>,
+    #[serde(default)]
+    upkeep: upkeep::Upkeep,
 }
 
 /// What the world knows about itself, gathered for saving and restoring. The
@@ -1366,6 +1404,7 @@ struct WorldMemory<'w> {
     collection: Res<'w, Collection>,
     readings: Res<'w, Readings>,
     salvaged: Res<'w, Salvaged>,
+    upkeep: Res<'w, upkeep::Upkeep>,
 }
 
 impl SaveData {
@@ -1381,11 +1420,12 @@ impl SaveData {
         collection: &Collection,
         readings: &Readings,
         salvaged: &Salvaged,
+        upkeep: &upkeep::Upkeep,
     ) -> Self {
         let (prints_made, prints_given, print_tier) = collection.saved();
         let (passages_read, dwelling_on) = readings.saved();
         Self {
-            version: 8,
+            version: 9,
             interior_states: interior_state.0.clone(),
             motel_keys_found: motel_access.keys_found,
             progression: progression.clone(),
@@ -1399,6 +1439,7 @@ impl SaveData {
             passages_read,
             dwelling_on,
             salvaged: salvaged.seen().to_vec(),
+            upkeep: upkeep.clone(),
         }
     }
 
@@ -1414,6 +1455,7 @@ impl SaveData {
             &memory.collection,
             &memory.readings,
             &memory.salvaged,
+            &memory.upkeep,
         )
     }
 }
@@ -2243,6 +2285,7 @@ fn load_story(
     mut collection: ResMut<Collection>,
     mut readings: ResMut<Readings>,
     mut salvaged: ResMut<Salvaged>,
+    mut upkeep: ResMut<upkeep::Upkeep>,
 ) {
     let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
     else {
@@ -2254,7 +2297,7 @@ fn load_story(
     let Ok(save) = serde_json::from_str::<SaveData>(&raw) else {
         return;
     };
-    if !matches!(save.version, 1..=8) {
+    if !matches!(save.version, 1..=9) {
         return;
     }
     interior_state.0 = save.interior_states;
@@ -2270,6 +2313,9 @@ fn load_story(
     collection.restore(save.prints_made, save.prints_given, save.print_tier);
     readings.restore(save.passages_read, save.dwelling_on);
     salvaged.restore(save.salvaged);
+    // Saves older than the upkeep have an empty pot and a cold woodpile, which
+    // is exactly what a waystation that was never charged rent should inherit.
+    *upkeep = save.upkeep;
     journal.say("The old trail returns to memory.");
 }
 
@@ -4003,11 +4049,61 @@ fn garden_work_notice(worked: garden::Worked, progression: &Progression) -> Stri
     }
 }
 
+/// What tending a lit hearth would actually do, in the order somebody standing
+/// in front of one would do it: the fire first, because a fire that goes out
+/// takes the whole waystation with it, then the pot, then stretching the pot.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HearthChore {
+    FeedTheFire(upkeep::Fuel),
+    AddARation,
+    StretchThePot,
+    Nothing,
+}
+
+/// One fire's worth of wood, phrased the way every other requirement line is.
+const WOOD_FOR_A_NIGHT: &str = "1 fallen log or 3 kindling";
+
+fn hearth_chore(state: &upkeep::Upkeep, progression: &Progression) -> HearthChore {
+    state.wood_on_hand(progression).map_or_else(
+        || {
+            if state.can_add_a_ration(progression) {
+                HearthChore::AddARation
+            } else if state.can_stretch(progression) {
+                HearthChore::StretchThePot
+            } else {
+                HearthChore::Nothing
+            }
+        },
+        HearthChore::FeedTheFire,
+    )
+}
+
 /// The hearth carries no `TaskSpec`, so it writes its own requirement line in the
 /// same shape the worked stations use.
-fn hearth_prompt(interior_state: &InteriorState, progression: &Progression) -> String {
+fn hearth_prompt(
+    interior_state: &InteriorState,
+    progression: &Progression,
+    state: &upkeep::Upkeep,
+) -> String {
     if hearth_is_lit(interior_state) {
-        return "E — tend the hearth".to_owned();
+        return match hearth_chore(state, progression) {
+            HearthChore::FeedTheFire(upkeep::Fuel::Log) => {
+                "E — put a log on the fire     [1 fallen log]".to_owned()
+            }
+            HearthChore::FeedTheFire(upkeep::Fuel::Kindling) => {
+                "E — feed the fire     [3 kindling]".to_owned()
+            }
+            HearthChore::AddARation => "E — put a ration in the pot     [1 ration]".to_owned(),
+            HearthChore::StretchThePot => {
+                "E — let the pot down with water     [1 canful of water]".to_owned()
+            }
+            // A hearth with nothing left to give it says so the same way a job
+            // with a missing plank does, and only while the fire is short.
+            HearthChore::Nothing if state.banked_nights() == 0 => {
+                format!("E — tend the hearth     [still needs {WOOD_FOR_A_NIGHT}]")
+            }
+            HearthChore::Nothing => "E — tend the hearth".to_owned(),
+        };
     }
     let missing = hearth_blockers(interior_state, progression);
     if missing.is_empty() {
@@ -4083,6 +4179,73 @@ fn hearth_blockers(interior_state: &InteriorState, progression: &Progression) ->
         missing.push(format!("{HEARTH_KINDLING} kindling (you have {kindling})"));
     }
     missing
+}
+
+/// One press at a lit hearth. The chore is whatever the fire and the pot want
+/// most, and the line reports what was actually done rather than what could have
+/// been — including the case where the answer is nothing at all.
+fn tend_the_hearth(
+    state: &mut upkeep::Upkeep,
+    progression: &mut Progression,
+    sheltered: bool,
+) -> String {
+    match hearth_chore(state, progression) {
+        HearthChore::FeedTheFire(_) => {
+            state.feed_the_fire(progression, sheltered);
+            match state.banked_nights() {
+                0 | 1 => "You build it back up. It will hold tonight.".to_owned(),
+                nights => format!(
+                    "You build it back up. Wood in for {nights} nights, if nothing goes wrong."
+                ),
+            }
+        }
+        HearthChore::AddARation => {
+            state.add_a_ration(progression);
+            format!(
+                "In it goes, and the pot takes it the way it takes everything. {}.",
+                capitalised(&state.pot().describe_at_length())
+            )
+        }
+        HearthChore::StretchThePot => {
+            state.stretch_the_pot(progression);
+            format!(
+                "A canful, and an hour over the heat to make it worth eating. {}.",
+                capitalised(&state.pot().describe_at_length())
+            )
+        }
+        HearthChore::Nothing if state.banked_nights() == 0 => {
+            "It is burning down and there is nothing here to put on it.".to_owned()
+        }
+        HearthChore::Nothing => {
+            format!("The fire holds. {}.", capitalised(&state.summary(true)))
+        }
+    }
+}
+
+/// Whether the office is a room again rather than four broken walls. Nothing
+/// announces this; the only sign of it is that the woodpile lasts longer.
+fn walls_hold_the_heat(interior: &interior::InteriorMap, interior_state: &InteriorState) -> bool {
+    let scene = interior.id();
+    let mut walls = interior
+        .mutable_elements()
+        .iter()
+        .filter(|element| element.id.starts_with(OFFICE_WALL_PREFIX))
+        .peekable();
+    walls.peek().is_some()
+        && walls.all(|element| {
+            interior_state
+                .0
+                .get(&format!("{scene}/{}", element.id))
+                .is_some_and(|state| state == "repaired")
+        })
+}
+
+/// A sentence that starts with a lower-case clause needs a capital on it.
+fn capitalised(text: &str) -> String {
+    let mut characters = text.chars();
+    characters.next().map_or_else(String::new, |first| {
+        first.to_uppercase().collect::<String>() + characters.as_str()
+    })
 }
 
 /// The Scribe's own words about why the fire will not take. Built from the same
@@ -4453,10 +4616,11 @@ fn handle_interaction(
         }
         InteractableKind::Hearth => {
             if hearth_is_lit(&resources.interior_state) {
-                journal.notice = Some(
-                    "The fire holds. Warm light reaches into a room untouched for centuries."
-                        .to_owned(),
-                );
+                journal.notice = Some(tend_the_hearth(
+                    &mut resources.upkeep,
+                    &mut resources.progression,
+                    walls_hold_the_heat(&interior, &resources.interior_state),
+                ));
                 return;
             }
             let missing = hearth_blockers(&resources.interior_state, &resources.progression);
@@ -4495,7 +4659,10 @@ fn handle_interaction(
                     &mut visibility,
                 );
             }
-            target.consumed = true;
+            // A lit hearth is not a finished job. It goes on wanting wood every
+            // night it burns, so it stays the nearest thing worth walking up to.
+            // The kindling that lit it is also the first night's fuel.
+            resources.upkeep.lay_a_fire();
             journal.say(
                 "Flame takes. Warm light reaches into a room untouched for centuries. Whatever else this smoke does, it will be visible from the ridge.",
             );
@@ -4753,25 +4920,55 @@ fn repair_scene_element(
     transform: &mut Transform,
     visibility: &mut Visibility,
 ) -> bool {
-    let Some(repaired) = element.states.get("repaired") else {
+    set_scene_element_state(
+        asset_server,
+        Some(interior_state),
+        element,
+        "repaired",
+        center,
+        instance,
+        sprite,
+        transform,
+        visibility,
+    )
+}
+
+/// Puts a spawned element into one of its authored states, art and all. Repairs
+/// go one way and record themselves; a fire going out goes the other way and is
+/// recorded by whoever put it out, so the state map is optional here.
+#[allow(clippy::too_many_arguments)]
+fn set_scene_element_state(
+    asset_server: &AssetServer,
+    interior_state: Option<&mut InteriorState>,
+    element: &interior::MutableElement,
+    state: &str,
+    center: Vec2,
+    instance: &mut MutableSceneElement,
+    sprite: &mut Sprite,
+    transform: &mut Transform,
+    visibility: &mut Visibility,
+) -> bool {
+    let Some(visual) = element.states.get(state) else {
         return false;
     };
-    if let Some(path) = &repaired.image_path {
+    if let Some(path) = &visual.image_path {
         sprite.image = asset_server.load(path.clone());
     }
-    sprite.custom_size = Some(repaired.size.max(Vec2::ONE));
+    sprite.custom_size = Some(visual.size.max(Vec2::ONE));
     transform.translation.x = center.x;
     transform.translation.y = center.y;
-    *visibility = if repaired.visible {
+    *visibility = if visual.visible {
         Visibility::Visible
     } else {
         Visibility::Hidden
     };
-    "repaired".clone_into(&mut instance.state);
-    interior_state.0.insert(
-        format!("{}/{}", instance.scene_id, instance.id),
-        instance.state.clone(),
-    );
+    state.clone_into(&mut instance.state);
+    if let Some(interior_state) = interior_state {
+        interior_state.0.insert(
+            format!("{}/{}", instance.scene_id, instance.id),
+            instance.state.clone(),
+        );
+    }
     true
 }
 
@@ -4810,6 +5007,7 @@ struct VisitInput<'w> {
     journal: ResMut<'w, Journal>,
     collection: ResMut<'w, Collection>,
     progression: ResMut<'w, Progression>,
+    upkeep: ResMut<'w, upkeep::Upkeep>,
     motel_access: Res<'w, MotelAccess>,
     inbox: Res<'w, InterpretInbox>,
 }
@@ -4839,6 +5037,51 @@ fn handle_visit_input(
         VisitStage::Deciding => decide_hospitality(&keys, &mut visit),
         VisitStage::Choosing => choose_a_card(&keys, &mut visit),
         _ => {}
+    }
+}
+
+/// What the Scribe can put in front of a stranger, which is whatever is nearest
+/// to hand and thinnest. One list writes both the offer the overlay shows and
+/// what the key does, so the two can never promise different things.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FoodOffer {
+    /// A bowl out of the pot, with another one left for the Scribe.
+    Bowl,
+    /// The only bowl there is, which can only be shared by halving it.
+    LastBowl,
+    Ration,
+    LastRation,
+    Nothing,
+}
+
+fn food_offer(state: &upkeep::Upkeep, progression: &Progression) -> FoodOffer {
+    if state.can_ladle_a_bowl() {
+        FoodOffer::Bowl
+    } else if state.only_the_last_bowl() {
+        FoodOffer::LastBowl
+    } else {
+        match progression.supply(SupplyId::Ration) {
+            0 => FoodOffer::Nothing,
+            1 => FoodOffer::LastRation,
+            _ => FoodOffer::Ration,
+        }
+    }
+}
+
+impl FoodOffer {
+    /// The line on the offer list. It names the cost, because the cost is the
+    /// decision — there is nothing else to weigh.
+    fn line(self, state: &upkeep::Upkeep, progression: &Progression) -> String {
+        match self {
+            Self::Bowl => format!("1  Ladle out a bowl ({} in the pot)", state.pot().bowls()),
+            Self::LastBowl => "1  Share the last of the pot, half each".to_owned(),
+            Self::Ration => format!(
+                "1  Share food ({} in the pack)",
+                progression.supply(SupplyId::Ration)
+            ),
+            Self::LastRation => "1  Split your last ration, half each".to_owned(),
+            Self::Nothing => "1  — you have nothing to eat yourself".to_owned(),
+        }
     }
 }
 
@@ -4874,22 +5117,48 @@ fn decide_hospitality(keys: &ButtonInput<KeyCode>, visit: &mut VisitInput) {
     let Some(choice) = digit_pressed(keys) else {
         return;
     };
-    let rations = visit.progression.supply(SupplyId::Ration);
+    let offer = food_offer(&visit.upkeep, &visit.progression);
     let room = offerable_room(&visit.motel_access);
     let Some(party) = visit.visitors.party.as_mut() else {
         return;
     };
     match choice {
-        // Sharing food is deliberately allowed down to the last ration. The
+        // Sharing food is deliberately allowed down to the last of it. The
         // Scribe going hungry for a stranger is the whole point of the passage
-        // that put the idea in their head.
-        0 if rations > 0 && !party.given.food => {
-            visit.progression.spend_supply(SupplyId::Ration, 1);
+        // that put the idea in their head — and when there is only one bowl,
+        // halving it is the offer, because that is what a person does.
+        0 if offer != FoodOffer::Nothing && !party.given.food => {
+            let who = party.address();
             party.given.food = true;
-            visit.journal.say(format!(
-                "You divide what you have. {} eats slowly, the way people do when they have learned not to trust a full stomach.",
-                party.address()
-            ));
+            let line = match offer {
+                FoodOffer::Bowl => {
+                    let bowl = visit.upkeep.pot().quality();
+                    visit.upkeep.ladle_a_bowl();
+                    format!(
+                        "You ladle out a bowl — {bowl}. {who} eats slowly, the way people do when they have learned not to trust a full stomach."
+                    )
+                }
+                FoodOffer::LastBowl => {
+                    visit.upkeep.share_the_last();
+                    format!(
+                        "You divide the last of the pot in front of {who}, down the middle, so there is nothing to argue about. Neither of you has eaten. Both of you have."
+                    )
+                }
+                FoodOffer::Ration => {
+                    visit.progression.spend_supply(SupplyId::Ration, 1);
+                    format!(
+                        "You divide what you have. {who} eats slowly, the way people do when they have learned not to trust a full stomach."
+                    )
+                }
+                FoodOffer::LastRation => {
+                    visit.upkeep.split_a_ration(&mut visit.progression);
+                    format!(
+                        "You break the last of it in two and hold out a half. {who} looks at both pieces long enough to be certain they are the same size."
+                    )
+                }
+                FoodOffer::Nothing => String::new(),
+            };
+            visit.journal.say(line);
         }
         1 if party.given.room.is_none() => {
             if let Some((id, label)) = room {
@@ -5021,6 +5290,9 @@ fn sleep_here(resources: &mut InteractionResources, journal: &mut Journal) {
             .say("There is too much light left in the day to lie down, and too much left undone.");
         return;
     }
+    // A bed under a sound roof is the whole of what makes a night dry. The
+    // settlement at the turn of the day reads this and spends it.
+    resources.upkeep.slept_here();
     let morning = resources.clock.sleep_until_morning();
     journal.say(format!(
         "You sleep, badly at first and then properly, under a roof you mended yourself. Day {morning}."
@@ -5154,14 +5426,18 @@ fn poll_interpretation(mut visitors: ResMut<Visitors>, inbox: Res<InterpretInbox
 #[allow(clippy::too_many_arguments)]
 fn advance_clock(
     time: Res<Time>,
-    interior_state: Res<InteriorState>,
     readings: Res<Readings>,
+    mut interior_state: ResMut<InteriorState>,
     mut clock: ResMut<Clock>,
     mut last_day: Local<u32>,
     mut visitors: ResMut<Visitors>,
     mut collection: ResMut<Collection>,
     mut chance: ResMut<Chance>,
     mut journal: ResMut<Journal>,
+    mut progression: ResMut<Progression>,
+    mut upkeep: ResMut<upkeep::Upkeep>,
+    mut dirty: ResMut<SceneVisualsDirty>,
+    mut pickups: Query<(&WorldPickup, &mut Interactable, &mut Visibility)>,
 ) {
     clock.tick(time.delta_secs());
     if *last_day == clock.day {
@@ -5173,19 +5449,130 @@ fn advance_clock(
     if starting_up {
         return;
     }
-    if hearth_is_lit(&interior_state) {
+    let fire_was_lit = hearth_is_lit(&interior_state);
+    if fire_was_lit {
         visitors.nights_of_smoke += 1;
     }
     visitors.wake_guests();
+    // What the night cost. This is the only thing in the game that spends
+    // without being asked, which is the point of it.
+    let night = upkeep.settle_night(&mut progression, fire_was_lit);
+    if night.fire_went_out {
+        // The state map is the truth; the sprite catches up in
+        // `reconcile_scene_visuals`, whether or not anybody is in the room.
+        interior_state
+            .0
+            .insert(OFFICE_HEARTH_STATE_KEY.to_owned(), "damaged".to_owned());
+        dirty.0 = true;
+    }
+    regrow_the_valley(&mut progression, &mut chance, &mut pickups);
+    journal.say(night.line(clock.day));
     // The block-cutting is the Scribe's own business: nobody asked for it, and
-    // it only happens once there is something read to cut.
-    if readings.has_read_anything() {
+    // it only happens once there is something read to cut. A night spent cold or
+    // hungry is not one anybody has hands for it in.
+    if night.was_good() && readings.has_read_anything() {
         if let Some(print) = collection.cut_a_block(&mut chance, readings.dwelling_on.as_deref()) {
             journal.say(format!(
                 "You cut a block last night, badly at first. \u{201c}{}\u{201d} — {}. It kept your hands busy, which was the point.",
                 print.title, print.reference
             ));
         }
+    }
+}
+
+/// Which of the valley's pickups come back. Deadfall keeps falling, dry wood
+/// keeps blowing in under the old growth, and the plants that survived the ash
+/// go on doing whatever it is they do. A standing tree that has been felled is
+/// felled, and quarried stone does not grow back.
+const fn regrows(kind: InteractableKind) -> bool {
+    matches!(
+        kind,
+        InteractableKind::Forage | InteractableKind::Kindling | InteractableKind::Log
+    )
+}
+
+/// One thing a night, chosen at random from what has been taken. It is a slow
+/// enough hand that a valley stripped bare stays stripped for a while, and
+/// generous enough that it can never be stripped for good.
+fn regrow_the_valley(
+    progression: &mut Progression,
+    chance: &mut Chance,
+    pickups: &mut Query<(&WorldPickup, &mut Interactable, &mut Visibility)>,
+) {
+    let taken = pickups
+        .iter()
+        .filter(|(pickup, interactable, _)| {
+            regrows(interactable.kind) && progression.pickup_collected(&pickup.id)
+        })
+        .count();
+    if taken == 0 {
+        return;
+    }
+    let wanted = chance.below(taken);
+    let mut seen = 0;
+    for (pickup, mut interactable, mut visibility) in pickups.iter_mut() {
+        if !regrows(interactable.kind) || !progression.pickup_collected(&pickup.id) {
+            continue;
+        }
+        if seen == wanted {
+            progression.forget_pickup(&pickup.id);
+            interactable.consumed = false;
+            *visibility = Visibility::Visible;
+            return;
+        }
+        seen += 1;
+    }
+}
+
+/// Puts a spawned element back in step with the state map when something other
+/// than an interaction moved it — which, so far, is the morning after a fire
+/// that nobody fed.
+fn reconcile_scene_visuals(
+    asset_server: Res<AssetServer>,
+    interior: Res<interior::InteriorMap>,
+    interior_state: Res<InteriorState>,
+    mut dirty: ResMut<SceneVisualsDirty>,
+    mut elements: Query<
+        (
+            &mut MutableSceneElement,
+            &mut Sprite,
+            &mut Transform,
+            &mut Visibility,
+        ),
+        Without<Player>,
+    >,
+) {
+    if !dirty.0 {
+        return;
+    }
+    dirty.0 = false;
+    for (mut instance, mut sprite, mut transform, mut visibility) in &mut elements {
+        let key = format!("{}/{}", instance.scene_id, instance.id);
+        let Some(wanted) = interior_state.0.get(&key) else {
+            continue;
+        };
+        if wanted == &instance.state {
+            continue;
+        }
+        let Some(element) = interior.mutable_element(&instance.id) else {
+            continue;
+        };
+        let Some(visual) = element.states.get(wanted.as_str()) else {
+            continue;
+        };
+        let center = interior.element_center(element, visual.size);
+        let wanted = wanted.clone();
+        set_scene_element_state(
+            &asset_server,
+            None,
+            element,
+            &wanted,
+            center,
+            &mut instance,
+            &mut sprite,
+            &mut transform,
+            &mut visibility,
+        );
     }
 }
 
@@ -5509,8 +5896,26 @@ fn sync_ui(
         } else {
             format!("\n\nPRINTS\n{}", ui_knowledge.collection.describe())
         };
+        // The hearth only starts reporting itself once there is a fire to
+        // report. Before that it is one more thing the valley has not given.
+        let hearth_line = if hearth_is_lit(&ui_knowledge.interior_state)
+            || ui_knowledge.upkeep.pot().bowls() > 0
+        {
+            let tally = ui_knowledge
+                .upkeep
+                .tally()
+                .map_or_else(String::new, |count| format!("\n{count}"));
+            format!(
+                "\n\nHEARTH\n{}{tally}",
+                ui_knowledge
+                    .upkeep
+                    .summary(hearth_is_lit(&ui_knowledge.interior_state))
+            )
+        } else {
+            String::new()
+        };
         **text = format!(
-            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{garden_line}{prints_line}{knowledge}",
+            "RESTORATION\n{}\n\nTOOLS\n{}\n\nSUPPLIES\n{}{hearth_line}{garden_line}{prints_line}{knowledge}",
             progression.skill_tree_summary(),
             progression.tools_summary(),
             if supplies.is_empty() {
@@ -5548,7 +5953,11 @@ fn sync_ui(
                     return format!("R — {work}     [{}]", task.requirements);
                 }
                 if item.kind == InteractableKind::Hearth {
-                    return hearth_prompt(&ui_knowledge.interior_state, &progression);
+                    return hearth_prompt(
+                        &ui_knowledge.interior_state,
+                        &progression,
+                        &ui_knowledge.upkeep,
+                    );
                 }
                 if item.kind == InteractableKind::BibleNightstand {
                     return interaction_details
@@ -5617,6 +6026,7 @@ fn sync_ui(
             party,
             &ui_knowledge.collection,
             &progression,
+            &ui_knowledge.upkeep,
             &ui_knowledge.motel_access,
         )
     });
@@ -5675,6 +6085,7 @@ fn visit_overlay(
     party: &visitors::Party,
     collection: &Collection,
     progression: &Progression,
+    state: &upkeep::Upkeep,
     motel_access: &MotelAccess,
 ) -> Option<(String, String, String)> {
     match party.stage {
@@ -5697,6 +6108,7 @@ fn visit_overlay(
             party,
             collection,
             progression,
+            state,
             motel_access,
         )),
         VisitStage::Choosing => Some(choosing_overlay(party, collection)),
@@ -5711,6 +6123,7 @@ fn deciding_overlay(
     party: &visitors::Party,
     collection: &Collection,
     progression: &Progression,
+    state: &upkeep::Upkeep,
     motel_access: &MotelAccess,
 ) -> (String, String, String) {
     let mut lines = Vec::new();
@@ -5720,13 +6133,10 @@ fn deciding_overlay(
             need.reflection, need.passage.content, need.passage.reference
         ));
     }
-    let rations = progression.supply(SupplyId::Ration);
     lines.push(if party.given.food {
         "1  — shared already".to_owned()
-    } else if rations > 0 {
-        format!("1  Share food ({rations} in the pack)")
     } else {
-        "1  — you have nothing to eat yourself".to_owned()
+        food_offer(state, progression).line(state, progression)
     });
     lines.push(party.given.room.as_ref().map_or_else(
         || {
@@ -6009,28 +6419,165 @@ mod tests {
                 format!("{HEARTH_KINDLING} kindling (you have 0)"),
             ]
         );
-        assert!(hearth_prompt(&interior_state, &progression).contains("still needs"));
+        assert!(
+            hearth_prompt(&interior_state, &progression, &upkeep::Upkeep::default())
+                .contains("still needs")
+        );
     }
 
     #[test]
     fn a_ready_hearth_asks_for_nothing_further() {
         let (interior_state, progression) = hearth_ready();
         assert!(hearth_blockers(&interior_state, &progression).is_empty());
-        assert!(hearth_prompt(&interior_state, &progression).contains("light the hearth"));
+        assert!(
+            hearth_prompt(&interior_state, &progression, &upkeep::Upkeep::default())
+                .contains("light the hearth")
+        );
         assert!(!hearth_is_lit(&interior_state));
     }
 
+    /// A lit hearth is never a finished job. It goes on naming what it wants —
+    /// the fire first, then the pot — and falls silent only when there is
+    /// genuinely nothing to hand it.
     #[test]
-    fn a_lit_hearth_stops_advertising_its_cost() {
-        let (mut interior_state, progression) = hearth_ready();
+    fn a_lit_hearth_goes_on_asking_for_what_it_needs_next() {
+        let (mut interior_state, mut progression) = hearth_ready();
         interior_state
             .0
             .insert(OFFICE_HEARTH_STATE_KEY.to_owned(), "repaired".to_owned());
         assert!(hearth_is_lit(&interior_state));
+        let mut state = upkeep::Upkeep::default();
+        state.lay_a_fire();
+
+        // The kindling that lit it is still in the pack, so the fire is first.
         assert_eq!(
-            hearth_prompt(&interior_state, &progression),
-            "E — tend the hearth"
+            hearth_prompt(&interior_state, &progression, &state),
+            "E — feed the fire     [3 kindling]"
         );
+        state.feed_the_fire(&mut progression, false);
+
+        // Fire seen to; the pot is the next thing a person would do.
+        progression.add_supply(SupplyId::Ration, 1);
+        assert_eq!(
+            hearth_prompt(&interior_state, &progression, &state),
+            "E — put a ration in the pot     [1 ration]"
+        );
+        state.add_a_ration(&mut progression);
+
+        // And once there is something in it, water goes further than nothing.
+        progression.add_supply(SupplyId::Water, 1);
+        assert_eq!(
+            hearth_prompt(&interior_state, &progression, &state),
+            "E — let the pot down with water     [1 canful of water]"
+        );
+        state.stretch_the_pot(&mut progression);
+
+        assert_eq!(
+            hearth_prompt(&interior_state, &progression, &state),
+            "E — tend the hearth",
+            "with empty hands and a fed fire it stops asking"
+        );
+    }
+
+    /// The one case where the fire has to speak up: burning down, and nothing in
+    /// the pack to put on it. That is the same shape a missing plank uses.
+    #[test]
+    fn a_fire_burning_down_with_no_wood_says_so_on_the_hearth() {
+        let mut interior_state = InteriorState::default();
+        interior_state
+            .0
+            .insert(OFFICE_HEARTH_STATE_KEY.to_owned(), "repaired".to_owned());
+        let state = upkeep::Upkeep::default();
+        assert_eq!(state.banked_nights(), 0);
+        assert_eq!(
+            hearth_prompt(&interior_state, &Progression::default(), &state),
+            format!("E — tend the hearth     [still needs {WOOD_FOR_A_NIGHT}]")
+        );
+    }
+
+    /// The office has walls to mend, and mending all of them is what makes the
+    /// fire cheaper. If the scene ever stops carrying wall sections under this
+    /// prefix the dividend would silently pay itself from the first day.
+    #[test]
+    fn the_office_walls_are_a_real_repair_that_has_to_be_finished() {
+        let office = interior::InteriorMap::load(interior::InteriorId::Office);
+        let walls = office
+            .mutable_elements()
+            .iter()
+            .filter(|element| element.id.starts_with(OFFICE_WALL_PREFIX))
+            .map(|element| format!("{}/{}", office.id(), element.id))
+            .collect::<Vec<_>>();
+        assert!(walls.len() > 1, "the office should be a room, not a wall");
+
+        let mut interior_state = InteriorState::default();
+        assert!(!walls_hold_the_heat(&office, &interior_state));
+        for (index, key) in walls.iter().enumerate() {
+            interior_state.0.insert(key.clone(), "repaired".to_owned());
+            assert_eq!(
+                walls_hold_the_heat(&office, &interior_state),
+                index + 1 == walls.len(),
+                "the last wall is what finishes the room"
+            );
+        }
+    }
+
+    /// Deadfall keeps falling and plants keep growing; a felled tree stays
+    /// felled and a quarried outcrop stays quarried. If this ever went the other
+    /// way the valley would either strip bare for good or stop being finite.
+    #[test]
+    fn only_the_things_that_grow_again_come_back() {
+        for kind in [
+            InteractableKind::Forage,
+            InteractableKind::Kindling,
+            InteractableKind::Log,
+        ] {
+            assert!(regrows(kind));
+        }
+        for kind in [
+            InteractableKind::Plank,
+            InteractableKind::Tree,
+            InteractableKind::StoneOutcrop,
+            InteractableKind::SeedStore,
+            InteractableKind::Salvage,
+            InteractableKind::Tool,
+        ] {
+            assert!(!regrows(kind));
+        }
+    }
+
+    /// The offer on screen and the key that takes it read the same list, so this
+    /// walks the whole ladder down: a full pot, one bowl left, the pack, the last
+    /// of the pack, nothing.
+    #[test]
+    fn the_food_offer_says_exactly_what_giving_it_would_cost() {
+        let mut state = upkeep::Upkeep::default();
+        let mut progression = Progression::default();
+        assert_eq!(food_offer(&state, &progression), FoodOffer::Nothing);
+        assert!(food_offer(&state, &progression)
+            .line(&state, &progression)
+            .contains("nothing to eat yourself"));
+
+        progression.add_supply(SupplyId::Ration, 1);
+        assert_eq!(food_offer(&state, &progression), FoodOffer::LastRation);
+        assert!(food_offer(&state, &progression)
+            .line(&state, &progression)
+            .contains("half each"));
+
+        progression.add_supply(SupplyId::Ration, 2);
+        assert_eq!(food_offer(&state, &progression), FoodOffer::Ration);
+
+        // A pot with something in it is always reached for before the pack.
+        state.add_a_ration(&mut progression);
+        assert_eq!(food_offer(&state, &progression), FoodOffer::Bowl);
+        assert!(food_offer(&state, &progression)
+            .line(&state, &progression)
+            .contains("2 in the pot"));
+
+        state.ladle_a_bowl();
+        assert_eq!(food_offer(&state, &progression), FoodOffer::LastBowl);
+        assert!(food_offer(&state, &progression)
+            .line(&state, &progression)
+            .contains("half each"));
     }
 
     #[test]
@@ -6066,9 +6613,10 @@ mod tests {
             &Collection::default(),
             &Readings::default(),
             &Salvaged::default(),
+            &upkeep::Upkeep::default(),
         );
 
-        assert_eq!(save.version, 8);
+        assert_eq!(save.version, 9);
         assert_eq!(save.garden.stage("garden-plot-00"), PlotStage::Fallow);
         assert_eq!(save.interior_states["motel-room-01/mirror-01"], "repaired");
         assert!(bible_found(&InteriorState(save.interior_states.clone())));
@@ -6282,7 +6830,14 @@ mod tests {
             VisitStage::Leaving,
         ] {
             assert!(
-                visit_overlay(&party_at(stage), &collection, &progression, &access).is_none(),
+                visit_overlay(
+                    &party_at(stage),
+                    &collection,
+                    &progression,
+                    &upkeep::Upkeep::default(),
+                    &access
+                )
+                .is_none(),
                 "{stage:?} should leave the player looking at the world"
             );
             assert!(
@@ -6297,7 +6852,14 @@ mod tests {
             VisitStage::Choosing,
         ] {
             assert!(
-                visit_overlay(&party_at(stage), &collection, &progression, &access).is_some(),
+                visit_overlay(
+                    &party_at(stage),
+                    &collection,
+                    &progression,
+                    &upkeep::Upkeep::default(),
+                    &access
+                )
+                .is_some(),
                 "{stage:?} needs something on screen"
             );
             assert!(stage.holds_the_screen(), "{stage:?} should hold the screen");
@@ -6311,6 +6873,7 @@ mod tests {
             &party,
             &Collection::default(),
             &Progression::default(),
+            &upkeep::Upkeep::default(),
             &MotelAccess::default(),
         );
         assert!(
@@ -6435,6 +6998,7 @@ mod tests {
             &party,
             &Collection::default(),
             &Progression::default(),
+            &upkeep::Upkeep::default(),
             &MotelAccess::default(),
         );
         // A reviewed fixture never came off the wire, and the line under the
@@ -6452,6 +7016,7 @@ mod tests {
             &live,
             &Collection::default(),
             &Progression::default(),
+            &upkeep::Upkeep::default(),
             &MotelAccess::default(),
         );
         assert!(provenance.contains("YouVersion"), "{provenance}");

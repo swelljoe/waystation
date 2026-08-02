@@ -39,6 +39,65 @@ searching, gathering, sleeping, tending the hearth, and speaking to whoever has
 come down the road. Keeping those paths separate prevents a search target beside
 damaged scenery from silently choosing the wrong action.
 
+## Keeping the place
+
+Restoration is paid for once. Keeping the waystation is paid for every night, and
+that half of the game lives in `crates/game/src/upkeep.rs`.
+
+At the turn of each day the Scribe eats, the fire burns a night of wood, and the
+game records whether the night was **fed**, **warm**, and **dry**. All three is a
+good day. Good days are counted in the ledger; nothing else scores anything.
+
+| | Costs | Comes from |
+| --- | --- | --- |
+| Fed | one bowl, or one ration if the pot is empty | the garden, foraging, gifts |
+| Warm | one night of banked wood | 1 fallen log = 2 nights, 3 kindling = 1 |
+| Dry | sleeping in a bed that night | rooms one and six |
+
+Mending every wall in the office is the one repair that keeps paying: a room
+that holds its heat gets three nights out of a log instead of two. Nothing says
+so — the woodpile simply lasts longer.
+
+The hearth holds at most four nights of wood. When it runs out the fire goes out:
+the smoke stops, and nobody on the road has any reason to come. Relighting it
+costs the usual three kindling and a flue that is still clear.
+
+`E` at a lit hearth does the next thing that wants doing, and the prompt says
+which: put wood on, put a ration in the pot, or let the pot down with water. With
+the fire short and nothing in the pack it says so — `E — tend the hearth
+[still needs 1 fallen log or 3 kindling]` — in the same shape a missing plank uses.
+
+### The pot
+
+The stew is perpetual: it is topped up, never emptied. One ration makes two full
+bowls. A canful of water makes one more bowl and makes every bowl thinner, so a
+single ration can be stretched to six thin ones — and the game stops offering
+water before the pot stops being food, which the Scribe can taste as
+*clear water with a memory of grain in it*.
+
+### Sharing
+
+The first offer on the hospitality screen is whatever the Scribe actually has:
+
+```text
+1  Ladle out a bowl (4 in the pot)
+1  Share the last of the pot, half each
+1  Share food (2 in the pack)
+1  Split your last ration, half each
+1  — you have nothing to eat yourself
+```
+
+The halving offers appear only when there is one left. Both people eat; neither
+of them has eaten, and a half does not settle a hungry stretch. That is the
+decision — there is no approval rating attached to it and no penalty for keeping
+the bowl.
+
+### What grows back
+
+One thing the valley has given up comes back each night, chosen at random from
+what has been taken. Forage, kindling, and fallen logs regrow. Felled trees and
+quarried stone do not.
+
 ## The folio
 
 `P` opens the block-prints at any hour and anywhere, `←`/`→` turn a leaf, and

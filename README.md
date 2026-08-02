@@ -100,6 +100,17 @@ requires three kindling plus a cleared chimney reached with the discoverable
 ladder. See [docs/RESTORATION_GAMEPLAY.md](docs/RESTORATION_GAMEPLAY.md) for tool
 controls and scene/task schemas.
 
+Repairs are paid for once; keeping the place is paid for every night. At the turn
+of each day the Scribe eats, the hearth burns a night of banked wood, and the game
+records whether the night was fed, warm, and dry — all three is a good day, and
+good days are the only thing counted. A fire nobody feeds goes out, and a cold
+chimney means nobody on the road has a reason to come. Food is a perpetual stew:
+one ration makes two full bowls, a canful of water makes one more thin one, and
+what the Scribe can put in front of a stranger is whatever is actually in the pot.
+When there is one bowl left, the offer is to halve it — both eat, neither has
+eaten. One taken pickup grows back each night, so the valley can be stripped but
+not exhausted.
+
 The Scribe uses the complete 13×54 LPC action sheet from
 `assets/custom/scribe.png`. Movement currently animates the four nine-frame walk
 rows at native pixel scale. Hammer repairs and axe chopping now compose the LPC

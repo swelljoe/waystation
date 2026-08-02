@@ -796,6 +796,12 @@ impl Progression {
         self.collected_pickups.insert(id.to_owned());
     }
 
+    /// Un-takes something the valley has put back. Only the things that grow
+    /// again are ever forgotten; see `regrows` in the game crate's main module.
+    pub fn forget_pickup(&mut self, id: &str) {
+        self.collected_pickups.remove(id);
+    }
+
     pub fn tools_summary(&self) -> String {
         let mut carried = self
             .tool_instances
