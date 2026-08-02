@@ -88,6 +88,13 @@ six-frame work layers; the remaining action rows stay available for farming,
 sitting, climbing, expression, and combat systems. The complete matrix is in
 [docs/LPC_ACTIONS.md](docs/LPC_ACTIONS.md).
 
+Travelers who arrive later in a run are generated rather than drawn. `make npcs`
+builds a cast of Universal LPC Spritesheet Generator characters — humans only,
+in scavenged browns and tans, no armor and no weapon but the occasional cane —
+and writes them as loadable `character.json` files, a page of links into the web
+generator, and a contact sheet. Pruning happens in one allowlist; see
+[docs/NPC_GENERATOR.md](docs/NPC_GENERATOR.md).
+
 Exterior trees depth-sort at their trunk ground contact. When the Scribe passes
 behind the dense leafy canopy, the character is fully hidden rather than leaving
 a stray head pixel above the opaque foliage. Full concealment samples the PNG's
@@ -334,6 +341,7 @@ API response.
 
 ```text
 crates/game/       Bevy native/WebAssembly client
+crates/npcgen/     Procedural LPC travelers, as generator selections
 crates/server/     Axum static host and secret-bearing API proxy
 crates/shared/     DTOs, validation, and reviewed content loader
 content/           Authored traveler and passage catalogs (RON)

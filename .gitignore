@@ -11,7 +11,16 @@ __pycache__/
 *.pyc
 
 # Purchased source art is intentionally kept out of the public repository.
-/assets/
+# Written as `/assets/*` rather than `/assets/` so that specific subtrees can be
+# re-included below; git cannot un-ignore anything inside an ignored directory.
+/assets/*
+
+# Our own LPC pieces are the exception: drawn here, redistributable, and meant to
+# go back to OpenGameArt. They have to be in version control, and the split
+# working layers with them — no layered master for that art exists anywhere else.
+!/assets/custom/
+/assets/custom/*
+!/assets/custom/lpc/
 
 # Licensed source audio follows the same private-runtime boundary as source art.
 /music/

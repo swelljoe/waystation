@@ -23,6 +23,31 @@ rectangles, but the raw sheets and generated catalog remain ignored. The runtime
 build receives only flattened room images and the specific state crops used by
 authored repair pairs.
 
+Procedurally generated travellers draw on the same LPC ecosystem, through
+`crates/npcgen`. That wardrobe is built by `scripts/build-npc-wardrobe.py`, which
+refuses any sprite offered only under GPL and any sprite whose author the LPC
+catalogue cannot name — Waystation is not open source, so GPL is not a licence it
+can pick. The art in use is currently a mix of OGA-BY 3.0, CC-BY-SA 3.0, CC-BY
+and CC0; 35 of 179 generated pieces are share-alike with no attribution-only
+alternative, which is recorded rather than hidden. Rebuilding with
+`--licenses attribution` excludes those.
+
+The same script credits the hand-drawn character sheets in `assets/custom/`, so
+generated and authored people land in one attribution list rather than two. Every
+832x3456 LPC action sheet there must have its generator export saved beside it as
+`.txt`; the build fails otherwise, because art with no provenance record cannot
+be attributed. Of the five today, `scribe.png`, `old-guy.png` and
+`redhead-lady.png` carry share-alike art and `black-teen.png` and
+`little-sister.png` do not.
+
+Share-alike art is safe as animated art inside the running game. It must not be
+flattened into a single image with the purchased packs, which cannot be
+relicensed to match — that includes screenshots, trailer frames and store art.
+Generate people for those with `make npcs ART=attribution-only`. Full per-file
+attribution lives in `docs/NPC_ART_CREDITS.md` and
+`crates/npcgen/data/credits.json`, and must accompany any release that ships
+these characters.
+
 The runtime bundle also includes two open fonts:
 
 - EB Garamond by the EB Garamond Project Authors, used for player-facing text.

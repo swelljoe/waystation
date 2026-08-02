@@ -1,0 +1,17 @@
+[package]
+name = "waystation-npcgen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[[bin]]
+name = "npc-preview"
+path = "src/bin/npc-preview.rs"
+
+[lints]
+workspace = true

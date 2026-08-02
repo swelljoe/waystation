@@ -1,4 +1,4 @@
-.PHONY: assets prints add-print print-art catalog bible-versions verses editor check test analyze build server server-live game web web-smoke publish-demo-assets container run-container
+.PHONY: assets prints add-print print-art catalog wardrobe npcs bible-versions verses editor check test analyze build server server-live game web web-smoke publish-demo-assets container run-container
 
 assets:
 	python3 scripts/build-assets.py
@@ -14,6 +14,25 @@ print-art:
 
 catalog:
 	python3 scripts/asset_catalog.py --output assets/.catalog.json
+
+# Rebuilds the curated NPC wardrobe from a local Universal LPC Spritesheet
+# Generator checkout. Only needed after editing the allowlist in the script or
+# pulling new LPC art; the result is committed and compiled into the game.
+wardrobe:
+	python3 scripts/build-npc-wardrobe.py $(if $(LPC),--lpc $(LPC))
+
+# A cast of generated travellers, as loadable LPC character files, a page of
+# links into the web generator, and a contact sheet to look at. Pass ERA=dyed
+# for the later, brighter palette, or COUNT= for more of them.
+#
+# ART=attribution-only refuses share-alike art, for travellers going into a
+# screenshot, trailer, or store art — anywhere they are flattened into one image
+# with purchased tilesets that cannot be relicensed to match.
+npcs:
+	cargo run -p waystation-npcgen --bin npc-preview -- \
+		--count $(or $(COUNT),24) --era $(or $(ERA),scavenged) \
+		--art $(or $(ART),any)
+	python3 scripts/preview-npcs.py $(if $(LPC),--lpc $(LPC))
 
 # Rebuilds content/bible-versions.json from the YouVersion catalog. Needs
 # YVP_APP_KEY. The result is committed and reviewed; the server never discovers
@@ -41,6 +60,9 @@ test:
 	python3 scripts/test_fetch_bible_versions.py
 	python3 scripts/test_fetch_verses.py
 	python3 scripts/test_publish_demo_assets.py
+	python3 scripts/test_build_npc_wardrobe.py
+	python3 scripts/test_preview_npcs.py
+	python3 scripts/test_lpc_art_tools.py
 	python3 scripts/test_web_smoke.py
 	python3 scripts/test_level_editor.py
 	node scripts/test_level_editor_ui.js

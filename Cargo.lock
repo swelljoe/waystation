@@ -5170,6 +5170,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "waystation-npcgen"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "waystation-server"
 version = "0.1.0"
 dependencies = [
