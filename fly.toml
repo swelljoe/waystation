@@ -49,7 +49,9 @@ primary_region = "iad"
   force_https = true
   auto_stop_machines = "suspend"
   auto_start_machines = true
-  min_machines_running = 0
+  # Eventually can go to zero; adds a few seconds latency on first visitor interaction
+  # to start a machine from cold.
+  min_machines_running = 1
 
   # Health sits outside the gate on purpose. These checks carry no credentials,
   # and a 401 here reads to Fly as a machine that has died.
