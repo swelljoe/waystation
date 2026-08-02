@@ -98,8 +98,8 @@ impl Company {
 /// The first thing a stranger says, before any story of their own.
 ///
 /// Drawn separately from the vignette so the same story does not always begin
-/// the same way — three authored stories and thirty openings meet as ninety
-/// different first minutes.
+/// the same way — the two pools multiply rather than add, and hearing a story
+/// twice does not mean hearing the same conversation twice.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Opening {
     pub id: String,
@@ -332,6 +332,92 @@ mod tests {
     fn every_vignette_has_candidates() {
         for item in vignettes() {
             assert!(candidates_for(item).len() >= 2);
+        }
+    }
+
+    /// A need with no passage behind it is invisible: `candidates_for` simply
+    /// drops it, so a typo costs the vignette a possible reading and nothing
+    /// says so. The Scribe would just never hear that one.
+    #[test]
+    fn every_need_a_vignette_claims_is_a_need_that_exists() {
+        let known: std::collections::HashSet<&str> = passages()
+            .iter()
+            .map(|item| item.need_id.as_str())
+            .collect();
+        for item in vignettes() {
+            assert!(item.needs.len() >= 2, "{} offers one reading", item.id);
+            for need in &item.needs {
+                assert!(
+                    known.contains(need.as_str()),
+                    "{} claims the need {need:?}, which no passage in \
+                     content/passages.ron answers",
+                    item.id
+                );
+            }
+        }
+    }
+
+    /// The story is the longest thing a stranger says. There has to be enough
+    /// of it that a player who keeps a fire all winter is still meeting people
+    /// rather than rereading them.
+    #[test]
+    fn there_are_enough_stories_to_go_round() {
+        assert!(vignettes().len() >= 20, "{} vignettes", vignettes().len());
+    }
+
+    /// The dialogue box shows one line at a time and does not scroll, so an
+    /// over-long line is a sentence the player never finishes reading. The cap
+    /// is the longest line the authored content has ever been drawn with.
+    #[test]
+    fn every_vignette_is_three_readable_lines() {
+        const LONGEST_DRAWN: usize = 120;
+        let mut ids = std::collections::HashSet::new();
+        let mut lines = std::collections::HashSet::new();
+        for item in vignettes() {
+            assert!(ids.insert(&item.id), "two vignettes called {}", item.id);
+            assert_eq!(item.lines.len(), 3, "{} is not three lines", item.id);
+            for line in &item.lines {
+                assert!(!line.trim().is_empty(), "{} has a blank line", item.id);
+                assert!(
+                    line.chars().count() <= LONGEST_DRAWN,
+                    "{} has a {}-character line, past the {LONGEST_DRAWN} that fits: {line:?}",
+                    item.id,
+                    line.chars().count()
+                );
+                assert!(
+                    lines.insert(line),
+                    "{} repeats a line another traveller already says: {line:?}",
+                    item.id
+                );
+            }
+        }
+    }
+
+    /// Faces are generated, not authored. A traveller who says "as a woman" may
+    /// well be standing there with a beard, and the words do not get to decide
+    /// what the art looks like. Talking *about* somebody else is fine — it is
+    /// only the speaker who has to stay unspecified.
+    #[test]
+    fn no_vignette_decides_what_its_own_speaker_looks_like() {
+        const CLAIMS: [&str; 6] = [
+            "i am a man",
+            "i am a woman",
+            "as a man",
+            "as a woman",
+            "i am an old man",
+            "i am an old woman",
+        ];
+        for item in vignettes() {
+            for line in &item.lines {
+                let spoken = line.to_lowercase();
+                for claim in CLAIMS {
+                    assert!(
+                        !spoken.contains(claim),
+                        "{} says {claim:?}, but the face is generated: {line:?}",
+                        item.id
+                    );
+                }
+            }
         }
     }
 

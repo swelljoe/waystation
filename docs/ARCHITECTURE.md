@@ -421,6 +421,8 @@ sensible thing is to keep walking.
 
 Profiles carry art, a name pool, and which authored vignettes suit them, so the
 same LPC sheet arriving twice across a long game is not the same person twice.
+A profile's vignette list is a pool rather than a script — it is narrowed by
+what the party could plausibly have lived through, not by story order.
 A profile may have two bodies — the sibling pair walk in together, are addressed
 together, and are offered hospitality as one party.
 

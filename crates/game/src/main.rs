@@ -11,6 +11,7 @@ mod interior;
 mod npc_art;
 mod progression;
 mod reading;
+mod rehearsal;
 mod salvage;
 mod terrain;
 mod visitors;
@@ -290,6 +291,10 @@ fn run_game() {
         .init_resource::<DoorBumpLatch>()
         .init_resource::<terrain::TerrainDebugOverlay>()
         .init_resource::<InteriorState>()
+        // Off unless `WAYSTATION_VISITORS` says otherwise, in which case a
+        // traveller is already coming down the road. See `mod rehearsal`.
+        .insert_resource(rehearsal::Rehearsal::from_environment())
+        .init_resource::<rehearsal::Rehearsed>()
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -312,7 +317,16 @@ fn run_game() {
         .add_systems(Update, terrain::update_debug_overlay)
         .add_systems(
             Startup,
-            (load_story, setup_world, load_ui_fonts, setup_ui).chain(),
+            (
+                load_story,
+                // After the save, so a rehearsal overrides one; before the
+                // world, so the hearth it lights is built already lit.
+                rehearsal::warm_the_waystation,
+                setup_world,
+                load_ui_fonts,
+                setup_ui,
+            )
+                .chain(),
         )
         .add_systems(
             Update,
@@ -332,7 +346,13 @@ fn run_game() {
                 sync_portable_tool_entities,
                 (grow_garden, sync_garden_plots).chain(),
                 (chance::stir_chance, advance_clock, sync_daylight).chain(),
-                (npc_art::compose_visitor_art, run_visits, retire_visitors).chain(),
+                (
+                    npc_art::compose_visitor_art,
+                    rehearsal::summon_visitors,
+                    run_visits,
+                    retire_visitors,
+                )
+                    .chain(),
                 update_nearby_interaction,
                 (handle_portfolio_input, handle_tool_hotkeys).chain(),
                 handle_visit_input,
@@ -4076,7 +4096,7 @@ fn hearth_complaint(missing: &[String]) -> String {
             "I can't light this. Nothing dry enough to catch, and no telling what's clogging up that chimney.".to_owned()
         }
         (true, false) => {
-            "I can't light this fire. No telling what's clogging up that chimney — it would only smoke us both out.".to_owned()
+            "I can't light this fire. No telling what's clogging up that chimney — it would only fill the room with smoke.".to_owned()
         }
         (false, true) => {
             "The flue draws clean. Nothing here dry enough to catch, though.".to_owned()
@@ -5209,6 +5229,7 @@ fn run_visits(
     mut chance: ResMut<Chance>,
     mut visitors: ResMut<Visitors>,
     mut journal: ResMut<Journal>,
+    rehearsal: Res<rehearsal::Rehearsal>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut layouts: ResMut<Assets<TextureAtlasLayout>>,
@@ -5223,7 +5244,7 @@ fn run_visits(
     let fire_is_lit = hearth_is_lit(&interior_state);
     visitors.roll_for_today(*clock, fire_is_lit, &mut chance);
     if visitors.arrival_is_due(*clock) {
-        let party = visitors.arrive(&mut chance, visitors::CURRENT_ERA);
+        let party = visitors.arrive_wanted(&mut chance, visitors::CURRENT_ERA, &rehearsal.wanted());
         // What the Scribe can make out from across the court: the shape of the
         // arrival, and one detail of the person themself if there is one worth
         // naming. The detail comes off the generated traveller, so it is true
@@ -5236,6 +5257,12 @@ fn run_visits(
             notice.push(' ');
             notice.push_str(detail);
         }
+        // Which story this is, when somebody is looking at stories rather than
+        // playing. Guessing it from the first sentence is exactly the work the
+        // switch exists to save. Both are silent unless the switch is set, so
+        // an ordinary game never sees either.
+        rehearsal::note_arrival(&rehearsal, party);
+        notice.insert_str(0, &rehearsal::announce(&rehearsal, party));
         spawn_visitor_bodies(
             &mut commands,
             &asset_server,

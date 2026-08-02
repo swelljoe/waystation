@@ -43,6 +43,7 @@ KEYS = {
     "r": ("KeyR", 82),
     "q": ("KeyQ", 81),
     "p": ("KeyP", 80),
+    "f4": ("F4", 115),
     "tab": ("Tab", 9),
     "space": ("Space", 32),
     "escape": ("Escape", 27),
@@ -216,6 +217,17 @@ class Page:
         return path
 
 
+def page_url(port: int, query: str = "") -> str:
+    """The page to open, with any query string the caller asked for.
+
+    The game reads `?visitors=` at startup to stand a visit up immediately, so a
+    screenshot of a traveller does not have to wait out three nights of smoke.
+    """
+    address = f"http://127.0.0.1:{port}/index.html"
+    query = query.lstrip("?")
+    return f"{address}?{query}" if query else address
+
+
 def attach(port: int, seconds: float = 30.0) -> str:
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
@@ -250,7 +262,7 @@ async def run(args) -> int:
             "--disable-gpu-sandbox",
             *SOFTWARE_WEBGL,
             f"--user-data-dir={out / 'chromium-profile'}",
-            f"http://127.0.0.1:{http_port}/index.html",
+            page_url(http_port, args.query),
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -310,6 +322,11 @@ def main() -> int:
         "--save",
         help="JSON save file to put in local storage before the game starts, so a"
         " screen that takes nights of play to reach can still be looked at",
+    )
+    parser.add_argument(
+        "--query",
+        default="",
+        help="query string for index.html, e.g. visitors=repeat to stand a visit up at once",
     )
     parser.add_argument(
         "--view",

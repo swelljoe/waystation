@@ -357,10 +357,70 @@ What the Scribe reads is drawn from three pools that vary independently:
   naming: a stick, a hood, a pack;
 - the **opening**, from `content/openings.ron` — the first thing they say.
 
-Openings are separate from vignettes on purpose. Three authored stories and
-thirty openings meet as ninety different first minutes, and the opening carries
-the thing the story cannot: that meeting anyone at all is the unusual event, and
-nobody walks up to a stranger's fire pleased about it.
+Openings are separate from vignettes on purpose. Twenty-three authored stories
+and thirty openings multiply rather than add, and the opening carries the thing
+the story cannot: that meeting anyone at all is the unusual event, and nobody
+walks up to a stranger's fire pleased about it.
+
+Which stories a party may tell is fixed by its profile, because the words have
+to fit the generated body: a lone walker cannot tell the one about carrying a
+child out of the camp below the Kiln, and a fourteen-year-old cannot be the one
+who took a toll on this road twelve years ago. The pools are eleven stories for
+a lone walker, six for a pair of children, eight for an elder, overlapping where
+the story does not care.
+
+Travellers who never met corroborate each other — the toll one paid in the north
+is the toll another used to collect, and the river that drowned a village is the
+one a third is walking towards. That map is written down in
+[docs/WORLD.md](WORLD.md), along with the writing rules, so a new story lands in
+the same world rather than beside it.
+
+### Looking at a visit without waiting for one
+
+Arrivals are rare by design — three nights of smoke, then dice, then an hour —
+which is right for playing and useless for writing. `WAYSTATION_VISITORS` puts
+somebody on the road as the game opens:
+
+```bash
+WAYSTATION_VISITORS=now                     cargo run -p waystation-game
+WAYSTATION_VISITORS=repeat                  cargo run -p waystation-game
+WAYSTATION_VISITORS=story=sela_offer        cargo run -p waystation-game
+WAYSTATION_VISITORS=who=old-hand,repeat     cargo run -p waystation-game
+WAYSTATION_VISITORS=now,cold                cargo run -p waystation-game
+```
+
+The same spec is a query parameter on the web — `index.html?visitors=repeat` —
+which is also how `scripts/web_smoke.py --query` reaches a visit for a
+screenshot.
+
+| Token | What it does |
+| --- | --- |
+| `now` (or `on`, `1`) | Somebody arrives on the first frame, whatever the fire, the dice, or the hour say. **F4** fetches the next one whenever the court is empty. |
+| `repeat` | And another, three seconds after each court empties. |
+| `story=<id>` | Pin an authored vignette, and bring a party that could plausibly tell it. |
+| `who=<profile id>` | Pin the shape: `walker`, `siblings`, `old-hand`. Beats the shape a pinned story would have chosen. |
+| `cold` | Skip the warm start, so the visit happens with nothing to offer. |
+| `off` | Nothing, whatever came before it in the spec. |
+
+Unless `cold` is set, the waystation starts as one that has been kept: hearth
+lit, chimney clear, keys found, six rations, four blocks cut. Without that a
+rehearsed visit natively reaches the hospitality screen with every option
+refused, because the native build has no save and every game starts on a cold
+first morning.
+
+Only the calendar is overridden. The party itself is built by the same
+`arrive_wanted` a real day calls, so a rehearsed visit cannot drift from the
+one a player gets — what is not pinned is still drawn fresh, which is why the
+same pinned story arrives on a different face every time.
+
+An unknown token refuses to start the game and lists the real ones; a misspelt
+story id that quietly rehearsed a random story would cost more time than the
+switch saves. Each arrival is named on the console — `WAYSTATION_VISITORS:
+old-hand · hale_toll · Merrin` — and tagged in the journal, so the story being
+looked at never has to be guessed from its first sentence.
+
+Nothing turns this on from inside the game. No key combination reaches it, and a
+player who never sets the variable can never trip over it.
 
 ### Checking that it draws the right person
 
@@ -398,10 +458,20 @@ demo-assets archive, which packs the whole tree.
 
 ## Not done yet
 
-**More stories.** Three vignettes is what the game has, and the opening pool
-hides that rather than fixing it. Adding one costs a block in
+**Stories are still hand-written.** Twenty-three of them, which is enough that
+a player keeping a fire through a season is meeting people rather than rereading
+them, and not enough to last forever. Adding one costs a block in
 `content/vignettes.ron` reusing the existing needs, plus its id in a profile's
 `vignettes` list — the server routes on the authored text and needs no change.
+The rules a new one has to keep are in [docs/WORLD.md](WORLD.md) and are
+enforced by tests in `crates/shared/src/lib.rs`.
+
+**Nothing generates the words yet.** The art is generated and the writing is
+not, which is the asymmetry to close next. `docs/WORLD.md` ends with what a
+prompt would need and the two hazards worth knowing first: a hosted model's
+content controls against a deliberately harsh setting, and the fact that the
+traveller's face has already been decided by the time anyone speaks. The
+authored tests are the acceptance criteria either way.
 
 **One era.** `Era::Dyed` exists, is tested, and nothing turns it on;
 `visitors::CURRENT_ERA` is the single line that has to learn about the story

@@ -59,6 +59,23 @@ class Arguments(unittest.TestCase):
             self.assertGreater(key_code, 0, name)
 
 
+class PageAddress(unittest.TestCase):
+    """`--query` is how a smoke run reaches a screen the calendar guards.
+
+    `visitors=repeat` puts a traveller in the court on the first frame, so a
+    screenshot of a visit does not have to wait out three nights of smoke.
+    """
+
+    def test_no_query_leaves_the_address_alone(self):
+        self.assertEqual(web_smoke.page_url(8080), "http://127.0.0.1:8080/index.html")
+        self.assertEqual(web_smoke.page_url(8080, ""), "http://127.0.0.1:8080/index.html")
+
+    def test_a_query_is_appended_once_however_it_was_written(self):
+        wanted = "http://127.0.0.1:8080/index.html?visitors=repeat"
+        self.assertEqual(web_smoke.page_url(8080, "visitors=repeat"), wanted)
+        self.assertEqual(web_smoke.page_url(8080, "?visitors=repeat"), wanted)
+
+
 class Interpretation(unittest.TestCase):
     """The stub stands in for Gloo and YouVersion.
 

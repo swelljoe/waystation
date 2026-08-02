@@ -1,3 +1,23 @@
+// Stories travellers tell, once they have decided you are not a danger.
+//
+// The opening line is not here — that comes from `content/openings.ron` and is
+// drawn separately, so the same story does not always begin the same way.
+//
+// Rules a new one has to keep, all of them checked by tests:
+//   * Three lines, none longer than will fit the dialogue box.
+//   * At least two `needs`, each one a `need_id` in `content/passages.ron`.
+//   * Never gender the speaker. The face is generated; the words do not get to
+//     decide what it looks like.
+//   * No greeting in the first line. They have already said hello.
+//   * Places stay consistent with `docs/WORLD.md` — the Kiln in the north, the
+//     Sill and drowned Sillford in the south, the company out of the west, the
+//     rumoured terraces in the east.
+//   * Nothing is remembered from before the ash. It happened a century back, past
+//     anyone's grandparents; no traveller has seen the world work. Losses are
+//     recent and personal.
+//
+// Which parties may tell which story is decided in `crates/game/src/visitors.rs`;
+// a lone walker cannot tell the one about carrying a child out of a camp.
 [
     (
         id: "mara_grief",
@@ -29,5 +49,204 @@
         ],
         needs: ["belonging", "mercy"],
     ),
+    (
+        id: "kell_toll",
+        traveler_name: "Kell",
+        lines: [
+            "The men at the Kiln take a toll on the north road. I paid it going, and again coming back.",
+            "The second time I had nothing left they wanted, so they took four days instead. Sitting.",
+            "I am not ashamed of paying. I am ashamed of how quickly I offered.",
+        ],
+        needs: ["mercy", "comfort"],
+    ),
+    (
+        id: "sarn_letter",
+        traveler_name: "Sarn",
+        lines: [
+            "I am carrying a letter east, to a woman who does not know yet that her son is dead.",
+            "I have had it eleven weeks. Every place I stop I ask, and every place it is not.",
+            "I am walking as fast as I can towards the worst hour of somebody's life.",
+        ],
+        needs: ["courage", "comfort"],
+    ),
+    (
+        id: "halden_water",
+        traveler_name: "Halden",
+        lines: [
+            "A man asked me for water two days back, and I told him I had none to spare.",
+            "There was a full skin under my coat while I said it. I have thought of nothing else since.",
+            "I do not know what I am now. I would like to find out somewhere with a roof over it.",
+        ],
+        needs: ["mercy", "belonging"],
+    ),
+    (
+        id: "ivy_column",
+        traveler_name: "Ivy",
+        lines: [
+            "There is a company out of the west that used to be an army. It still marches like one.",
+            "They came through our fields in the spring, and left the fields, and took everything that could walk.",
+            "I go east because east is where the road goes. That is the whole of my plan.",
+        ],
+        needs: ["presence", "courage"],
+    ),
+    (
+        id: "noa_pace",
+        traveler_name: "Noa",
+        lines: [
+            "The last group I walked with decided one night that I ate more than I carried.",
+            "They never did anything about it. They only said it where I could hear.",
+            "So I keep my own pace now, and I am very tired of my own pace.",
+        ],
+        needs: ["belonging", "rest"],
+    ),
+    (
+        id: "wren_seed",
+        traveler_name: "Wren",
+        lines: [
+            "There is seed grain in this bag. It is not mine. It belongs to whoever ends up planting it.",
+            "I have been hungry beside it nine days. It would feed me for two, and then it would be gone.",
+            "Tell me I am right to keep walking. I have stopped being able to tell.",
+        ],
+        needs: ["courage", "rest"],
+    ),
+    (
+        id: "ford_flood",
+        traveler_name: "Ford",
+        lines: [
+            "The Sill came up in one night and took Sillford with it. I was on the high side of the water.",
+            "Twice now somebody has told me I was lucky. I cannot work out what to do with being lucky.",
+            "There were forty of us. I do not have a number for what there is now.",
+        ],
+        needs: ["comfort", "presence"],
+    ),
+    (
+        id: "rilla_debt",
+        traveler_name: "Rilla",
+        lines: [
+            "A family fed me through the cold months and asked nothing back. I left before the thaw.",
+            "I could not stand being the one who only took. I thought going would settle it. It did not.",
+            "If you feed me I will owe you as well, and I still will not know how to carry it.",
+        ],
+        needs: ["mercy", "belonging"],
+    ),
+    (
+        id: "perrin_names",
+        traveler_name: "Perrin",
+        lines: [
+            "I keep a list of names. People I met on the road who had nobody left to remember them.",
+            "It is forty-one names. I read it through at night so that I do not lose any.",
+            "Lately I have started being frightened of the day somebody has to add mine.",
+        ],
+        needs: ["presence", "belonging"],
+    ),
+    (
+        id: "cass_ration",
+        traveler_name: "Cass",
+        lines: [
+            "There is one meal left in our pack. It has been one meal left for three days.",
+            "The little one thinks I already ate mine. I have got good at pretending to chew.",
+            "I am not asking for me. I want to be clear about that before you decide anything.",
+        ],
+        needs: ["mercy", "rest"],
+    ),
+    (
+        id: "rue_milestone",
+        traveler_name: "Rue",
+        lines: [
+            "Our mother told us to wait by the milestone and that she would be back before dark.",
+            "We waited two darks. Then the little one got cold, and I decided, and I have been deciding since.",
+            "I do not know whether leaving that stone was the wrong thing. I cannot go back and ask.",
+        ],
+        needs: ["comfort", "courage"],
+    ),
+    (
+        id: "elias_quiet",
+        traveler_name: "Elias",
+        lines: [
+            "The little one talked all the time before. Not a word since the crossing.",
+            "I answer things that were never asked, only so that there is a voice going.",
+            "If something does get said while we are here, please do not make anything of it.",
+        ],
+        needs: ["comfort", "presence"],
+    ),
+    (
+        id: "sela_offer",
+        traveler_name: "Sela",
+        lines: [
+            "The camp below the Kiln takes children in. It does not take whoever brought them.",
+            "They offered to keep the little one and not me. I stood there long enough to think it over.",
+            "I want you to know that I thought it over. Then I picked the little one up and we left.",
+        ],
+        needs: ["belonging", "mercy"],
+    ),
+    (
+        id: "amos_grown",
+        traveler_name: "Amos",
+        lines: [
+            "Everywhere we stop, somebody works out which of us is in charge and speaks to me like a grown man.",
+            "I let them. It is quicker than explaining, and we get given more.",
+            "For one evening I would like to be spoken to as what I actually am.",
+        ],
+        needs: ["rest", "belonging"],
+    ),
+    (
+        id: "bertram_stations",
+        traveler_name: "Bertram",
+        lines: [
+            "I walked this road when there was a station on it every day's walk. Yours was the fourth.",
+            "I can still give you the names of the keepers. Nobody has ever wanted them, but I have them.",
+            "It is a strange grief, being the last one who remembers that a thing was ordinary.",
+        ],
+        needs: ["comfort", "belonging"],
+    ),
+    (
+        id: "auda_knees",
+        traveler_name: "Auda",
+        lines: [
+            "My knees have three or four more days in them. I have been telling myself six.",
+            "There is somebody in the east I have not seen in nine years. That is all of the arithmetic.",
+            "If I sit down I will not get up again, so I would rather stand while we talk.",
+        ],
+        needs: ["rest", "courage"],
+    ),
+    (
+        id: "marrow_words",
+        traveler_name: "Marrow",
+        lines: [
+            "I buried my wife on the ridge above the burnt orchard. Alone. There was nobody to send for.",
+            "I said the words wrong. A hundred miles of going over them and I still cannot fix it.",
+            "I did not expect to want somebody to have heard that. I have wanted it every day since.",
+        ],
+        needs: ["comfort", "presence"],
+    ),
+    (
+        id: "hale_toll",
+        traveler_name: "Hale",
+        lines: [
+            "I took a toll on this road once, for the men who are still up at the Kiln. Twelve years back.",
+            "I left them. That is the only thing I have for the other side of the scale, and it is light.",
+            "You should know it before you decide. I would rather be turned out than taken for better.",
+        ],
+        needs: ["mercy", "belonging"],
+    ),
+    (
+        id: "corwin_terraces",
+        traveler_name: "Corwin",
+        lines: [
+            "They say there is grain in the east. Standing water, terraces, a place that kept working.",
+            "I have met four people who were told it and not one who has been.",
+            "At my age it hardly matters whether it is true. It matters that I am walking towards it.",
+        ],
+        needs: ["courage", "presence"],
+    ),
+    (
+        id: "tace_dog",
+        traveler_name: "Tace",
+        lines: [
+            "I had a dog six years. She went off after something at the ford and did not come back.",
+            "I waited a day and a half, whistling. I felt foolish, and I went on doing it.",
+            "People tell me it was only a dog. They say it kindly, which is somehow worse.",
+        ],
+        needs: ["comfort", "mercy"],
+    ),
 ]
-

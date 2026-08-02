@@ -16,7 +16,7 @@ fixtures.
 
 ## Play locally
 
-NOTE: Much of the game are is currently licensed from creators on itch.io and not
+NOTE: Much of the game art is currently licensed from creators on itch.io and not
 distributable. Placeholder art is provided, but it's just boxes and AI-generated
 junk. Easier to play online at https://swelljoe.github.io/waystation/
 
@@ -49,6 +49,21 @@ To start directly in the authored motel office while iterating on interiors, run
 ```bash
 WAYSTATION_START_INTERIOR=1 cargo run -p waystation-game
 ```
+
+To stand a visit up immediately while iterating on what travelers say, run:
+
+```bash
+WAYSTATION_VISITORS=now cargo run -p waystation-game
+```
+
+Somebody is on the road as the game opens, the waystation starts warm enough to
+actually offer them something, and **F4** fetches the next one whenever the court
+is empty. `repeat` does that by itself; `story=<id>` pins an authored vignette
+and brings a party that could plausibly tell it; `who=<walker|siblings|old-hand>`
+pins the shape; `cold` skips the warm start so there is nothing to give. Tokens
+combine with commas, an unknown one refuses to start and lists the real ones, and
+the console names each arrival. On the web the same spec is a query parameter:
+`index.html?visitors=repeat`. Nothing turns it on from inside the game.
 
 The valley motel now uses `content/buildings/motel-exterior.json` and the office
 plus rooms 1–6 use their matching documents under `content/interiors`. Exterior
@@ -105,8 +120,10 @@ the game — are checked against each other byte for byte. See
 [docs/NPC_GENERATOR.md](docs/NPC_GENERATOR.md).
 
 What a stranger says first is drawn separately from the story they came to
-tell, so three authored vignettes and thirty openings in
-`content/openings.ron` meet as ninety different first minutes.
+tell, so twenty-three authored vignettes in `content/vignettes.ron` and thirty
+openings in `content/openings.ron` multiply rather than add. The stories
+corroborate each other on purpose — the geography they share, and the rules for
+writing a new one, are in [docs/WORLD.md](docs/WORLD.md).
 
 Exterior trees depth-sort at their trunk ground contact. When the Scribe passes
 behind the dense leafy canopy, the character is fully hidden rather than leaving

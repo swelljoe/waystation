@@ -72,11 +72,12 @@ pub struct Body {
 /// have come to say. Faces are not part of it — those are drawn fresh every
 /// time, so the same shape arriving twice is not the same person twice.
 pub struct Profile {
-    #[cfg_attr(not(test), allow(dead_code))]
     pub id: &'static str,
     pub bodies: &'static [Body],
     /// Authored vignettes that suit this party. A lone walker cannot tell the
-    /// story about being turned out of a camp with her brother in tow.
+    /// story about carrying a child out of the camp below the Kiln, and a child
+    /// cannot be the one who took a toll on this road twelve years ago. Every
+    /// story lives in `content/vignettes.ron`; this is only who may tell it.
     pub vignettes: &'static [&'static str],
     /// What the Scribe sees before anything is said. A pool rather than one
     /// line: this is the sentence a player reads most often in a long game.
@@ -91,11 +92,23 @@ pub const PROFILES: [Profile; 3] = [
             art: "people/walker.png",
             names: &[
                 "Mara", "Sela", "Junia", "Rilla", "Hesper", "Ivy", "Noa", "Wren", "Tobin", "Amos",
-                "Elias", "Ford", "Ruth", "Halden", "Perrin", "Ost",
+                "Elias", "Ford", "Ruth", "Halden", "Perrin", "Ost", "Kell", "Sarn",
             ],
             offset: Vec2::ZERO,
         }],
-        vignettes: &["mara_grief", "oren_weariness"],
+        vignettes: &[
+            "mara_grief",
+            "oren_weariness",
+            "kell_toll",
+            "sarn_letter",
+            "halden_water",
+            "ivy_column",
+            "noa_pace",
+            "wren_seed",
+            "ford_flood",
+            "rilla_debt",
+            "perrin_names",
+        ],
         sightings: &[
             "One traveller, alone, with a much-mended pack.",
             "Somebody walking the ditch rather than the middle of the road.",
@@ -122,7 +135,14 @@ pub const PROFILES: [Profile; 3] = [
                 offset: Vec2::new(30.0, -14.0),
             },
         ],
-        vignettes: &["fen_belonging"],
+        vignettes: &[
+            "fen_belonging",
+            "cass_ration",
+            "rue_milestone",
+            "elias_quiet",
+            "sela_offer",
+            "amos_grown",
+        ],
         sightings: &[
             "Two of them, and one of those is small.",
             "Two figures, close together, the taller one a half-step ahead.",
@@ -141,7 +161,16 @@ pub const PROFILES: [Profile; 3] = [
             ],
             offset: Vec2::ZERO,
         }],
-        vignettes: &["oren_weariness", "mara_grief"],
+        vignettes: &[
+            "oren_weariness",
+            "mara_grief",
+            "bertram_stations",
+            "auda_knees",
+            "marrow_words",
+            "hale_toll",
+            "corwin_terraces",
+            "tace_dog",
+        ],
         sightings: &[
             "Somebody old, looking at your roofline rather than at you.",
             "An old traveller, taking the slope one careful step at a time.",
@@ -150,6 +179,19 @@ pub const PROFILES: [Profile; 3] = [
         ],
     },
 ];
+
+/// A pinned arrival: this shape, or this story, or both.
+///
+/// Empty in an ordinary game — the dice decide. `crate::rehearsal` fills it in
+/// so a writer can look at one story without waiting for it to come up.
+#[derive(Clone, Debug, Default)]
+pub struct Wanted {
+    /// An index into `PROFILES`. Out-of-range is ignored rather than panicking;
+    /// this only ever comes from a debug switch, and refusing to start the game
+    /// over it would be worse than arriving as somebody else.
+    pub profile: Option<usize>,
+    pub vignette: Option<String>,
+}
 
 /// Where a party is in its visit. Nothing here forces the player's hand: every
 /// state except the walking ones is left by the player choosing to leave it.
@@ -331,6 +373,19 @@ impl Visitors {
         }
     }
 
+    /// Puts somebody on the road this instant, whatever the fire, the hour, or
+    /// the dice would have said.
+    ///
+    /// Only `crate::rehearsal` calls it. It goes through the same schedule an
+    /// ordinary arrival does rather than building a party directly, so a
+    /// rehearsed visit is the same visit a player gets and cannot drift from it.
+    pub fn summon(&mut self, clock: Clock) {
+        // Claiming the day as rolled keeps the ordinary roll from clearing this
+        // on the next frame, which is exactly what it is there to do.
+        self.rolled_for_day = clock.day;
+        self.scheduled = Some((clock.day, clock.fraction()));
+    }
+
     /// True on the frame the scheduled hour arrives. Consumes the schedule.
     pub fn arrival_is_due(&mut self, clock: Clock) -> bool {
         let Some((day, hour)) = self.scheduled else {
@@ -349,8 +404,25 @@ impl Visitors {
     /// people standing in it, their names, the first thing they say, and which
     /// story they tell. Two lone walkers a month apart share nothing but the
     /// fact that they came alone.
+    /// The game itself always goes through `arrive_wanted`, because the debug
+    /// switch has to be able to pin a story; this is the same call with nothing
+    /// pinned, kept so the tests read as what an ordinary day does.
+    #[cfg(test)]
     pub fn arrive(&mut self, chance: &mut Chance, era: Era) -> &Party {
-        let profile_index = chance.below(PROFILES.len());
+        self.arrive_wanted(chance, era, &Wanted::default())
+    }
+
+    /// The same arrival, with a shape or a story pinned.
+    ///
+    /// Nothing in the game asks for this; `crate::rehearsal` does, so a writer
+    /// can look at one particular story without waiting for the dice to offer
+    /// it. Everything not pinned is still drawn fresh, which is why a pinned
+    /// story still arrives on a different face every time.
+    pub fn arrive_wanted(&mut self, chance: &mut Chance, era: Era, wanted: &Wanted) -> &Party {
+        let profile_index = wanted
+            .profile
+            .filter(|index| *index < PROFILES.len())
+            .unwrap_or_else(|| chance.below(PROFILES.len()));
         let profile = &PROFILES[profile_index];
         let names = profile
             .bodies
@@ -375,7 +447,9 @@ impl Visitors {
                 )
             })
             .collect();
-        let vignette = (*chance.pick(profile.vignettes).unwrap_or(&"mara_grief")).to_owned();
+        let vignette = wanted.vignette.clone().unwrap_or_else(|| {
+            (*chance.pick(profile.vignettes).unwrap_or(&"mara_grief")).to_owned()
+        });
         let sighting = (*chance
             .pick(profile.sightings)
             .unwrap_or(&"Somebody is on the road."))
@@ -599,6 +673,40 @@ mod tests {
         }
     }
 
+    /// The story is the longest thing a traveller says, so hearing it twice is
+    /// what makes a stranger stop being a stranger. Every shape of arrival needs
+    /// a pool deep enough that a player finishing the game has not heard them
+    /// all — and no shape may quietly fall back to a single story.
+    #[test]
+    fn every_profile_has_enough_to_say() {
+        for profile in &PROFILES {
+            assert!(
+                profile.vignettes.len() >= 5,
+                "{} has only {} stories to tell",
+                profile.id,
+                profile.vignettes.len()
+            );
+        }
+    }
+
+    /// A story nobody can tell is a story nobody reads. Authoring one and
+    /// forgetting to hand it to a profile is the easy mistake here, and it is
+    /// silent: the game keeps working and the words never appear.
+    #[test]
+    fn every_authored_story_has_somebody_who_could_tell_it() {
+        let told: std::collections::HashSet<&str> = PROFILES
+            .iter()
+            .flat_map(|profile| profile.vignettes.iter().copied())
+            .collect();
+        for authored in waystation_shared::vignettes() {
+            assert!(
+                told.contains(authored.id.as_str()),
+                "{} is authored but no profile in PROFILES tells it",
+                authored.id
+            );
+        }
+    }
+
     /// Every arrival gets one, and the pool is what stops a player reading the
     /// same sentence forty times.
     #[test]
@@ -650,6 +758,86 @@ mod tests {
         }
         assert!(seen.len() > 60, "only {} distinct travellers", seen.len());
         assert!(shapes.len() > 1, "only one kind of arrival ever happened");
+    }
+
+    /// Distinct faces telling the same three stories would be worse than the
+    /// hand-drawn four, not better — the repetition would land on words rather
+    /// than on pixels. A season of arrivals has to be a season of stories.
+    #[test]
+    fn a_season_of_arrivals_is_not_the_same_story_over_and_over() {
+        const ARRIVALS: usize = 120;
+        let mut chance = Chance::default();
+        let mut told = std::collections::HashMap::new();
+        for _ in 0..ARRIVALS {
+            let mut visitors = Visitors::default();
+            let party = visitors.arrive(&mut chance, CURRENT_ERA);
+            *told.entry(party.vignette.clone()).or_insert(0_usize) += 1;
+        }
+        assert!(
+            told.len() >= 15,
+            "only {} distinct stories in {ARRIVALS} arrivals",
+            told.len()
+        );
+        let commonest = told.values().max().copied().unwrap_or_default();
+        assert!(
+            commonest * 5 <= ARRIVALS,
+            "one story turned up {commonest} times in {ARRIVALS} arrivals"
+        );
+    }
+
+    /// A summons is the whole of the debug switch's power over the calendar: no
+    /// fire, no dice, no waiting for the hour. It has to survive the ordinary
+    /// roll that runs on the very next frame and would otherwise clear it.
+    #[test]
+    fn a_summons_beats_the_fire_the_dice_and_the_hour() {
+        let mut visitors = Visitors::default();
+        let mut chance = Chance::default();
+        let clock = Clock::default();
+        assert!(!visitors.arrival_is_due(clock), "nobody was due");
+
+        visitors.summon(clock);
+        visitors.roll_for_today(clock, false, &mut chance);
+        assert!(
+            visitors.arrival_is_due(clock),
+            "the ordinary roll cleared a summons"
+        );
+        assert!(!visitors.arrival_is_due(clock), "one summons, one arrival");
+    }
+
+    /// Pinning is what lets a writer look at one story without waiting for it to
+    /// come up. What is not pinned still has to be drawn fresh, or rehearsing
+    /// would show the same person every time and hide exactly the variation the
+    /// generator exists for.
+    #[test]
+    fn a_pinned_arrival_keeps_its_pin_and_varies_everything_else() {
+        let mut chance = Chance::default();
+        let wanted = Wanted {
+            profile: Some(1),
+            vignette: Some("sela_offer".to_owned()),
+        };
+        let mut faces = std::collections::HashSet::new();
+        for _ in 0..20 {
+            let mut visitors = Visitors::default();
+            let party = visitors.arrive_wanted(&mut chance, CURRENT_ERA, &wanted);
+            assert_eq!(party.vignette, "sela_offer");
+            assert_eq!(party.profile().id, "siblings");
+            faces.insert(party.people[0].describe());
+        }
+        assert!(faces.len() > 15, "only {} distinct faces", faces.len());
+    }
+
+    /// A profile index out of range comes only from a debug switch, and refusing
+    /// to start the game over it would be worse than arriving as somebody else.
+    #[test]
+    fn a_nonsense_pin_still_produces_a_party() {
+        let mut visitors = Visitors::default();
+        let mut chance = Chance::default();
+        let wanted = Wanted {
+            profile: Some(99),
+            vignette: None,
+        };
+        let party = visitors.arrive_wanted(&mut chance, CURRENT_ERA, &wanted);
+        assert!(waystation_shared::vignette(&party.vignette).is_some());
     }
 
     /// The opening is what they say first, before any story of their own.
