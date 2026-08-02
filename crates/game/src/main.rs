@@ -2887,11 +2887,19 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
     let parchment_edge = BorderColor::all(Color::srgb(0.28, 0.20, 0.12));
     let ink = TextColor(Color::srgb(0.16, 0.11, 0.07));
     let quiet_ink = TextColor(Color::srgb(0.25, 0.18, 0.11));
+    // Every parchment panel puts its words on a child node rather than on the
+    // frame itself. A node that is both the box and the text lays the text out
+    // against its border rather than inside its padding, which reads as a line
+    // touching the frame on the left and, once a line is justified right, as one
+    // walking off the edge of the screen. The child is told to fill the width it
+    // is given, so it wraps where the padding ends and a narrow window narrows
+    // the writing instead of spilling it.
+    let writing = Node {
+        width: Val::Percent(100.0),
+        ..default()
+    };
     commands
         .spawn((
-            Text::new("📜  "),
-            fonts.emoji(10.0),
-            ink,
             Node {
                 position_type: PositionType::Absolute,
                 left: Val::Px(18.0),
@@ -2910,36 +2918,41 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                 Color::srgba(0.06, 0.04, 0.02, 0.55),
             ),
         ))
-        .with_child((TextSpan::new(""), fonts.roman(10.0), ink, StatusText));
-    commands.spawn((
-        Text::new(""),
-        fonts.roman(8.0),
-        quiet_ink,
-        TextLayout::new_with_justify(Justify::Right),
-        Node {
-            position_type: PositionType::Absolute,
-            right: Val::Px(18.0),
-            top: Val::Px(16.0),
-            width: Val::Px(120.0),
-            max_width: Val::Percent(30.0),
-            padding: UiRect::axes(Val::Px(7.0), Val::Px(6.0)),
-            border: UiRect::all(Val::Px(1.0)),
-            ..default()
-        },
-        parchment,
-        parchment_edge,
-        Outline::new(
-            Val::Px(1.0),
-            Val::Px(1.0),
-            Color::srgba(0.06, 0.04, 0.02, 0.55),
-        ),
-        ProgressText,
-    ));
+        .with_children(|panel| {
+            panel
+                .spawn((Text::new("📜  "), fonts.emoji(10.0), ink, writing.clone()))
+                .with_child((TextSpan::new(""), fonts.roman(10.0), ink, StatusText));
+        });
     commands
         .spawn((
-            Text::new("☞  "),
-            fonts.emoji(10.0),
-            ink,
+            Node {
+                position_type: PositionType::Absolute,
+                right: Val::Px(18.0),
+                top: Val::Px(16.0),
+                width: Val::Px(120.0),
+                max_width: Val::Percent(30.0),
+                padding: UiRect::axes(Val::Px(7.0), Val::Px(6.0)),
+                border: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            parchment,
+            parchment_edge,
+            Outline::new(
+                Val::Px(1.0),
+                Val::Px(1.0),
+                Color::srgba(0.06, 0.04, 0.02, 0.55),
+            ),
+        ))
+        .with_child((
+            Text::new(""),
+            fonts.roman(8.0),
+            quiet_ink,
+            TextLayout::new_with_justify(Justify::Right),
+            writing.clone(),
+            ProgressText,
+        ));
+    commands
+        .spawn((
             Node {
                 position_type: PositionType::Absolute,
                 left: Val::Percent(19.0),
@@ -2959,7 +2972,17 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
             ),
             PromptPanel,
         ))
-        .with_child((TextSpan::new(""), fonts.roman(10.0), ink, PromptText));
+        .with_children(|panel| {
+            panel
+                .spawn((
+                    Text::new("☞  "),
+                    fonts.emoji(10.0),
+                    ink,
+                    TextLayout::new_with_justify(Justify::Center),
+                    writing,
+                ))
+                .with_child((TextSpan::new(""), fonts.roman(10.0), ink, PromptText));
+        });
 
     commands
         .spawn((
