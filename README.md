@@ -4,17 +4,21 @@ A cozy, far-future game about restoration, literacy, hospitality, and a book tha
 
 ![Screenshot of the folio display showing 2 Timothy 4:16](/static/folio-display.png)
 
-You play The Scribe, a solitary traveler who finds an ancient stone motel in a
-protected valley. Restore its hearth and writing desk, welcome someone who follows
-the smoke, listen to what they carry, and make an illuminated remembrance from a
-passage of Scripture.
+You play the scribe, a solitary traveler who finds an ancient stone motel in a
+protected valley. Restore its hearth and writing desk, welcome strangers who follow
+the smoke, listen to what they carry, and feed and shelter them, and give them
+a gift of an illustration and verse.
 
 This repository is the working submission for YouVersion and Gloo AI's **Scripture
-in New Frontiers** challenge. It contains a complete 10–15 minute vertical slice,
+in New Frontiers** challenge. It contains a playable early version of the game, 
 a secure API service, deterministic content/art pipelines, and public development
 fixtures.
 
 ## Play locally
+
+NOTE: Much of the game are is currently licensed from creators on itch.io and not
+distributable. Placeholder art is provided, but it's just boxes and AI-generated
+junk. Easier to play online at https://swelljoe.github.io/waystation/
 
 Prerequisites: Rust 1.92+, Python 3 with Pillow, and the usual Bevy Linux graphics
 libraries. Two terminals are used for the native build:
