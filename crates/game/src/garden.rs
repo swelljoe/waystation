@@ -17,14 +17,21 @@ use std::collections::BTreeMap;
 use bevy::prelude::Resource;
 use serde::{Deserialize, Serialize};
 
+use crate::chance::Chance;
+use crate::daylight::DAY_SECONDS;
 use crate::progression::TaskSpec;
 
-/// How long standing grain takes to fill out. Long enough that the Scribe goes
-/// and does something else, short enough to see twice in one sitting.
-pub const RIPEN_SECONDS: f32 = 150.0;
+/// How long standing grain takes to fill out: watered this morning, standing
+/// the next. Grain is the one thing here the Scribe cannot hurry, and a season
+/// short enough to watch through was a season short enough to farm in circles.
+/// Sleeping skips the rest of a night without advancing the beds, so a player
+/// who sleeps waits longer than this rather than less.
+pub const RIPEN_SECONDS: f32 = DAY_SECONDS;
 /// The valley is generous more often than the wastes ever were, but not on
-/// schedule. Every third harvest from a plot comes up heavier than promised.
-const GENEROUS_HARVEST_INTERVAL: u16 = 3;
+/// schedule. Roughly one harvest in twelve comes up heavier than promised —
+/// drawn each time rather than counted out, so that nine working beds do not
+/// deliver a windfall every season like clockwork.
+const GENEROUS_HARVEST_ODDS: f32 = 1.0 / 12.0;
 const GENEROUS_HARVEST_BONUS: u16 = 2;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -109,8 +116,6 @@ pub struct Plot {
     /// the browser tab.
     #[serde(default)]
     ripening_seconds: f32,
-    #[serde(default)]
-    harvests: u16,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Resource, Serialize)]
@@ -145,25 +150,23 @@ impl Garden {
     }
 
     /// Advances the plot one state. The caller has already paid for it; this
-    /// only records what changed.
-    pub fn advance(&mut self, plot_id: &str) -> Worked {
+    /// only records what changed — and, on a harvest, draws for whether the bed
+    /// gave more than it was asked for.
+    pub fn advance(&mut self, plot_id: &str, chance: &mut Chance) -> Worked {
         let plot = self.plots.entry(plot_id.to_owned()).or_default();
         let from = plot.stage;
         let to = from.next();
         plot.stage = to;
-        let mut bonus_rations = 0;
-        match to {
-            PlotStage::Growing => {
-                plot.ripening_seconds = RIPEN_SECONDS;
-            }
-            PlotStage::Fallow if from == PlotStage::Ripe => {
-                plot.harvests += 1;
-                if plot.harvests.is_multiple_of(GENEROUS_HARVEST_INTERVAL) {
-                    bonus_rations = GENEROUS_HARVEST_BONUS;
-                }
-            }
-            _ => {}
+        if to == PlotStage::Growing {
+            plot.ripening_seconds = RIPEN_SECONDS;
         }
+        // Drawn at the harvest itself rather than counted towards it, so that no
+        // run of lean seasons is owed a good one.
+        let bonus_rations = if from == PlotStage::Ripe && chance.odds(GENEROUS_HARVEST_ODDS) {
+            GENEROUS_HARVEST_BONUS
+        } else {
+            0
+        };
         Worked {
             from,
             to,
@@ -207,6 +210,8 @@ impl Garden {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::*;
     use crate::progression::{Progression, SkillId, SupplyId, TaskSpec, ToolId};
 
@@ -228,6 +233,7 @@ mod tests {
     #[test]
     fn one_bay_carries_asphalt_through_to_rations() {
         let mut garden = Garden::default();
+        let mut chance = Chance::default();
         let mut progression = ready_gardener();
         progression.add_supply(SupplyId::Seed, 1);
         progression
@@ -239,7 +245,7 @@ mod tests {
         progression
             .attempt(&TaskSpec::for_breaking_ground())
             .expect("a pickaxe and a slab");
-        garden.advance("plot-00");
+        garden.advance("plot-00", &mut chance);
         while garden.stage("plot-00") != PlotStage::Ripe {
             let stage = garden.stage("plot-00");
             match stage.task() {
@@ -247,7 +253,7 @@ mod tests {
                     progression
                         .attempt(&task)
                         .unwrap_or_else(|reason| panic!("{stage:?} should be payable: {reason}"));
-                    garden.advance("plot-00");
+                    garden.advance("plot-00", &mut chance);
                 }
                 // Only the growing is out of the Scribe's hands.
                 None => assert_eq!(garden.tick(RIPEN_SECONDS), vec!["plot-00".to_owned()]),
@@ -257,7 +263,7 @@ mod tests {
         progression
             .attempt(&TaskSpec::for_harvest())
             .expect("ripe grain asks for nothing");
-        garden.advance("plot-00");
+        garden.advance("plot-00", &mut chance);
 
         assert_eq!(garden.stage("plot-00"), PlotStage::Fallow);
         assert_eq!(progression.supply(SupplyId::Ration), 3);
@@ -270,21 +276,23 @@ mod tests {
     #[test]
     fn a_slab_comes_up_once_and_the_ground_stays_open() {
         let mut garden = Garden::default();
+        let mut chance = Chance::default();
         assert_eq!(garden.stage("plot-00"), PlotStage::Paved);
         for _ in 0..5 {
-            garden.advance("plot-00");
+            garden.advance("plot-00", &mut chance);
         }
 
         assert_eq!(garden.stage("plot-00"), PlotStage::Ripe);
-        assert_eq!(garden.advance("plot-00").to, PlotStage::Fallow);
+        assert_eq!(garden.advance("plot-00", &mut chance).to, PlotStage::Fallow);
         assert_eq!(garden.broken_ground(), 1);
     }
 
     #[test]
     fn grain_ripens_on_its_own_clock_and_says_so_once() {
         let mut garden = Garden::default();
+        let mut chance = Chance::default();
         for _ in 0..4 {
-            garden.advance("plot-00");
+            garden.advance("plot-00", &mut chance);
         }
         assert_eq!(garden.stage("plot-00"), PlotStage::Growing);
         assert!(!garden.nearly_ripe("plot-00"));
@@ -300,32 +308,76 @@ mod tests {
         assert_eq!(garden.stage("plot-00"), PlotStage::Ripe);
     }
 
-    /// Hope in this valley is not a schedule. The promised yield is always paid;
-    /// the extra is never advertised, and it is what the third season brings.
+    /// A season nobody can outwait is a season nobody plans around. Grain
+    /// watered during one day's work is not standing until the next.
     #[test]
-    fn every_third_harvest_from_one_plot_comes_up_heavier_than_promised() {
+    fn watered_grain_is_not_ready_the_same_day() {
         let mut garden = Garden::default();
-        let mut bonuses = Vec::new();
-        for _ in 0..3 {
-            while garden.stage("plot-00") != PlotStage::Ripe {
-                if garden.stage("plot-00") == PlotStage::Growing {
-                    garden.tick(RIPEN_SECONDS);
-                } else {
-                    garden.advance("plot-00");
-                }
-            }
-            bonuses.push(garden.advance("plot-00").bonus_rations);
+        let mut chance = Chance::default();
+        for _ in 0..4 {
+            garden.advance("plot-00", &mut chance);
         }
 
-        assert_eq!(bonuses, vec![0, 0, GENEROUS_HARVEST_BONUS]);
+        assert_eq!(garden.stage("plot-00"), PlotStage::Growing);
+        assert!(
+            garden.tick(DAY_SECONDS - 1.0).is_empty(),
+            "a bed came ripe inside the day it was watered"
+        );
+        assert_eq!(garden.tick(1.0), vec!["plot-00".to_owned()]);
+    }
+
+    /// Carries one bed round to its next harvest and reports what that harvest
+    /// gave beyond the promise.
+    fn harvest_once(garden: &mut Garden, chance: &mut Chance, plot: &str) -> u16 {
+        while garden.stage(plot) != PlotStage::Ripe {
+            if garden.stage(plot) == PlotStage::Growing {
+                garden.tick(RIPEN_SECONDS);
+            } else {
+                garden.advance(plot, chance);
+            }
+        }
+        garden.advance(plot, chance).bonus_rations
+    }
+
+    /// Hope in this valley is not a schedule. The promised yield is always
+    /// paid; the extra is never advertised, arrives about one harvest in
+    /// twelve, and arrives on no count a player could learn to plant around.
+    #[test]
+    fn a_generous_harvest_is_drawn_rather_than_counted_out() {
+        let mut garden = Garden::default();
+        let mut chance = Chance::default();
+        let mut gaps = Vec::new();
+        let mut since = 0;
+        let seasons = 1200;
+        for _ in 0..seasons {
+            since += 1;
+            if harvest_once(&mut garden, &mut chance, "plot-00") > 0 {
+                gaps.push(since);
+                since = 0;
+            }
+        }
+
+        let generous = gaps.len();
+        let expected = seasons / 12;
+        assert!(
+            (expected * 3 / 4..=expected * 5 / 4).contains(&generous),
+            "{generous} generous harvests in {seasons}, wanted about {expected}"
+        );
+        // Nine beds working at once would hand out a windfall every season if
+        // the extra came round on a fixed count, so it must not.
+        assert!(
+            gaps.iter().collect::<BTreeSet<_>>().len() > 15,
+            "the gaps between generous harvests look like a schedule: {gaps:?}"
+        );
         assert!(!TaskSpec::for_harvest().yields_text().contains('4'));
     }
 
     #[test]
     fn a_growing_season_survives_being_saved_and_reloaded() {
         let mut garden = Garden::default();
+        let mut chance = Chance::default();
         for _ in 0..4 {
-            garden.advance("plot-00");
+            garden.advance("plot-00", &mut chance);
         }
         garden.tick(RIPEN_SECONDS * 0.75);
 

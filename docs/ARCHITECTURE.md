@@ -249,11 +249,20 @@ and the work it will accept are all read back out of the saved `Garden`. Because
 harvested ground returns to broken rather than to paved, a slab comes up once and
 every later season starts from open soil.
 
-Growing is the one step the Scribe cannot do. Its clock runs in `grow_garden`,
-which ticks through `bypass_change_detection` so a two-minute season does not
-write a save every frame; only ripening marks the resource changed, and that is
-also the moment the world interrupts the player to say so. `Cultivation` sits
-behind the same Upkeep 1 unlock as Carpentry and Masonry.
+Growing is the one step the Scribe cannot do, and it takes a full day of the
+valley's clock: grain watered during one day's work is standing the next, which
+is slow enough that a season is something to come back to rather than something
+to watch. Sleeping skips the rest of a night without advancing the beds, so a
+player who sleeps waits longer than a day, never less. That clock runs in
+`grow_garden`, which ticks through `bypass_change_detection` so a day-long season
+does not write a save every frame; only ripening marks the resource changed, and
+that is also the moment the world interrupts the player to say so. `Cultivation`
+sits behind the same Upkeep 1 unlock as Carpentry and Masonry.
+
+About one harvest in twelve comes up heavier than the task promised. The extra is
+drawn at the harvest rather than counted towards, so no run of lean seasons is
+owed a good one and no player can plant around it — which matters most once all
+nine bays are working, when anything on a fixed count would pay out every season.
 
 ## What the valley does not give
 

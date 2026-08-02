@@ -3937,7 +3937,7 @@ fn trigger_story_hotspots(
 
 /// The only part of the restoration that happens without the Scribe. The clock
 /// runs without marking the garden changed, because a save written every frame
-/// of a two-minute season would be a save written for nothing; ripening is what
+/// of a day-long season would be a save written for nothing; ripening is what
 /// is worth recording, and worth interrupting the player to say.
 fn grow_garden(time: Res<Time>, mut garden: ResMut<Garden>, mut journal: ResMut<Journal>) {
     if !garden.is_growing() {
@@ -4480,7 +4480,7 @@ fn handle_interaction(
             ));
             return;
         }
-        let worked = resources.garden.advance(&plot_id);
+        let worked = resources.garden.advance(&plot_id, &mut resources.chance);
         if worked.bonus_rations > 0 {
             resources
                 .progression
@@ -6598,7 +6598,7 @@ mod tests {
         progression.add_tool(ToolId::Hammer);
         progression.add_supply(SupplyId::Plank, 2);
         let mut garden = Garden::default();
-        garden.advance("garden-plot-00");
+        garden.advance("garden-plot-00", &mut Chance::default());
         let save = SaveData::capture(
             &interior_state,
             &motel_access,
@@ -7562,7 +7562,7 @@ mod tests {
             );
             let task = plot.work_task(garden.stage(&plot.id)).expect("work to do");
             progression.attempt(&task).ok();
-            garden.advance(&plot.id);
+            garden.advance(&plot.id, &mut Chance::default());
         }
 
         // Growing offers no key at all, so it must not read like a refusal.
