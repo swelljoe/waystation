@@ -8,6 +8,7 @@ mod daylight;
 mod game_audio;
 mod garden;
 mod interior;
+mod npc_art;
 mod progression;
 mod reading;
 mod salvage;
@@ -32,7 +33,7 @@ use salvage::Salvaged;
 use serde::{Deserialize, Serialize};
 use terrain::{MAP_HALF_HEIGHT, MAP_HALF_WIDTH};
 use visitors::{Stage as VisitStage, Visitors};
-use waystation_shared::{fixture_response, vignette, InterpretRequest, InterpretResponse};
+use waystation_shared::{fixture_response, InterpretRequest, InterpretResponse};
 
 const PLAYER_SPEED: f32 = 210.0;
 const INTERACT_DISTANCE: f32 = 72.0;
@@ -331,7 +332,7 @@ fn run_game() {
                 sync_portable_tool_entities,
                 (grow_garden, sync_garden_plots).chain(),
                 (chance::stir_chance, advance_clock, sync_daylight).chain(),
-                (run_visits, retire_visitors).chain(),
+                (npc_art::compose_visitor_art, run_visits, retire_visitors).chain(),
                 update_nearby_interaction,
                 (handle_portfolio_input, handle_tool_hotkeys).chain(),
                 handle_visit_input,
@@ -408,12 +409,26 @@ enum Facing {
 }
 
 impl Facing {
+    /// The walk row inside a full 54-row LPC action sheet, which is what the
+    /// Scribe's own art is.
     const fn walk_row(self) -> usize {
         match self {
             Self::Up => 8,
             Self::Left => 9,
             Self::Down => 10,
             Self::Right => 11,
+        }
+    }
+
+    /// The same four rows in a visitor sheet, which carries the walk cycle and
+    /// nothing else. Composing a traveller means composing every layer, so the
+    /// fifty rows nobody ever sees are not worth the pixels.
+    const fn visitor_walk_row(self) -> usize {
+        match self {
+            Self::Up => 0,
+            Self::Left => 1,
+            Self::Down => 2,
+            Self::Right => 3,
         }
     }
 
@@ -4814,7 +4829,7 @@ fn advance_telling(keys: &ButtonInput<KeyCode>, visit: &mut VisitInput) {
     let Some(party) = visit.visitors.party.as_mut() else {
         return;
     };
-    let spoken = vignette(&party.vignette).map_or(0, |vignette| vignette.lines.len());
+    let spoken = party.spoken().len();
     party.line += 1;
     if party.line < spoken {
         return;
@@ -5197,21 +5212,37 @@ fn run_visits(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut layouts: ResMut<Assets<TextureAtlasLayout>>,
-    mut bodies: Query<(&VisitorBody, &mut Transform, &mut Sprite, &mut Visibility)>,
+    mut bodies: Query<(
+        &VisitorBody,
+        &mut Transform,
+        &mut Sprite,
+        &mut Visibility,
+        Has<npc_art::ComposingBody>,
+    )>,
 ) {
     let fire_is_lit = hearth_is_lit(&interior_state);
     visitors.roll_for_today(*clock, fire_is_lit, &mut chance);
     if visitors.arrival_is_due(*clock) {
-        let sighting = visitors.arrive(&mut chance).profile().sighting;
+        let party = visitors.arrive(&mut chance, visitors::CURRENT_ERA);
+        // What the Scribe can make out from across the court: the shape of the
+        // arrival, and one detail of the person themself if there is one worth
+        // naming. The detail comes off the generated traveller, so it is true
+        // of this particular stranger rather than of their kind.
+        let mut notice = format!(
+            "Somebody is on the old road, coming down towards the court. {}",
+            party.sighting
+        );
+        if let Some(detail) = party.notable() {
+            notice.push(' ');
+            notice.push_str(detail);
+        }
         spawn_visitor_bodies(
             &mut commands,
             &asset_server,
             &mut layouts,
             visitors.party.as_ref().expect("a party just arrived"),
         );
-        journal.say(format!(
-            "Somebody is on the old road, coming down towards the court. {sighting}"
-        ));
+        journal.say(notice);
     }
     if visitors.tick_patience(time.delta_secs()) {
         journal.say(
@@ -5232,7 +5263,7 @@ fn run_visits(
     // with nobody ever having walked down the road.
     let mut walking = 0_usize;
     let mut still_travelling = 0_usize;
-    for (body, mut transform, mut sprite, mut visibility) in &mut bodies {
+    for (body, mut transform, mut sprite, mut visibility, composing) in &mut bodies {
         let Some(offset) = party
             .profile()
             .bodies
@@ -5266,16 +5297,19 @@ fn run_visits(
                 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                 let frame = ((time.elapsed_secs() / SCRIBE_WALK_SECONDS_PER_FRAME) as usize)
                     % SCRIBE_WALK_FRAMES;
-                atlas.index = facing.walk_row() * SCRIBE_ATLAS_COLUMNS as usize + frame;
+                atlas.index = facing.visitor_walk_row() * npc_art::COLUMNS as usize + frame;
             }
         } else if !party.stage.is_walking() {
             // Standing still, facing out into the court rather than at the wall:
             // this is somebody waiting to be met, not somebody about to knock.
             if let Some(atlas) = sprite.texture_atlas.as_mut() {
-                atlas.index = Facing::Down.walk_row() * SCRIBE_ATLAS_COLUMNS as usize;
+                atlas.index = Facing::Down.visitor_walk_row() * npc_art::COLUMNS as usize;
             }
         }
-        *visibility = if party.stage.is_present() {
+        // A body whose sheets are still loading is not drawn at all. The
+        // alternative is watching a stranger walk halfway down the slope in
+        // somebody else's face and then change into their own.
+        *visibility = if party.stage.is_present() && !composing {
             Visibility::Visible
         } else {
             Visibility::Hidden
@@ -5307,6 +5341,13 @@ fn retire_visitors(
     visitors.clear_departed();
 }
 
+/// Puts an arriving party on the road.
+///
+/// Each body is spawned wearing its profile's hand-made sheet and asked to
+/// compose its own. The fallback is not decoration: a build with no LPC
+/// checkout has no generated art at all, and a visitor who cannot be drawn
+/// should still be a visitor. Bodies stay hidden until the composite lands, so
+/// nobody watches a stranger change face halfway down the slope.
 fn spawn_visitor_bodies(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -5314,21 +5355,21 @@ fn spawn_visitor_bodies(
     party: &visitors::Party,
 ) {
     let layout = layouts.add(TextureAtlasLayout::from_grid(
-        UVec2::splat(SCRIBE_FRAME_SIZE),
-        SCRIBE_ATLAS_COLUMNS,
-        SCRIBE_ATLAS_ROWS,
+        UVec2::splat(npc_art::FRAME),
+        npc_art::COLUMNS,
+        npc_art::ROWS,
         None,
         None,
     ));
     let entry = visitor_road_entry();
     for (index, body) in party.profile().bodies.iter().enumerate() {
         let position = entry + body.offset;
-        commands.spawn((
+        let mut spawned = commands.spawn((
             Sprite {
                 image: asset_server.load(body.art),
                 texture_atlas: Some(TextureAtlas {
                     layout: layout.clone(),
-                    index: Facing::Right.walk_row() * SCRIBE_ATLAS_COLUMNS as usize,
+                    index: Facing::Right.visitor_walk_row() * npc_art::COLUMNS as usize,
                 }),
                 ..default()
             },
@@ -5347,6 +5388,9 @@ fn spawn_visitor_bodies(
                 consumed: false,
             },
         ));
+        if let Some(npc) = party.people.get(index) {
+            spawned.insert(npc_art::ComposingBody::request(npc, asset_server));
+        }
     }
 }
 
@@ -5608,7 +5652,7 @@ fn visit_overlay(
 ) -> Option<(String, String, String)> {
     match party.stage {
         VisitStage::Telling => {
-            let lines = vignette(&party.vignette).map(|vignette| vignette.lines.as_slice())?;
+            let lines = party.spoken();
             let line = lines.get(party.line.min(lines.len().saturating_sub(1)))?;
             Some((
                 party.address(),
@@ -6167,7 +6211,7 @@ mod tests {
     #[test]
     fn the_farewell_reports_only_what_was_actually_given() {
         let mut party = visitors::Visitors::default()
-            .arrive(&mut Chance::default())
+            .arrive(&mut Chance::default(), visitors::CURRENT_ERA)
             .clone();
         party.names = vec!["Mara".to_owned()];
 
@@ -6192,7 +6236,7 @@ mod tests {
     /// A party parked in one stage, for exercising the screens.
     fn party_at(stage: VisitStage) -> visitors::Party {
         let mut party = visitors::Visitors::default()
-            .arrive(&mut Chance::default())
+            .arrive(&mut Chance::default(), visitors::CURRENT_ERA)
             .clone();
         party.stage = stage;
         party.names = vec!["Mara".to_owned()];

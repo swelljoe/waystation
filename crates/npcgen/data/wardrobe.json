@@ -20,6 +20,374 @@
       "weight": 14
     }
   ],
+  "materials": {
+    "body": {
+      "amber": [
+        "#281716",
+        "#9E3E37",
+        "#D28144",
+        "#EA9F54",
+        "#FDD082",
+        "#FBE7A4"
+      ],
+      "black": [
+        "#000000",
+        "#1A1213",
+        "#2E1F1C",
+        "#442725",
+        "#603429",
+        "#7F4C31"
+      ],
+      "bronze": [
+        "#1A1213",
+        "#442725",
+        "#644133",
+        "#7F4C31",
+        "#AE6B3F",
+        "#D38B59"
+      ],
+      "brown": [
+        "#120E10",
+        "#412B29",
+        "#5F4539",
+        "#76513A",
+        "#9C663E",
+        "#B8773F"
+      ],
+      "light": [
+        "#271920",
+        "#99423c",
+        "#cc8665",
+        "#E4A47C",
+        "#F9D5BA",
+        "#FAECE7"
+      ],
+      "olive": [
+        "#271920",
+        "#442725",
+        "#7F4C31",
+        "#AE6B3F",
+        "#D38B59",
+        "#E4A47C"
+      ],
+      "taupe": [
+        "#271920",
+        "#503734",
+        "#785946",
+        "#936849",
+        "#BA8454",
+        "#C7935F"
+      ]
+    },
+    "cloth": {
+      "black": [
+        "#000000",
+        "#101414",
+        "#1C2222",
+        "#22282A",
+        "#2A3034",
+        "#4A5057"
+      ],
+      "blue": [
+        "#180716",
+        "#281E41",
+        "#322D6A",
+        "#3C49AD",
+        "#466AC9",
+        "#61A0EF"
+      ],
+      "bluegray": [
+        "#11150b",
+        "#0B2B28",
+        "#2E403A",
+        "#315B49",
+        "#557E85",
+        "#79979D"
+      ],
+      "brown": [
+        "#1d131e",
+        "#411E05",
+        "#4B2B13",
+        "#62351C",
+        "#744B30",
+        "#996B4A"
+      ],
+      "charcoal": [
+        "#000000",
+        "#130D14",
+        "#1C2222",
+        "#2A3034",
+        "#4A5057",
+        "#6E7675"
+      ],
+      "forest": [
+        "#09131d",
+        "#07391D",
+        "#0B1F25",
+        "#0B2B28",
+        "#134507",
+        "#1B5502"
+      ],
+      "gray": [
+        "#0e0e18",
+        "#201E2B",
+        "#373340",
+        "#585561",
+        "#797580",
+        "#A2A0A4"
+      ],
+      "green": [
+        "#101820",
+        "#192832",
+        "#0B5C2F",
+        "#214437",
+        "#2F8136",
+        "#64A42C"
+      ],
+      "lavender": [
+        "#13112d",
+        "#2B225A",
+        "#402E82",
+        "#7141B2",
+        "#A966DD",
+        "#D085ED"
+      ],
+      "leather": [
+        "#2b1c1d",
+        "#311210",
+        "#4B2B13",
+        "#704325",
+        "#75502D",
+        "#9A6F37"
+      ],
+      "maroon": [
+        "#1d131e",
+        "#400B1F",
+        "#551C22",
+        "#682121",
+        "#832121",
+        "#AE424A"
+      ],
+      "navy": [
+        "#180716",
+        "#20102B",
+        "#281E41",
+        "#322D6A",
+        "#3C49AD",
+        "#466AC9"
+      ],
+      "orange": [
+        "#301723",
+        "#5F1D1B",
+        "#9C3F23",
+        "#D75B1A",
+        "#EF7E19",
+        "#FFA749"
+      ],
+      "pink": [
+        "#1d131e",
+        "#54242E",
+        "#6C3536",
+        "#AE424A",
+        "#C36072",
+        "#E08080"
+      ],
+      "purple": [
+        "#180716",
+        "#13112D",
+        "#261044",
+        "#411357",
+        "#621E78",
+        "#813089"
+      ],
+      "red": [
+        "#1d131e",
+        "#400B1F",
+        "#651117",
+        "#82171C",
+        "#AB1E1E",
+        "#CD2429"
+      ],
+      "rose": [
+        "#1d131e",
+        "#301723",
+        "#562323",
+        "#77372B",
+        "#8A3D28",
+        "#B05F3C"
+      ],
+      "sky": [
+        "#1a0d18",
+        "#313148",
+        "#586B90",
+        "#9FBBCB",
+        "#C6EEFD",
+        "#FFFFFF"
+      ],
+      "slate": [
+        "#1d131e",
+        "#31313E",
+        "#4A5057",
+        "#818B8B",
+        "#B3AFA1",
+        "#E5E6C7"
+      ],
+      "tan": [
+        "#3e2613",
+        "#684415",
+        "#986A20",
+        "#B78C41",
+        "#B7996A",
+        "#CFC587"
+      ],
+      "teal": [
+        "#180716",
+        "#1B2B47",
+        "#0E4E72",
+        "#156C99",
+        "#0098B2",
+        "#00CFDF"
+      ],
+      "walnut": [
+        "#1d0f0e",
+        "#3e2613",
+        "#62351c",
+        "#744b30",
+        "#996b4a",
+        "#a17c50"
+      ],
+      "white": [
+        "#281820",
+        "#4D4A5D",
+        "#958080",
+        "#C4B59F",
+        "#E5E6C7",
+        "#FFFFFF"
+      ],
+      "yellow": [
+        "#301723",
+        "#5F2F25",
+        "#BA5B23",
+        "#D99431",
+        "#F3C03F",
+        "#FFE360"
+      ]
+    },
+    "hair": {
+      "black": [
+        "#000000",
+        "#080A0A",
+        "#101414",
+        "#1C2222",
+        "#31313E",
+        "#4A5057"
+      ],
+      "blonde": [
+        "#331313",
+        "#552B15",
+        "#AC5D1F",
+        "#E09E2B",
+        "#FCCF56",
+        "#FFE67D"
+      ],
+      "carrot": [
+        "#5A1500",
+        "#8A2000",
+        "#AC2800",
+        "#EC673E",
+        "#F68764",
+        "#FFB39C"
+      ],
+      "chestnut": [
+        "#200C0D",
+        "#3A130E",
+        "#63200B",
+        "#81310A",
+        "#B6550E",
+        "#D28102"
+      ],
+      "dark_brown": [
+        "#050100",
+        "#160701",
+        "#290E02",
+        "#421603",
+        "#5F1F04",
+        "#792806"
+      ],
+      "dark_gray": [
+        "#000000",
+        "#0E0E0E",
+        "#1B1B1B",
+        "#3B3B3B",
+        "#7C7C7C",
+        "#C1C1C1"
+      ],
+      "gray": [
+        "#0E0E0E",
+        "#292929",
+        "#4B4B4B",
+        "#777777",
+        "#AAAAAA",
+        "#D9D9D9"
+      ],
+      "light_brown": [
+        "#1A0E04",
+        "#301B07",
+        "#60350F",
+        "#7D4513",
+        "#AE682A",
+        "#C88D58"
+      ],
+      "platinum": [
+        "#1C0E06",
+        "#7D5D5D",
+        "#A87D52",
+        "#C0AB81",
+        "#EDDF95",
+        "#F6F6F3"
+      ],
+      "raven": [
+        "#010107",
+        "#040B18",
+        "#061421",
+        "#071F2A",
+        "#0D384D",
+        "#1A5369"
+      ],
+      "redhead": [
+        "#260D14",
+        "#3E111A",
+        "#73171E",
+        "#9E1F1F",
+        "#C7341B",
+        "#E74716"
+      ],
+      "sandy": [
+        "#1C0E06",
+        "#633E2C",
+        "#99622D",
+        "#BF9D5A",
+        "#EDDC7E",
+        "#F6F6C2"
+      ],
+      "strawberry": [
+        "#300700",
+        "#6A2800",
+        "#9C5900",
+        "#CCA000",
+        "#FAF080",
+        "#F6F6C2"
+      ],
+      "white": [
+        "#1D1D21",
+        "#484E57",
+        "#8B9498",
+        "#B8BBBC",
+        "#D8DCDC",
+        "#FFFFFF"
+      ]
+    }
+  },
   "palettes": {
     "skin": [
       {
@@ -306,7 +674,29 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 10,
+              "paths": {
+                "child": "body/bodies/child/",
+                "female": "body/bodies/female/",
+                "male": "body/bodies/male/",
+                "teen": "body/bodies/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         }
       ]
     },
@@ -331,9 +721,30 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "female": "head/heads/human/male/",
+                "male": "head/heads/human/male/",
+                "teen": "head/heads/human/male/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "heads_human_male_small",
@@ -353,9 +764,30 @@
             "CC-BY",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "female": "head/heads/human/male_small/",
+                "male": "head/heads/human/male_small/",
+                "teen": "head/heads/human/male_small/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "heads_human_male_gaunt",
@@ -375,9 +807,30 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "female": "head/heads/human/male_gaunt/",
+                "male": "head/heads/human/male_gaunt/",
+                "teen": "head/heads/human/male_gaunt/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "heads_human_male_elderly",
@@ -397,10 +850,31 @@
             "CC-BY",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "female": "head/heads/human/male_elderly/",
+                "male": "head/heads/human/male_elderly/",
+                "teen": "head/heads/human/male_elderly/"
+              }
+            }
+          ],
           "tags": [
             "masc",
             "elderly"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "heads_human_female",
@@ -420,9 +894,30 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "female": "head/heads/human/female/",
+                "male": "head/heads/human/female/",
+                "teen": "head/heads/human/female/"
+              }
+            }
+          ],
           "tags": [
             "fem"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "heads_human_female_small",
@@ -442,9 +937,30 @@
             "CC-BY",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "female": "head/heads/human/female_small/",
+                "male": "head/heads/human/female_small/",
+                "teen": "head/heads/human/female_small/"
+              }
+            }
+          ],
           "tags": [
             "fem"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "heads_human_female_elderly",
@@ -464,10 +980,31 @@
             "CC-BY",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "female": "head/heads/human/female_elderly/",
+                "male": "head/heads/human/female_elderly/",
+                "teen": "head/heads/human/female_elderly/"
+              }
+            }
+          ],
           "tags": [
             "fem",
             "elderly"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "heads_human_elderly_small",
@@ -487,11 +1024,32 @@
             "CC-BY",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "female": "head/heads/human/elderly_small/",
+                "male": "head/heads/human/elderly_small/",
+                "teen": "head/heads/human/elderly_small/"
+              }
+            }
+          ],
           "tags": [
             "masc",
             "fem",
             "elderly"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "heads_human_child",
@@ -507,9 +1065,28 @@
             "CC-BY",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 100,
+              "paths": {
+                "child": "head/heads/human/child/"
+              }
+            }
+          ],
           "tags": [
             "child"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         }
       ]
     },
@@ -533,7 +1110,41 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 101,
+              "paths": {
+                "female": "head/faces/${head}/neutral/",
+                "male": "head/faces/${head}/neutral/",
+                "teen": "head/faces/${head}/neutral/"
+              }
+            }
+          ],
+          "replace": {
+            "head": {
+              "Human_Male": "male",
+              "Human_Male_Small": "male",
+              "Human_Male_Plump": "male",
+              "Human_Male_Gaunt": "male",
+              "Human_Female": "female",
+              "Human_Female_Small": "female",
+              "Human_Male_Elderly": "elderly",
+              "Human_Female_Elderly": "elderly",
+              "Human_Elderly_Small": "elderly"
+            }
+          },
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "face_sad",
@@ -551,7 +1162,41 @@
           "weight": 5,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 101,
+              "paths": {
+                "female": "head/faces/${head}/sad/",
+                "male": "head/faces/${head}/sad/",
+                "teen": "head/faces/${head}/sad/"
+              }
+            }
+          ],
+          "replace": {
+            "head": {
+              "Human_Male": "male",
+              "Human_Male_Small": "male",
+              "Human_Male_Plump": "male",
+              "Human_Male_Gaunt": "male",
+              "Human_Female": "female",
+              "Human_Female_Small": "female",
+              "Human_Male_Elderly": "elderly",
+              "Human_Female_Elderly": "elderly",
+              "Human_Elderly_Small": "elderly"
+            }
+          },
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "face_closed",
@@ -569,7 +1214,41 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 101,
+              "paths": {
+                "female": "head/faces/${head}/closed/",
+                "male": "head/faces/${head}/closed/",
+                "teen": "head/faces/${head}/closed/"
+              }
+            }
+          ],
+          "replace": {
+            "head": {
+              "Human_Male": "male",
+              "Human_Male_Small": "male",
+              "Human_Male_Plump": "male",
+              "Human_Male_Gaunt": "male",
+              "Human_Female": "female",
+              "Human_Female_Small": "female",
+              "Human_Male_Elderly": "elderly",
+              "Human_Female_Elderly": "elderly",
+              "Human_Elderly_Small": "elderly"
+            }
+          },
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "face_closing",
@@ -587,7 +1266,41 @@
           "weight": 2,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 101,
+              "paths": {
+                "female": "head/faces/${head}/closing/",
+                "male": "head/faces/${head}/closing/",
+                "teen": "head/faces/${head}/closing/"
+              }
+            }
+          ],
+          "replace": {
+            "head": {
+              "Human_Male": "male",
+              "Human_Male_Small": "male",
+              "Human_Male_Plump": "male",
+              "Human_Male_Gaunt": "male",
+              "Human_Female": "female",
+              "Human_Female_Small": "female",
+              "Human_Male_Elderly": "elderly",
+              "Human_Female_Elderly": "elderly",
+              "Human_Elderly_Small": "elderly"
+            }
+          },
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "face_happy",
@@ -605,7 +1318,41 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 101,
+              "paths": {
+                "female": "head/faces/${head}/happy/",
+                "male": "head/faces/${head}/happy/",
+                "teen": "head/faces/${head}/happy/"
+              }
+            }
+          ],
+          "replace": {
+            "head": {
+              "Human_Male": "male",
+              "Human_Male_Small": "male",
+              "Human_Male_Plump": "male",
+              "Human_Male_Gaunt": "male",
+              "Human_Female": "female",
+              "Human_Female_Small": "female",
+              "Human_Male_Elderly": "elderly",
+              "Human_Female_Elderly": "elderly",
+              "Human_Elderly_Small": "elderly"
+            }
+          },
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "face_shame",
@@ -623,7 +1370,41 @@
           "weight": 2,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 101,
+              "paths": {
+                "female": "head/faces/${head}/shame/",
+                "male": "head/faces/${head}/shame/",
+                "teen": "head/faces/${head}/shame/"
+              }
+            }
+          ],
+          "replace": {
+            "head": {
+              "Human_Male": "male",
+              "Human_Male_Small": "male",
+              "Human_Male_Plump": "male",
+              "Human_Male_Gaunt": "male",
+              "Human_Female": "female",
+              "Human_Female_Small": "female",
+              "Human_Male_Elderly": "elderly",
+              "Human_Female_Elderly": "elderly",
+              "Human_Elderly_Small": "elderly"
+            }
+          },
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         }
       ]
     },
@@ -646,7 +1427,28 @@
           "weight": 8,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 105,
+              "paths": {
+                "female": "head/nose/straight/adult/",
+                "male": "head/nose/straight/adult/",
+                "teen": "head/nose/straight/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "head_nose_button",
@@ -664,7 +1466,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 105,
+              "paths": {
+                "female": "head/nose/button/adult/",
+                "male": "head/nose/button/adult/",
+                "teen": "head/nose/button/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "head_nose_big",
@@ -682,7 +1505,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 105,
+              "paths": {
+                "female": "head/nose/big/adult/",
+                "male": "head/nose/big/adult/",
+                "teen": "head/nose/big/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "head_nose_large",
@@ -700,7 +1544,28 @@
           "weight": 2,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 105,
+              "paths": {
+                "female": "head/nose/large/adult/",
+                "male": "head/nose/large/adult/",
+                "teen": "head/nose/large/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         },
         {
           "id": "head_nose_elderly",
@@ -719,9 +1584,30 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 105,
+              "paths": {
+                "female": "head/nose/elderly/adult/",
+                "male": "head/nose/elderly/adult/",
+                "teen": "head/nose/elderly/adult/"
+              }
+            }
+          ],
           "tags": [
             "elderly_only"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         }
       ]
     },
@@ -745,9 +1631,30 @@
           "licenses": [
             "CC0"
           ],
+          "layers": [
+            {
+              "z": 102,
+              "paths": {
+                "female": "head/wrinkles/",
+                "male": "head/wrinkles/",
+                "teen": "head/wrinkles/"
+              }
+            }
+          ],
           "tags": [
             "elderly_only"
-          ]
+          ],
+          "recolor": {
+            "material": "body",
+            "from": [
+              "#271920",
+              "#99423c",
+              "#cc8665",
+              "#E4A47C",
+              "#F9D5BA",
+              "#FAECE7"
+            ]
+          }
         }
       ]
     },
@@ -771,7 +1678,29 @@
           "weight": 5,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 106,
+              "paths": {
+                "child": "eyes/eyebrows/thick/child/",
+                "female": "eyes/eyebrows/thick/adult/",
+                "male": "eyes/eyebrows/thick/adult/",
+                "teen": "eyes/eyebrows/thick/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "eyebrows_thin",
@@ -790,7 +1719,29 @@
           "weight": 5,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 106,
+              "paths": {
+                "child": "eyes/eyebrows/thin/child/",
+                "female": "eyes/eyebrows/thin/adult/",
+                "male": "eyes/eyebrows/thin/adult/",
+                "teen": "eyes/eyebrows/thin/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         }
       ]
     },
@@ -814,7 +1765,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/plain/adult/",
+                "male": "hair/plain/adult/",
+                "teen": "hair/plain/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_parted",
@@ -832,7 +1804,28 @@
           "weight": 5,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/parted/adult/",
+                "male": "hair/parted/adult/",
+                "teen": "hair/parted/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_parted2",
@@ -850,7 +1843,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/parted2/adult/",
+                "male": "hair/parted2/adult/",
+                "teen": "hair/parted2/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_parted3",
@@ -868,7 +1882,28 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/parted3/adult/",
+                "male": "hair/parted3/adult/",
+                "teen": "hair/parted3/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_parted_side_bangs",
@@ -888,7 +1923,29 @@
             "CC-BY",
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/parted_side_bangs/child/",
+                "female": "hair/parted_side_bangs/adult/",
+                "male": "hair/parted_side_bangs/adult/",
+                "teen": "hair/parted_side_bangs/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_parted_side_bangs2",
@@ -908,7 +1965,29 @@
             "CC-BY",
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/parted_side_bangs2/child/",
+                "female": "hair/parted_side_bangs2/adult/",
+                "male": "hair/parted_side_bangs2/adult/",
+                "teen": "hair/parted_side_bangs2/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_messy1",
@@ -926,7 +2005,28 @@
           "weight": 5,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/messy1/adult/",
+                "male": "hair/messy1/adult/",
+                "teen": "hair/messy1/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_messy2",
@@ -944,7 +2044,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/messy2/adult/",
+                "male": "hair/messy2/adult/",
+                "teen": "hair/messy2/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_messy3",
@@ -962,7 +2083,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/messy3/adult/",
+                "male": "hair/messy3/adult/",
+                "teen": "hair/messy3/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_halfmessy",
@@ -981,7 +2123,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/halfmessy/adult/",
+                "male": "hair/halfmessy/adult/",
+                "teen": "hair/halfmessy/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bedhead",
@@ -999,7 +2162,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bedhead/adult/",
+                "male": "hair/bedhead/adult/",
+                "teen": "hair/bedhead/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_unkempt",
@@ -1017,7 +2201,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/unkempt/adult/",
+                "male": "hair/unkempt/adult/",
+                "teen": "hair/unkempt/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_mop",
@@ -1035,7 +2240,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/mop/adult/",
+                "male": "hair/mop/adult/",
+                "teen": "hair/mop/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bangs",
@@ -1053,7 +2279,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bangs/adult/",
+                "male": "hair/bangs/adult/",
+                "teen": "hair/bangs/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bangsshort",
@@ -1071,7 +2318,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bangsshort/adult/",
+                "male": "hair/bangsshort/adult/",
+                "teen": "hair/bangsshort/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_page",
@@ -1090,7 +2358,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/page/adult/",
+                "male": "hair/page/adult/",
+                "teen": "hair/page/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_page2",
@@ -1109,7 +2398,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/page2/adult/",
+                "male": "hair/page2/adult/",
+                "teen": "hair/page2/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_pixie",
@@ -1127,7 +2437,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/pixie/adult/",
+                "male": "hair/pixie/adult/",
+                "teen": "hair/pixie/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_swoop",
@@ -1145,7 +2476,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/swoop/adult/",
+                "male": "hair/swoop/adult/",
+                "teen": "hair/swoop/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_swoop_side",
@@ -1166,7 +2518,29 @@
             "CC-BY",
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/swoop_side/child/",
+                "female": "hair/swoop_side/adult/",
+                "male": "hair/swoop_side/adult/",
+                "teen": "hair/swoop_side/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_cowlick",
@@ -1184,7 +2558,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/cowlick/adult/",
+                "male": "hair/cowlick/adult/",
+                "teen": "hair/cowlick/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_cowlick_tall",
@@ -1202,7 +2597,28 @@
           "weight": 2,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/cowlick_tall/adult/",
+                "male": "hair/cowlick_tall/adult/",
+                "teen": "hair/cowlick_tall/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_curtains",
@@ -1220,7 +2636,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/curtains/adult/",
+                "male": "hair/curtains/adult/",
+                "teen": "hair/curtains/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_single",
@@ -1239,7 +2676,36 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/single/adult/fg/",
+                "male": "hair/single/adult/fg/",
+                "teen": "hair/single/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/single/adult/bg/",
+                "male": "hair/single/adult/bg/",
+                "teen": "hair/single/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_buzzcut",
@@ -1258,9 +2724,30 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/buzzcut/adult/",
+                "male": "hair/buzzcut/adult/",
+                "teen": "hair/buzzcut/adult/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_high_and_tight",
@@ -1279,9 +2766,30 @@
           "licenses": [
             "CC-BY-SA"
           ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/high_and_tight/adult/",
+                "male": "hair/high_and_tight/adult/",
+                "teen": "hair/high_and_tight/adult/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_balding",
@@ -1300,10 +2808,31 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/balding/adult/",
+                "male": "hair/balding/adult/",
+                "teen": "hair/balding/adult/"
+              }
+            }
+          ],
           "tags": [
             "masc",
             "elderly"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_spiked",
@@ -1321,7 +2850,28 @@
           "weight": 2,
           "licenses": [
             "CC-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/spiked/adult/",
+                "male": "hair/spiked/adult/",
+                "teen": "hair/spiked/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_spiked2",
@@ -1339,7 +2889,28 @@
           "weight": 2,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/spiked2/adult/",
+                "male": "hair/spiked2/adult/",
+                "teen": "hair/spiked2/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_afro",
@@ -1357,7 +2928,28 @@
           "weight": 4,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/afro/adult/",
+                "male": "hair/afro/adult/",
+                "teen": "hair/afro/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_natural",
@@ -1375,7 +2967,28 @@
           "weight": 4,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/natural/adult/",
+                "male": "hair/natural/adult/",
+                "teen": "hair/natural/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_jewfro",
@@ -1396,7 +3009,29 @@
             "CC-BY",
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/jewfro/child/",
+                "female": "hair/jewfro/adult/",
+                "male": "hair/jewfro/adult/",
+                "teen": "hair/jewfro/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_cornrows",
@@ -1414,7 +3049,28 @@
           "weight": 4,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/cornrows/adult/",
+                "male": "hair/cornrows/adult/",
+                "teen": "hair/cornrows/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_twists_straight",
@@ -1432,7 +3088,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/twists_straight/adult/",
+                "male": "hair/twists_straight/adult/",
+                "teen": "hair/twists_straight/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_twists_fade",
@@ -1450,7 +3127,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/twists_fade/adult/",
+                "male": "hair/twists_fade/adult/",
+                "teen": "hair/twists_fade/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_flat_top_fade",
@@ -1468,7 +3166,28 @@
           "weight": 2,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/flat_top_fade/adult/",
+                "male": "hair/flat_top_fade/adult/",
+                "teen": "hair/flat_top_fade/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_flat_top_straight",
@@ -1486,7 +3205,28 @@
           "weight": 2,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/flat_top_straight/adult/",
+                "male": "hair/flat_top_straight/adult/",
+                "teen": "hair/flat_top_straight/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_dreadlocks_short",
@@ -1504,7 +3244,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/dreadlocks_short/adult/",
+                "male": "hair/dreadlocks_short/adult/",
+                "teen": "hair/dreadlocks_short/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_dreadlocks_long",
@@ -1522,7 +3283,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/dreadlocks_long/adult/",
+                "male": "hair/dreadlocks_long/adult/",
+                "teen": "hair/dreadlocks_long/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_curly_short",
@@ -1540,7 +3322,28 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/curly_short/adult/",
+                "male": "hair/curly_short/adult/",
+                "teen": "hair/curly_short/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_curly_short2",
@@ -1558,7 +3361,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/curly_short2/adult/",
+                "male": "hair/curly_short2/adult/",
+                "teen": "hair/curly_short2/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_curly_long",
@@ -1576,7 +3400,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/curly_long/adult/",
+                "male": "hair/curly_long/adult/",
+                "teen": "hair/curly_long/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_curls_large",
@@ -1595,7 +3440,36 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/curls_large/adult/fg/",
+                "male": "hair/curls_large/adult/fg/",
+                "teen": "hair/curls_large/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/curls_large/adult/bg/",
+                "male": "hair/curls_large/adult/bg/",
+                "teen": "hair/curls_large/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_curls_large_xlong",
@@ -1614,7 +3488,36 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/curls_large_xlong/adult/fg/",
+                "male": "hair/curls_large_xlong/adult/fg/",
+                "teen": "hair/curls_large_xlong/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/curls_large_xlong/adult/bg/",
+                "male": "hair/curls_large_xlong/adult/bg/",
+                "teen": "hair/curls_large_xlong/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bob",
@@ -1632,7 +3535,28 @@
           "weight": 4,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bob/adult/",
+                "male": "hair/bob/adult/",
+                "teen": "hair/bob/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bob_side_part",
@@ -1650,7 +3574,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bob_side_part/adult/",
+                "male": "hair/bob_side_part/adult/",
+                "teen": "hair/bob_side_part/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_lob",
@@ -1668,7 +3613,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/lob/adult/",
+                "male": "hair/lob/adult/",
+                "teen": "hair/lob/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_relm_short",
@@ -1688,7 +3654,29 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/relm_short/child/",
+                "female": "hair/relm_short/adult/",
+                "male": "hair/relm_short/adult/",
+                "teen": "hair/relm_short/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_wavy",
@@ -1707,7 +3695,36 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/wavy/adult/fg/",
+                "male": "hair/wavy/adult/fg/",
+                "teen": "hair/wavy/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/wavy/adult/bg/",
+                "male": "hair/wavy/adult/bg/",
+                "teen": "hair/wavy/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_wavy_child",
@@ -1723,9 +3740,28 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/wavy/child/"
+              }
+            }
+          ],
           "tags": [
             "child"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_long",
@@ -1743,7 +3779,28 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/long/adult/",
+                "male": "hair/long/adult/",
+                "teen": "hair/long/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_long_straight",
@@ -1761,7 +3818,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/long_straight/adult/",
+                "male": "hair/long_straight/adult/",
+                "teen": "hair/long_straight/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_long_center_part",
@@ -1779,7 +3857,36 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/long_center_part/adult/fg/",
+                "male": "hair/long_center_part/adult/fg/",
+                "teen": "hair/long_center_part/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/long_center_part/adult/bg/",
+                "male": "hair/long_center_part/adult/bg/",
+                "teen": "hair/long_center_part/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_long_messy",
@@ -1797,7 +3904,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/long_messy/adult/",
+                "male": "hair/long_messy/adult/",
+                "teen": "hair/long_messy/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_long_messy2",
@@ -1815,7 +3943,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/long_messy2/adult/",
+                "male": "hair/long_messy2/adult/",
+                "teen": "hair/long_messy2/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_loose",
@@ -1833,7 +3982,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/loose/adult/",
+                "male": "hair/loose/adult/",
+                "teen": "hair/loose/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bangslong",
@@ -1851,7 +4021,28 @@
           "weight": 3,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bangslong/adult/",
+                "male": "hair/bangslong/adult/",
+                "teen": "hair/bangslong/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bangslong2",
@@ -1869,7 +4060,36 @@
           "weight": 2,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bangslong2/adult/fg/",
+                "male": "hair/bangslong2/adult/fg/",
+                "teen": "hair/bangslong2/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/bangslong2/adult/bg/",
+                "male": "hair/bangslong2/adult/bg/",
+                "teen": "hair/bangslong2/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_curtains_long",
@@ -1887,7 +4107,28 @@
           "weight": 2,
           "licenses": [
             "CC-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/curtains_long/adult/",
+                "male": "hair/curtains_long/adult/",
+                "teen": "hair/curtains_long/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_xlong",
@@ -1906,7 +4147,36 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/xlong/adult/fg/",
+                "male": "hair/xlong/adult/fg/",
+                "teen": "hair/xlong/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/xlong/adult/bg/",
+                "male": "hair/xlong/adult/bg/",
+                "teen": "hair/xlong/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_xlong_wavy",
@@ -1924,7 +4194,36 @@
           "weight": 2,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/xlong_wavy/adult/fg/",
+                "male": "hair/xlong_wavy/adult/fg/",
+                "teen": "hair/xlong_wavy/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/xlong_wavy/adult/bg/",
+                "male": "hair/xlong_wavy/adult/bg/",
+                "teen": "hair/xlong_wavy/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_relm_xlong",
@@ -1943,7 +4242,36 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/relm_xlong/adult/fg/",
+                "male": "hair/relm_xlong/adult/fg/",
+                "teen": "hair/relm_xlong/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/relm_xlong/adult/bg/",
+                "male": "hair/relm_xlong/adult/bg/",
+                "teen": "hair/relm_xlong/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_braid",
@@ -1962,7 +4290,36 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/braid/adult/fg/",
+                "male": "hair/braid/adult/fg/",
+                "teen": "hair/braid/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/braid/adult/bg/",
+                "male": "hair/braid/adult/bg/",
+                "teen": "hair/braid/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_braid2",
@@ -1980,7 +4337,36 @@
           "weight": 3,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/braid2/adult/fg/",
+                "male": "hair/braid2/adult/fg/",
+                "teen": "hair/braid2/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/braid2/adult/bg/",
+                "male": "hair/braid2/adult/bg/",
+                "teen": "hair/braid2/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_half_up",
@@ -1998,7 +4384,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/half_up/adult/",
+                "male": "hair/half_up/adult/",
+                "teen": "hair/half_up/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_ponytail",
@@ -2016,7 +4423,36 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/ponytail/adult/fg/",
+                "male": "hair/ponytail/adult/fg/",
+                "teen": "hair/ponytail/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/ponytail/adult/bg/",
+                "male": "hair/ponytail/adult/bg/",
+                "teen": "hair/ponytail/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_ponytail2",
@@ -2035,7 +4471,36 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/ponytail2/adult/fg/",
+                "male": "hair/ponytail2/adult/fg/",
+                "teen": "hair/ponytail2/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/ponytail2/adult/bg/",
+                "male": "hair/ponytail2/adult/bg/",
+                "teen": "hair/ponytail2/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_high_ponytail",
@@ -2053,7 +4518,36 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/high_ponytail/adult/fg/",
+                "male": "hair/high_ponytail/adult/fg/",
+                "teen": "hair/high_ponytail/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/high_ponytail/adult/bg/",
+                "male": "hair/high_ponytail/adult/bg/",
+                "teen": "hair/high_ponytail/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_relm_ponytail",
@@ -2072,7 +4566,44 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/relm_ponytail/adult/mg/",
+                "male": "hair/relm_ponytail/adult/mg/",
+                "teen": "hair/relm_ponytail/adult/mg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/relm_ponytail/adult/bg/",
+                "male": "hair/relm_ponytail/adult/bg/",
+                "teen": "hair/relm_ponytail/adult/bg/"
+              }
+            },
+            {
+              "z": 145,
+              "paths": {
+                "female": "hair/relm_ponytail/adult/fg/",
+                "male": "hair/relm_ponytail/adult/fg/",
+                "teen": "hair/relm_ponytail/adult/fg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bangs_bun",
@@ -2090,7 +4621,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bangs_bun/adult/",
+                "male": "hair/bangs_bun/adult/",
+                "teen": "hair/bangs_bun/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_shoulderl",
@@ -2109,7 +4661,36 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/shoulderl/adult/fg/",
+                "male": "hair/shoulderl/adult/fg/",
+                "teen": "hair/shoulderl/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/shoulderl/adult/bg/",
+                "male": "hair/shoulderl/adult/bg/",
+                "teen": "hair/shoulderl/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_shoulderr",
@@ -2128,7 +4709,36 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/shoulderr/adult/fg/",
+                "male": "hair/shoulderr/adult/fg/",
+                "teen": "hair/shoulderr/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/shoulderr/adult/bg/",
+                "male": "hair/shoulderr/adult/bg/",
+                "teen": "hair/shoulderr/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_topknot_short",
@@ -2149,7 +4759,38 @@
             "CC-BY",
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/parted_side_bangs/child/",
+                "female": "hair/parted_side_bangs/adult/",
+                "male": "hair/parted_side_bangs/adult/",
+                "teen": "hair/parted_side_bangs/adult/"
+              }
+            },
+            {
+              "z": 145,
+              "paths": {
+                "child": "hair/extensions/ponytails/topknot_short/child/",
+                "female": "hair/extensions/ponytails/topknot_short/adult/",
+                "male": "hair/extensions/ponytails/topknot_short/adult/",
+                "teen": "hair/extensions/ponytails/topknot_short/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_topknot_short2",
@@ -2170,7 +4811,38 @@
             "CC-BY",
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/parted_side_bangs2/child/",
+                "female": "hair/parted_side_bangs2/adult/",
+                "male": "hair/parted_side_bangs2/adult/",
+                "teen": "hair/parted_side_bangs2/adult/"
+              }
+            },
+            {
+              "z": 145,
+              "paths": {
+                "child": "hair/extensions/ponytails/topknot_short/child/",
+                "female": "hair/extensions/ponytails/topknot_short/adult/",
+                "male": "hair/extensions/ponytails/topknot_short/adult/",
+                "teen": "hair/extensions/ponytails/topknot_short/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_topknot_long",
@@ -2191,7 +4863,47 @@
             "CC-BY",
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/parted_side_bangs/child/",
+                "female": "hair/parted_side_bangs/adult/",
+                "male": "hair/parted_side_bangs/adult/",
+                "teen": "hair/parted_side_bangs/adult/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "child": "hair/extensions/ponytails/topknot_long/child/bg/",
+                "female": "hair/extensions/ponytails/topknot_long/adult/bg/",
+                "male": "hair/extensions/ponytails/topknot_long/adult/bg/",
+                "teen": "hair/extensions/ponytails/topknot_long/adult/bg/"
+              }
+            },
+            {
+              "z": 145,
+              "paths": {
+                "child": "hair/extensions/ponytails/topknot_long/child/fg/",
+                "female": "hair/extensions/ponytails/topknot_long/adult/fg/",
+                "male": "hair/extensions/ponytails/topknot_long/adult/fg/",
+                "teen": "hair/extensions/ponytails/topknot_long/adult/fg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_topknot_long2",
@@ -2212,7 +4924,47 @@
             "CC-BY",
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "child": "hair/parted_side_bangs2/child/",
+                "female": "hair/parted_side_bangs2/adult/",
+                "male": "hair/parted_side_bangs2/adult/",
+                "teen": "hair/parted_side_bangs2/adult/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "child": "hair/extensions/ponytails/topknot_long/child/bg/",
+                "female": "hair/extensions/ponytails/topknot_long/adult/bg/",
+                "male": "hair/extensions/ponytails/topknot_long/adult/bg/",
+                "teen": "hair/extensions/ponytails/topknot_long/adult/bg/"
+              }
+            },
+            {
+              "z": 145,
+              "paths": {
+                "child": "hair/extensions/ponytails/topknot_long/child/fg/",
+                "female": "hair/extensions/ponytails/topknot_long/adult/fg/",
+                "male": "hair/extensions/ponytails/topknot_long/adult/fg/",
+                "teen": "hair/extensions/ponytails/topknot_long/adult/fg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_pigtails_bangs",
@@ -2230,7 +4982,28 @@
           "weight": 2,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/pigtails_bangs/adult/",
+                "male": "hair/pigtails_bangs/adult/",
+                "teen": "hair/pigtails_bangs/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "hair_bunches",
@@ -2248,7 +5021,36 @@
           "weight": 2,
           "licenses": [
             "CC-BY-SA"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hair/bunches/adult/fg/",
+                "male": "hair/bunches/adult/fg/",
+                "teen": "hair/bunches/adult/fg/"
+              }
+            },
+            {
+              "z": 9,
+              "paths": {
+                "female": "hair/bunches/adult/bg/",
+                "male": "hair/bunches/adult/bg/",
+                "teen": "hair/bunches/adult/bg/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         }
       ]
     },
@@ -2272,9 +5074,30 @@
           "licenses": [
             "CC-BY-SA"
           ],
+          "layers": [
+            {
+              "z": 111,
+              "paths": {
+                "female": "beards/beard/5oclock_shadow/",
+                "male": "beards/beard/5oclock_shadow/",
+                "teen": "beards/beard/5oclock_shadow/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_trimmed",
@@ -2293,9 +5116,30 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 110,
+              "paths": {
+                "female": "beards/beard/trimmed/",
+                "male": "beards/beard/trimmed/",
+                "teen": "beards/beard/trimmed/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_beard",
@@ -2314,9 +5158,30 @@
           "licenses": [
             "CC-BY-SA"
           ],
+          "layers": [
+            {
+              "z": 110,
+              "paths": {
+                "female": "beards/beard/basic/",
+                "male": "beards/beard/basic/",
+                "teen": "beards/beard/basic/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_medium",
@@ -2335,9 +5200,30 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 110,
+              "paths": {
+                "female": "beards/beard/medium/",
+                "male": "beards/beard/medium/",
+                "teen": "beards/beard/medium/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_winter",
@@ -2356,10 +5242,31 @@
           "licenses": [
             "CC0"
           ],
+          "layers": [
+            {
+              "z": 110,
+              "paths": {
+                "female": "beards/beard/winter/female/",
+                "male": "beards/beard/winter/male/",
+                "teen": "beards/beard/winter/female/"
+              }
+            }
+          ],
           "tags": [
             "masc",
             "elderly"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         }
       ]
     },
@@ -2383,9 +5290,30 @@
           "licenses": [
             "CC-BY-SA"
           ],
+          "layers": [
+            {
+              "z": 111,
+              "paths": {
+                "female": "beards/mustache/basic/",
+                "male": "beards/mustache/basic/",
+                "teen": "beards/mustache/basic/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_chevron",
@@ -2404,9 +5332,30 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 111,
+              "paths": {
+                "female": "beards/mustache/chevron/",
+                "male": "beards/mustache/chevron/",
+                "teen": "beards/mustache/chevron/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_horseshoe",
@@ -2425,9 +5374,30 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 111,
+              "paths": {
+                "female": "beards/mustache/horseshoe/",
+                "male": "beards/mustache/horseshoe/",
+                "teen": "beards/mustache/horseshoe/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_walrus",
@@ -2446,10 +5416,31 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 111,
+              "paths": {
+                "female": "beards/mustache/walrus/",
+                "male": "beards/mustache/walrus/",
+                "teen": "beards/mustache/walrus/"
+              }
+            }
+          ],
           "tags": [
             "masc",
             "elderly"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_lampshade",
@@ -2468,9 +5459,30 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 111,
+              "paths": {
+                "female": "beards/mustache/lampshade/",
+                "male": "beards/mustache/lampshade/",
+                "teen": "beards/mustache/lampshade/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         },
         {
           "id": "beards_bigstache",
@@ -2489,9 +5501,30 @@
           "licenses": [
             "CC-BY-SA"
           ],
+          "layers": [
+            {
+              "z": 111,
+              "paths": {
+                "female": "beards/mustache/bigstache/",
+                "male": "beards/mustache/bigstache/",
+                "teen": "beards/mustache/bigstache/"
+              }
+            }
+          ],
           "tags": [
             "masc"
-          ]
+          ],
+          "recolor": {
+            "material": "hair",
+            "from": [
+              "#260D14",
+              "#6A1108",
+              "#A42600",
+              "#BF4000",
+              "#E55600",
+              "#FF8A00"
+            ]
+          }
         }
       ]
     },
@@ -2513,7 +5546,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/longsleeve/longsleeve/female/",
+                "male": "torso/clothes/longsleeve/longsleeve/male/",
+                "teen": "torso/clothes/longsleeve/longsleeve/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_longsleeve2",
@@ -2529,7 +5583,28 @@
           "weight": 7,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/longsleeve/longsleeve2/female/",
+                "male": "torso/clothes/longsleeve/longsleeve2/male/",
+                "teen": "torso/clothes/longsleeve/longsleeve2/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_longsleeve2_buttoned",
@@ -2545,7 +5620,28 @@
           "weight": 5,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/longsleeve/longsleeve2_buttoned/female/",
+                "male": "torso/clothes/longsleeve/longsleeve2_buttoned/male/",
+                "teen": "torso/clothes/longsleeve/longsleeve2_buttoned/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_longsleeve2_scoop",
@@ -2561,7 +5657,28 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/longsleeve/longsleeve2_scoop/female/",
+                "male": "torso/clothes/longsleeve/longsleeve2_scoop/male/",
+                "teen": "torso/clothes/longsleeve/longsleeve2_scoop/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_longsleeve2_vneck",
@@ -2577,7 +5694,28 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/longsleeve/longsleeve2_vneck/female/",
+                "male": "torso/clothes/longsleeve/longsleeve2_vneck/male/",
+                "teen": "torso/clothes/longsleeve/longsleeve2_vneck/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_longsleeve2_cardigan",
@@ -2593,7 +5731,28 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/longsleeve/longsleeve2_cardigan/female/",
+                "male": "torso/clothes/longsleeve/longsleeve2_cardigan/male/",
+                "teen": "torso/clothes/longsleeve/longsleeve2_cardigan/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_longsleeve_scoop",
@@ -2609,7 +5768,28 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/longsleeve/scoop/female/",
+                "male": "torso/clothes/longsleeve/scoop/male/",
+                "teen": "torso/clothes/longsleeve/scoop/female/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_shortsleeve",
@@ -2626,7 +5806,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/shortsleeve/shortsleeve/female/",
+                "male": "torso/clothes/shortsleeve/shortsleeve/male/",
+                "teen": "torso/clothes/shortsleeve/shortsleeve/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_shortsleeve_cardigan",
@@ -2642,7 +5843,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/shortsleeve/shortsleeve_cardigan/female/",
+                "male": "torso/clothes/shortsleeve/shortsleeve_cardigan/male/",
+                "teen": "torso/clothes/shortsleeve/shortsleeve_cardigan/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_tshirt",
@@ -2658,7 +5880,28 @@
           "weight": 5,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/shortsleeve/tshirt/female/",
+                "male": "torso/clothes/shortsleeve/tshirt/male/",
+                "teen": "torso/clothes/shortsleeve/tshirt/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_tshirt_buttoned",
@@ -2674,7 +5917,28 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/shortsleeve/tshirt_buttoned/female/",
+                "male": "torso/clothes/shortsleeve/tshirt_buttoned/male/",
+                "teen": "torso/clothes/shortsleeve/tshirt_buttoned/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_tshirt_scoop",
@@ -2690,7 +5954,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/shortsleeve/tshirt_scoop/female/",
+                "male": "torso/clothes/shortsleeve/tshirt_scoop/male/",
+                "teen": "torso/clothes/shortsleeve/tshirt_scoop/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_tshirt_vneck",
@@ -2706,7 +5991,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/shortsleeve/tshirt_vneck/female/",
+                "male": "torso/clothes/shortsleeve/tshirt_vneck/male/",
+                "teen": "torso/clothes/shortsleeve/tshirt_vneck/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_sleeveless1",
@@ -2723,7 +6029,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/sleeveless/sleeveless1/female/",
+                "male": "torso/clothes/sleeveless/sleeveless1/male/",
+                "teen": "torso/clothes/sleeveless/sleeveless1/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_sleeveless2",
@@ -2739,7 +6066,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/sleeveless/sleeveless2/female/",
+                "male": "torso/clothes/sleeveless/sleeveless2/male/",
+                "teen": "torso/clothes/sleeveless/sleeveless2/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_sleeveless2_buttoned",
@@ -2755,7 +6103,28 @@
           "weight": 2,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/sleeveless/sleeveless2_buttoned/female/",
+                "male": "torso/clothes/sleeveless/sleeveless2_buttoned/male/",
+                "teen": "torso/clothes/sleeveless/sleeveless2_buttoned/teen/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "torso_clothes_sleeveless",
@@ -2771,6 +6140,15 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/sleeveless/sleeveless/female/",
+                "male": "torso/clothes/sleeveless/sleeveless/male/"
+              }
+            }
           ],
           "options": [
             "black",
@@ -2813,6 +6191,14 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/tunic/female/"
+              }
+            }
+          ],
           "options": [
             "black",
             "blue",
@@ -2852,6 +6238,14 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/tunic_sara/female/"
+              }
+            }
           ],
           "options": [
             "black",
@@ -2894,6 +6288,14 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/blouse/female/"
+              }
+            }
+          ],
           "options": [
             "black",
             "blue",
@@ -2930,6 +6332,14 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "female": "torso/clothes/blouse_longsleeve/female/"
+              }
+            }
+          ],
           "options": [
             "black",
             "blue",
@@ -2965,6 +6375,14 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 35,
+              "paths": {
+                "child": "torso/clothes/shirt/child/"
+              }
+            }
           ],
           "tags": [
             "child"
@@ -3003,7 +6421,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/pants/thin/",
+                "male": "legs/pants/male/",
+                "teen": "legs/pants/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_pants2",
@@ -3019,7 +6458,28 @@
           "weight": 8,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/pants2/thin/",
+                "male": "legs/pants2/male/",
+                "teen": "legs/pants2/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_cuffed",
@@ -3035,7 +6495,28 @@
           "weight": 6,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/cuffed/thin/",
+                "male": "legs/cuffed/male/",
+                "teen": "legs/cuffed/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_pantaloons",
@@ -3054,7 +6535,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/pantaloons/thin/",
+                "male": "legs/pantaloons/male/",
+                "teen": "legs/pantaloons/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_hose",
@@ -3070,7 +6572,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/hose/thin/",
+                "male": "legs/hose/male/",
+                "teen": "legs/hose/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_leggings",
@@ -3086,7 +6609,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/leggings/thin/",
+                "male": "legs/leggings/male/",
+                "teen": "legs/leggings/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_leggings2",
@@ -3102,7 +6646,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/leggings2/thin/",
+                "male": "legs/leggings2/male/",
+                "teen": "legs/leggings2/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_shorts",
@@ -3119,7 +6684,28 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/shorts/shorts/thin/",
+                "male": "legs/shorts/shorts/male/",
+                "teen": "legs/shorts/shorts/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_skirts_plain",
@@ -3137,7 +6723,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/skirts/plain/thin/",
+                "male": "legs/skirts/plain/male/",
+                "teen": "legs/skirts/plain/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_skirt_straight",
@@ -3153,7 +6760,27 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "female": "legs/skirts/straight/thin/",
+                "teen": "legs/skirts/straight/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "legs_childpants",
@@ -3168,6 +6795,14 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "child": "legs/pants/child/"
+              }
+            }
           ],
           "tags": [
             "child"
@@ -3195,6 +6830,14 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 20,
+              "paths": {
+                "child": "legs/skirts/child/"
+              }
+            }
           ],
           "tags": [
             "child"
@@ -3232,7 +6875,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 15,
+              "paths": {
+                "female": "feet/shoes/basic/thin/",
+                "male": "feet/shoes/basic/male/",
+                "teen": "feet/shoes/basic/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "feet_shoes_revised",
@@ -3250,7 +6914,28 @@
           "weight": 6,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 15,
+              "paths": {
+                "female": "feet/shoes/revised/thin/",
+                "male": "feet/shoes/revised/male/",
+                "teen": "feet/shoes/revised/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "feet_shoes_sara",
@@ -3269,7 +6954,28 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 15,
+              "paths": {
+                "female": "feet/shoes/sara/thin/",
+                "male": "feet/shoes/sara/male/",
+                "teen": "feet/shoes/sara/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "feet_boots_basic",
@@ -3288,7 +6994,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 25,
+              "paths": {
+                "female": "feet/boots/basic/thin/",
+                "male": "feet/boots/basic/male/",
+                "teen": "feet/boots/basic/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "feet_boots_revised",
@@ -3306,7 +7033,28 @@
           "weight": 5,
           "licenses": [
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 25,
+              "paths": {
+                "female": "feet/boots/revised/thin/",
+                "male": "feet/boots/revised/male/",
+                "teen": "feet/boots/revised/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "feet_boots_fold",
@@ -3325,7 +7073,28 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 25,
+              "paths": {
+                "female": "feet/boots/fold/thin/",
+                "male": "feet/boots/fold/male/",
+                "teen": "feet/boots/fold/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "feet_boots_rim",
@@ -3344,7 +7113,28 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 25,
+              "paths": {
+                "female": "feet/boots/rimmed/thin/",
+                "male": "feet/boots/rimmed/male/",
+                "teen": "feet/boots/rimmed/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "feet_sandals",
@@ -3363,7 +7153,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 15,
+              "paths": {
+                "female": "feet/sandals/thin/",
+                "male": "feet/sandals/male/",
+                "teen": "feet/sandals/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         }
       ]
     },
@@ -3385,6 +7196,16 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 70,
+              "paths": {
+                "female": "torso/waist/belt_leather/female/",
+                "male": "torso/waist/belt_leather/male/",
+                "teen": "torso/waist/belt_leather/female/"
+              }
+            }
           ],
           "options": [
             "brown",
@@ -3412,6 +7233,16 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 70,
+              "paths": {
+                "female": "torso/waist/belt_leather2/female/",
+                "male": "torso/waist/belt_leather2/male/",
+                "teen": "torso/waist/belt_leather2/female/"
+              }
+            }
+          ],
           "options": [
             "leather"
           ]
@@ -3431,6 +7262,16 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 70,
+              "paths": {
+                "female": "torso/waist/belt_loose/female/",
+                "male": "torso/waist/belt_loose/male/",
+                "teen": "torso/waist/belt_loose/female/"
+              }
+            }
           ],
           "options": [
             "brown",
@@ -3457,6 +7298,16 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 70,
+              "paths": {
+                "female": "torso/waist/belt_double/female/",
+                "male": "torso/waist/belt_double/male/",
+                "teen": "torso/waist/belt_double/male/"
+              }
+            }
           ],
           "options": [
             "brown",
@@ -3488,6 +7339,16 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 65,
+              "paths": {
+                "female": "torso/waist/sash/female/",
+                "male": "torso/waist/sash/male/",
+                "teen": "torso/waist/sash/male/"
+              }
+            }
           ],
           "options": [
             "black",
@@ -3532,6 +7393,16 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 65,
+              "paths": {
+                "female": "torso/waist/sash_narrow/female/",
+                "male": "torso/waist/sash_narrow/male/",
+                "teen": "torso/waist/sash_narrow/male/"
+              }
+            }
+          ],
           "options": [
             "black",
             "blue",
@@ -3573,6 +7444,15 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 65,
+              "paths": {
+                "female": "torso/waist/waistband/female/",
+                "teen": "torso/waist/sash/male/"
+              }
+            }
           ],
           "options": [
             "black",
@@ -3622,6 +7502,16 @@
             "CC-BY-SA",
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 40,
+              "paths": {
+                "female": "torso/aprons/apron/female/",
+                "male": "torso/aprons/apron/male/",
+                "teen": "torso/aprons/apron/male/"
+              }
+            }
+          ],
           "options": [
             "leather",
             "black",
@@ -3662,6 +7552,14 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 40,
+              "paths": {
+                "female": "torso/aprons/apron_half/female/"
+              }
+            }
+          ],
           "options": [
             "black",
             "blue",
@@ -3701,6 +7599,14 @@
           "weight": 3,
           "licenses": [
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 40,
+              "paths": {
+                "female": "torso/aprons/apron_full/female/"
+              }
+            }
           ],
           "options": [
             "black",
@@ -3749,6 +7655,16 @@
           "licenses": [
             "OGA-BY"
           ],
+          "layers": [
+            {
+              "z": 38,
+              "paths": {
+                "female": "torso/aprons/overalls/female/",
+                "male": "torso/aprons/overalls/male/",
+                "teen": "torso/aprons/overalls/teen/"
+              }
+            }
+          ],
           "options": [
             "leather",
             "black",
@@ -3792,6 +7708,16 @@
           "weight": 4,
           "licenses": [
             "OGA-BY"
+          ],
+          "layers": [
+            {
+              "z": 38,
+              "paths": {
+                "female": "torso/aprons/suspenders/female/",
+                "male": "torso/aprons/suspenders/male/",
+                "teen": "torso/aprons/suspenders/teen/"
+              }
+            }
           ],
           "options": [
             "black",
@@ -3842,6 +7768,16 @@
           "licenses": [
             "CC-BY-SA"
           ],
+          "layers": [
+            {
+              "z": 90,
+              "paths": {
+                "female": "neck/scarf/",
+                "male": "neck/scarf/",
+                "teen": "neck/scarf/"
+              }
+            }
+          ],
           "options": [
             "black",
             "blue",
@@ -3873,7 +7809,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 125,
+              "paths": {
+                "female": "hat/pirate/kerchief/adult/",
+                "male": "hat/pirate/kerchief/adult/",
+                "teen": "hat/pirate/kerchief/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "hat_headband_tied",
@@ -3892,7 +7849,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 125,
+              "paths": {
+                "female": "hat/headband/tied/adult/",
+                "male": "hat/headband/tied/adult/",
+                "teen": "hat/headband/tied/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "hat_headband_thick",
@@ -3912,7 +7890,29 @@
           "licenses": [
             "CC-BY",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 125,
+              "paths": {
+                "child": "hat/headband/thick/child/",
+                "female": "hat/headband/thick/adult/",
+                "male": "hat/headband/thick/adult/",
+                "teen": "hat/headband/thick/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         }
       ]
     },
@@ -3936,7 +7936,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hat/cloth/bandana/adult/",
+                "male": "hat/cloth/bandana/adult/",
+                "teen": "hat/cloth/bandana/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "hat_bandana2",
@@ -3955,7 +7976,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 120,
+              "paths": {
+                "female": "hat/cloth/bandana2/adult/",
+                "male": "hat/cloth/bandana2/adult/",
+                "teen": "hat/cloth/bandana2/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         }
       ]
     },
@@ -3979,7 +8021,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 130,
+              "paths": {
+                "female": "hat/cloth/hood/adult/",
+                "male": "hat/cloth/hood/adult/",
+                "teen": "hat/cloth/hood/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "hat_hood_sack_cloth",
@@ -3998,7 +8061,28 @@
           "licenses": [
             "CC-BY-SA",
             "OGA-BY"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 130,
+              "paths": {
+                "female": "hat/cloth/hood_sack/adult/",
+                "male": "hat/cloth/hood_sack/adult/",
+                "teen": "hat/cloth/hood_sack/adult/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         },
         {
           "id": "hat_hood_hijab",
@@ -4016,7 +8100,28 @@
           "weight": 3,
           "licenses": [
             "CC0"
-          ]
+          ],
+          "layers": [
+            {
+              "z": 130,
+              "paths": {
+                "female": "hat/cloth/hijab/thin/",
+                "male": "hat/cloth/hijab/male/",
+                "teen": "hat/cloth/hijab/thin/"
+              }
+            }
+          ],
+          "recolor": {
+            "material": "cloth",
+            "from": [
+              "#281820",
+              "#4D4A5D",
+              "#958080",
+              "#C4B59F",
+              "#E5E6C7",
+              "#FFFFFF"
+            ]
+          }
         }
       ]
     },
@@ -4038,6 +8143,15 @@
           "weight": 6,
           "licenses": [
             "CC-BY-SA"
+          ],
+          "layers": [
+            {
+              "z": 110,
+              "paths": {
+                "female": "backpack/backpack/female/",
+                "male": "backpack/backpack/male/"
+              }
+            }
           ],
           "options": [
             "black",
@@ -4077,6 +8191,15 @@
           "weight": 4,
           "licenses": [
             "CC-BY-SA"
+          ],
+          "layers": [
+            {
+              "z": 110,
+              "paths": {
+                "female": "backpack/squarepack/female/",
+                "male": "backpack/squarepack/male/"
+              }
+            }
           ],
           "options": [
             "black",
@@ -4121,6 +8244,15 @@
           "weight": 1,
           "licenses": [
             "CC-BY-SA"
+          ],
+          "layers": [
+            {
+              "z": 140,
+              "paths": {
+                "female": "weapon/polearm/cane/female/",
+                "male": "weapon/polearm/cane/male/"
+              }
+            }
           ],
           "tags": [
             "elderly_favoured"

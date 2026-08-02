@@ -92,12 +92,19 @@ six-frame work layers; the remaining action rows stay available for farming,
 sitting, climbing, expression, and combat systems. The complete matrix is in
 [docs/LPC_ACTIONS.md](docs/LPC_ACTIONS.md).
 
-Travelers who arrive later in a run are generated rather than drawn. `make npcs`
-builds a cast of Universal LPC Spritesheet Generator characters — humans only,
-in scavenged browns and tans, no armor and no weapon but the occasional cane —
-and writes them as loadable `character.json` files, a page of links into the web
-generator, and a contact sheet. Pruning happens in one allowlist; see
+Travelers who arrive are generated rather than drawn, and composited in the
+running game rather than baked: humans only, in scavenged browns and tans, no
+armor and no weapon but the occasional cane. A waystation that keeps its fire
+lit for two hundred days meets two hundred different strangers. `make npcs`
+writes a reviewable cast as loadable `character.json` files, a page of links
+into the web generator, and a contact sheet; pruning happens in one allowlist.
+The three compositors involved — the LPC web app, the reference renderer, and
+the game — are checked against each other byte for byte. See
 [docs/NPC_GENERATOR.md](docs/NPC_GENERATOR.md).
+
+What a stranger says first is drawn separately from the story they came to
+tell, so three authored vignettes and thirty openings in
+`content/openings.ron` meet as ninety different first minutes.
 
 Exterior trees depth-sort at their trunk ground contact. When the Scribe passes
 behind the dense leafy canopy, the character is fully hidden rather than leaving
@@ -348,7 +355,7 @@ crates/game/       Bevy native/WebAssembly client
 crates/npcgen/     Procedural LPC travelers, as generator selections
 crates/server/     Axum static host and secret-bearing API proxy
 crates/shared/     DTOs, validation, and reviewed content loader
-content/           Authored traveler and passage catalogs (RON)
+content/           Authored traveler, opening and passage catalogs (RON)
 scripts/           Deterministic asset tooling
 web/               Trunk HTML shell
 notebooks/         Kaggle technical notebook

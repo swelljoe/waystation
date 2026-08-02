@@ -11,9 +11,10 @@
 //! adjusted by hand, and exported as a finished sheet. When something comes out
 //! wrong, the fix is visible rather than guessed at.
 //!
-//! What this crate does *not* do is draw anything. It names pieces; compositing
-//! them into a sheet is a separate job, and until that exists the pieces are
-//! turned into art through the web tool.
+//! This crate does not draw anything itself — it has no business knowing what
+//! an image is — but it does say exactly what to draw. [`Npc::draws`] turns a
+//! traveller into an ordered list of sprite sheets and palette swaps, which is
+//! everything a compositor needs and nothing it does not.
 
 pub mod wardrobe;
 
@@ -54,6 +55,62 @@ pub enum ArtLicense {
     /// with art you cannot license the same way.
     #[default]
     ShareAlike,
+}
+
+/// Who a caller wants, when they want something in particular.
+///
+/// The game's arrivals are authored as social shapes — someone walking alone,
+/// two siblings, an old hand who has seen this road before — and those shapes
+/// need people of roughly the right age standing in them. This is the whole of
+/// the constraint: everything else about the traveller is still rolled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Cast {
+    /// No constraint. Any base, any age.
+    #[default]
+    Anyone,
+    /// A grown adult who does not read as old.
+    Grown,
+    /// An old face, with the grey hair and the likely cane that follow from it.
+    Elder,
+    /// The `teen` base: old enough to walk a road alone, young enough that
+    /// doing so reads as a risk.
+    Youth,
+    Child,
+}
+
+impl Cast {
+    /// Body bases this casting will accept.
+    const fn bases(self) -> &'static [&'static str] {
+        match self {
+            Self::Anyone => &[],
+            Self::Grown | Self::Elder => &["male", "female"],
+            Self::Youth => &["teen"],
+            Self::Child => &["child"],
+        }
+    }
+
+    fn allows_base(self, id: &str) -> bool {
+        let bases = self.bases();
+        bases.is_empty() || bases.contains(&id)
+    }
+
+    /// Whether an elderly head is required, forbidden, or simply rolled.
+    const fn elderly(self) -> Option<bool> {
+        match self {
+            Self::Anyone => None,
+            Self::Elder => Some(true),
+            Self::Grown | Self::Youth | Self::Child => Some(false),
+        }
+    }
+}
+
+/// Everything about a traveller that is asked for rather than rolled.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Casting {
+    pub era: Era,
+    /// The licence bar. See [`ArtLicense`].
+    pub license: ArtLicense,
+    pub cast: Cast,
 }
 
 /// Licence families that carry no copyleft obligation.
@@ -109,6 +166,9 @@ pub struct Npc {
     /// The licence bar this traveller was generated against. `AttributionOnly`
     /// means share-alike art was refused outright rather than merely reported.
     pub required: ArtLicense,
+    /// Who was asked for. Kept because it constrains choices still being made
+    /// while the traveller is built, and because it explains the result.
+    pub cast: Cast,
     /// The seed this traveller came from. Enough to rebuild them exactly.
     pub seed: u64,
     /// In drawing order, roughly bottom to top.
@@ -230,6 +290,15 @@ pub fn generate(seed: u64, era: Era) -> Npc {
     generate_for(seed, era, ArtLicense::ShareAlike)
 }
 
+/// Build a traveller of a particular age and licence bar.
+///
+/// The one call that constrains anything; [`generate`] and [`generate_for`] are
+/// this with the constraint left off.
+#[must_use]
+pub fn generate_with(seed: u64, casting: Casting) -> Npc {
+    build(seed, casting)
+}
+
 /// Build a traveller whose art meets a licence bar.
 ///
 /// Pass [`ArtLicense::AttributionOnly`] for anyone who will end up in a flat
@@ -243,11 +312,28 @@ pub fn generate(seed: u64, era: Era) -> Npc {
 /// attribution-only. Ask [`Npc::art_license`] what you actually got.
 #[must_use]
 pub fn generate_for(seed: u64, era: Era, required: ArtLicense) -> Npc {
+    build(
+        seed,
+        Casting {
+            era,
+            license: required,
+            cast: Cast::Anyone,
+        },
+    )
+}
+
+fn build(seed: u64, casting: Casting) -> Npc {
     let wardrobe = Wardrobe::bundled();
     let mut rng = Rng::new(seed);
 
     let body_type = rng
-        .weighted(&wardrobe.body_types, |b| b.weight)
+        .weighted(&wardrobe.body_types, |b| {
+            if casting.cast.allows_base(&b.id) {
+                b.weight
+            } else {
+                0
+            }
+        })
         .map_or_else(|| "male".to_owned(), |b| b.id.clone());
 
     let skin = pick_color(&mut rng, &wardrobe.palettes.skin);
@@ -258,8 +344,9 @@ pub fn generate_for(seed: u64, era: Era, required: ArtLicense) -> Npc {
         hair_color: String::new(),
         presents_masc,
         elderly: false,
-        era,
-        required,
+        era: casting.era,
+        required: casting.license,
+        cast: casting.cast,
         seed,
         pieces: Vec::new(),
         body_type,
@@ -374,6 +461,17 @@ fn eligibility(item: &Item, npc: &Npc) -> u32 {
     if item.has_tag("elderly") && npc.young() {
         return 0;
     }
+    // A casting that asks for an elder, or for somebody who is plainly not one,
+    // decides the head rather than hoping. Only heads are constrained: an old
+    // face may still turn up under a young man's hat, and a grown adult with a
+    // winter beard is a look rather than a contradiction.
+    if item.type_name == "head" {
+        if let Some(wanted) = npc.cast.elderly() {
+            if item.has_tag("elderly") != wanted {
+                return 0;
+            }
+        }
+    }
     let favoured = npc.elderly && (item.has_tag("elderly") || item.has_tag("elderly_favoured"));
     item.weight * if favoured { ELDERLY_FAVOUR } else { 1 }
 }
@@ -414,6 +512,54 @@ fn one_of<'s>(
         .find(|slot| fill(rng, npc, wardrobe, slot))
 }
 
+/// Garments whose absence a viewer would notice, so a garment that cannot be
+/// told apart from skin is worse than no garment at all — it reads as nudity
+/// rather than as a plain shirt. A belt or a hat has no such problem.
+const READS_AS_BARE_SKIN: [&str; 2] = ["clothes", "legs"];
+
+/// How far apart two palettes have to be, as a distance between their average
+/// colours, before a garment reads as cloth on a body rather than as the body.
+///
+/// Forty is where the eye stops being fooled at this sprite size. It costs the
+/// darkest skin tones about a third of the muted palette — which sounds worse
+/// than it is, because what it costs them is the browns and blacks they were
+/// disappearing into.
+const TELLS_APART: u32 = 40;
+
+/// The average colour of a palette ramp.
+fn ramp_average(ramp: &[String]) -> Option<[i32; 3]> {
+    if ramp.is_empty() {
+        return None;
+    }
+    let mut total = [0_i32; 3];
+    for color in ramp {
+        let parsed = rgb(color)?;
+        for (sum, channel) in total.iter_mut().zip(parsed) {
+            *sum += i32::from(channel);
+        }
+    }
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+    let count = ramp.len() as i32;
+    Some(total.map(|sum| sum / count))
+}
+
+/// Whether a garment in this colour would be visible on this skin.
+///
+/// Unknown palettes answer yes: refusing a colour because its ramp could not be
+/// read would silently narrow the wardrobe, which is the worse failure.
+fn tells_apart_from_skin(wardrobe: &Wardrobe, skin: &str, cloth: &str) -> bool {
+    let Some(skin) = wardrobe.ramp("body", skin).and_then(ramp_average) else {
+        return true;
+    };
+    let Some(cloth) = wardrobe.ramp("cloth", cloth).and_then(ramp_average) else {
+        return true;
+    };
+    let distance: i32 = skin.iter().zip(cloth).map(|(a, b)| (a - b) * (a - b)).sum();
+    #[allow(clippy::cast_possible_wrap)]
+    let threshold = (TELLS_APART * TELLS_APART) as i32;
+    distance >= threshold
+}
+
 fn push(rng: &mut Rng, npc: &mut Npc, item: &Item) {
     let color = match item.source {
         ColorSource::Skin => npc.skin.clone(),
@@ -439,7 +585,27 @@ fn push(rng: &mut Rng, npc: &mut Npc, item: &Item) {
                     .filter(|c| item.options.contains(&c.color))
                     .collect()
             };
-            rng.weighted(&allowed, |c| c.weight)
+            // And a shirt has to look like a shirt. LPC shades a torso gently,
+            // so a garment within a few tones of the wearer's skin does not
+            // read as brown cloth on a brown body — it reads as somebody with
+            // no shirt on. Narrow to colours that can be told apart, and fall
+            // back to the full set rather than leave anyone undressed.
+            let legible: Vec<&wardrobe::Weighted> =
+                if READS_AS_BARE_SKIN.contains(&item.type_name.as_str()) {
+                    allowed
+                        .iter()
+                        .copied()
+                        .filter(|c| tells_apart_from_skin(wardrobe, &npc.skin, &c.color))
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+            let pool = if legible.is_empty() {
+                &allowed
+            } else {
+                &legible
+            };
+            rng.weighted(pool, |c| c.weight)
                 .map_or_else(String::new, |c| c.color.clone())
         }
     };
@@ -604,6 +770,180 @@ impl Npc {
     pub fn piece(&self, slot: &str) -> Option<&Piece> {
         self.pieces.iter().find(|piece| piece.slot == slot)
     }
+}
+
+impl Npc {
+    /// A traveller assembled from named pieces instead of rolled from a seed.
+    ///
+    /// Every piece is `(slot, item id, colour)`, in the order it should be
+    /// drawn when two of them claim the same `zPos`. Unknown ids are refused
+    /// rather than skipped: a character described in terms the wardrobe no
+    /// longer knows is a character who would quietly lose a limb.
+    ///
+    /// This is how a fixed cast — a saved character, or the reference sheets
+    /// the compositor is tested against — becomes something [`draws`] can
+    /// answer for.
+    ///
+    /// [`draws`]: Npc::draws
+    pub fn assembled(
+        body_type: &str,
+        chosen: &[(impl AsRef<str>, impl AsRef<str>, impl AsRef<str>)],
+    ) -> Result<Self, String> {
+        let wardrobe = Wardrobe::bundled();
+        let mut pieces = Vec::with_capacity(chosen.len());
+        for (slot, id, color) in chosen {
+            let (slot, id, color) = (slot.as_ref(), id.as_ref(), color.as_ref());
+            let item = wardrobe
+                .item(slot, id)
+                .ok_or_else(|| format!("{slot}: the wardrobe has no piece called {id}"))?;
+            if !item.fits(body_type) {
+                return Err(format!("{id} has no art for a {body_type} body"));
+            }
+            let (variant, recolor) = match item.field {
+                ColorField::Variant => (color.to_owned(), String::new()),
+                ColorField::Recolor => (String::new(), color.to_owned()),
+                ColorField::None => (String::new(), String::new()),
+            };
+            pieces.push(Piece {
+                slot: item.type_name.clone(),
+                item_id: item.id.clone(),
+                base_name: item.name.clone(),
+                name: item.name.clone(),
+                variant,
+                recolor,
+                license: license_of(item),
+            });
+        }
+        Ok(Self {
+            body_type: body_type.to_owned(),
+            skin: String::new(),
+            hair_color: String::new(),
+            presents_masc: false,
+            elderly: false,
+            era: Era::default(),
+            required: ArtLicense::ShareAlike,
+            cast: Cast::Anyone,
+            seed: 0,
+            pieces,
+        })
+    }
+}
+
+/// The one animation the game draws visitors from.
+///
+/// They walk in, they stand on frame 0 of the south-facing row, they walk out.
+/// Nothing else in a 54-row LPC action sheet ever reaches a screen, so nothing
+/// else is copied into the runtime tree.
+pub const ANIMATION: &str = "walk";
+
+/// One sprite sheet to draw, and what to do to its colours on the way.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Draw {
+    /// Path relative to the root `scripts/build-npc-art.py` writes, e.g.
+    /// `hair/plain/adult/walk.png`.
+    pub sheet: String,
+    /// LPC's stacking number, kept for the caller's benefit; [`Npc::draws`]
+    /// has already sorted by it.
+    pub z: i32,
+    /// Colours to replace, as `(from, to)` RGB pairs. Empty for art that ships
+    /// in the colour it is worn in.
+    pub swap: Vec<([u8; 3], [u8; 3])>,
+}
+
+impl Npc {
+    /// Every sheet this traveller is drawn from, bottom layer first.
+    ///
+    /// This is the whole contract with whatever does the compositing: stack
+    /// these in order, swapping the colours each one names. Pieces sharing a
+    /// `zPos` keep the order they were chosen in, which is what the LPC web app
+    /// does with the insertion order of its own selections — matching it is why
+    /// a sheet composited here and one exported from the app come out
+    /// byte-for-byte identical.
+    ///
+    /// A layer with no art for this body type, or whose `${head}` path has no
+    /// substitution for the head that was rolled, is skipped. Both are ordinary
+    /// gaps in the catalogue rather than errors: the app draws nothing there
+    /// too.
+    #[must_use]
+    pub fn draws(&self) -> Vec<Draw> {
+        let wardrobe = Wardrobe::bundled();
+        let mut found: Vec<(i32, usize, Draw)> = Vec::new();
+        for (order, piece) in self.pieces.iter().enumerate() {
+            let Some(item) = wardrobe.item(&piece.slot, &piece.item_id) else {
+                continue;
+            };
+            let swap = color_swap(wardrobe, item, piece.color());
+            for layer in &item.layers {
+                let Some(path) = layer.paths.get(&self.body_type) else {
+                    continue;
+                };
+                let Some(path) = self.resolve_path(item, path) else {
+                    continue;
+                };
+                let sheet = if item.field == ColorField::Variant {
+                    format!("{path}{ANIMATION}/{}.png", piece.color().replace(' ', "_"))
+                } else {
+                    format!("{path}{ANIMATION}.png")
+                };
+                found.push((
+                    layer.z,
+                    order,
+                    Draw {
+                        sheet,
+                        z: layer.z,
+                        swap: swap.clone(),
+                    },
+                ));
+            }
+        }
+        found.sort_by_key(|(z, order, _)| (*z, *order));
+        found.into_iter().map(|(_, _, draw)| draw).collect()
+    }
+
+    /// Fill in a `${type}` placeholder from whatever fills that slot.
+    ///
+    /// Faces live under a directory named for the head above them, so an
+    /// expression's path is not real until the head is known.
+    fn resolve_path(&self, item: &Item, path: &str) -> Option<String> {
+        let mut path = path.to_owned();
+        while let Some(start) = path.find("${") {
+            let end = start + path[start..].find('}')?;
+            let key = path[start + 2..end].to_owned();
+            let chosen = self.piece(&key)?;
+            let value = item
+                .replace
+                .get(&key)?
+                .get(&chosen.base_name.replace(' ', "_"))?;
+            path = format!("{}{value}{}", &path[..start], &path[end + 1..]);
+        }
+        Some(path)
+    }
+}
+
+/// The palette swap a piece needs, once a colour has been rolled for it.
+fn color_swap(wardrobe: &Wardrobe, item: &Item, color: &str) -> Vec<([u8; 3], [u8; 3])> {
+    let Some(recolor) = &item.recolor else {
+        return Vec::new();
+    };
+    let Some(target) = wardrobe.ramp(&recolor.material, color) else {
+        return Vec::new();
+    };
+    recolor
+        .from
+        .iter()
+        .zip(target)
+        .filter_map(|(from, to)| Some((rgb(from)?, rgb(to)?)))
+        .collect()
+}
+
+/// A `#rrggbb` from the palette files. LPC spells them in both cases.
+fn rgb(value: &str) -> Option<[u8; 3]> {
+    let digits = value.strip_prefix('#').unwrap_or(value);
+    if digits.len() != 6 {
+        return None;
+    }
+    let channel = |at: usize| u8::from_str_radix(&digits[at..at + 2], 16).ok();
+    Some([channel(0)?, channel(2)?, channel(4)?])
 }
 
 #[cfg(test)]
@@ -931,6 +1271,56 @@ mod tests {
         }
     }
 
+    /// The failure this catches looks like a bug in the art: a traveller walks
+    /// into the court apparently naked, because their shirt is the same brown
+    /// as they are and LPC shades a torso too gently to say otherwise.
+    #[test]
+    fn nobody_wears_a_shirt_the_colour_of_their_own_skin() {
+        let wardrobe = Wardrobe::bundled();
+        for npc in cast(600, Era::Scavenged)
+            .into_iter()
+            .chain(cast(600, Era::Dyed))
+        {
+            for slot in READS_AS_BARE_SKIN {
+                let Some(piece) = npc.piece(slot) else {
+                    continue;
+                };
+                assert!(
+                    tells_apart_from_skin(wardrobe, &npc.skin, piece.color()),
+                    "{} in {} on {} skin is invisible: {}",
+                    piece.item_id,
+                    piece.color(),
+                    npc.skin,
+                    npc.describe()
+                );
+            }
+        }
+    }
+
+    /// The rule narrows the palette, and it must not narrow it to nothing —
+    /// every skin tone has to keep a wardrobe worth having.
+    #[test]
+    fn every_skin_tone_keeps_plenty_of_colours_to_wear() {
+        let wardrobe = Wardrobe::bundled();
+        for skin in &wardrobe.palettes.skin {
+            for (era, palette) in [
+                ("scavenged", &wardrobe.palettes.cloth_muted),
+                ("dyed", &wardrobe.palettes.cloth_bright),
+            ] {
+                let usable = palette
+                    .iter()
+                    .filter(|cloth| tells_apart_from_skin(wardrobe, &skin.color, &cloth.color))
+                    .count();
+                assert!(
+                    usable * 2 >= palette.len(),
+                    "{} skin can wear only {usable} of {} {era} colours",
+                    skin.color,
+                    palette.len()
+                );
+            }
+        }
+    }
+
     #[test]
     fn the_face_is_the_colour_of_the_body() {
         for npc in cast(300, Era::Scavenged) {
@@ -1037,6 +1427,209 @@ mod tests {
             .collect();
         assert!(teens.iter().any(|n| n.presents_masc), "no masc teens");
         assert!(teens.iter().any(|n| !n.presents_masc), "no fem teens");
+    }
+
+    fn cast_of(count: u64, cast: Cast) -> Vec<Npc> {
+        (1..=count)
+            .map(|seed| {
+                generate_with(
+                    seed.wrapping_mul(SEED_MIX),
+                    Casting {
+                        cast,
+                        ..Casting::default()
+                    },
+                )
+            })
+            .collect()
+    }
+
+    /// The game's arrivals are authored shapes — someone alone, two siblings,
+    /// an old hand — and the shape only works if the people standing in it are
+    /// the right age. "Two of them, and one of those is small" has to be true.
+    #[test]
+    fn a_casting_gets_the_age_it_asked_for() {
+        for npc in cast_of(200, Cast::Child) {
+            assert_eq!(npc.body_type, "child", "{}", npc.describe());
+        }
+        for npc in cast_of(200, Cast::Youth) {
+            assert_eq!(npc.body_type, "teen", "{}", npc.describe());
+        }
+        for npc in cast_of(200, Cast::Grown) {
+            assert!(
+                matches!(npc.body_type.as_str(), "male" | "female"),
+                "{}",
+                npc.describe()
+            );
+            assert!(!npc.elderly, "asked for grown, got old: {}", npc.describe());
+        }
+        for npc in cast_of(200, Cast::Elder) {
+            assert!(
+                matches!(npc.body_type.as_str(), "male" | "female"),
+                "{}",
+                npc.describe()
+            );
+            assert!(npc.elderly, "asked for old, got young: {}", npc.describe());
+        }
+    }
+
+    /// A constraint that quietly emptied a slot would leave somebody standing
+    /// in the court in their skin.
+    #[test]
+    fn a_cast_traveller_is_still_dressed_and_still_varied() {
+        for cast in [Cast::Grown, Cast::Elder, Cast::Youth, Cast::Child] {
+            let people = cast_of(120, cast);
+            for npc in &people {
+                for slot in ["body", "head", "clothes", "legs"] {
+                    assert!(
+                        npc.piece(slot).is_some(),
+                        "no {slot} for {cast:?}: {}",
+                        npc.describe()
+                    );
+                }
+            }
+            let distinct: std::collections::HashSet<String> =
+                people.iter().map(Npc::describe).collect();
+            assert!(
+                distinct.len() > 100,
+                "only {} distinct {cast:?} travellers in 120",
+                distinct.len()
+            );
+        }
+    }
+
+    /// Both genders have to survive every casting; a constraint that only
+    /// admitted one would be invisible until someone noticed every elder in the
+    /// game was a man.
+    #[test]
+    fn every_casting_comes_both_ways() {
+        for cast in [Cast::Grown, Cast::Elder, Cast::Youth, Cast::Child] {
+            let people = cast_of(200, cast);
+            assert!(
+                people.iter().any(|npc| npc.presents_masc),
+                "no masc {cast:?}"
+            );
+            assert!(
+                people.iter().any(|npc| !npc.presents_masc),
+                "no fem {cast:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn draws_come_out_in_stacking_order_with_the_body_underneath() {
+        for npc in cast(200, Era::Scavenged) {
+            let draws = npc.draws();
+            assert!(!draws.is_empty(), "nothing to draw: {}", npc.describe());
+            assert!(
+                draws.windows(2).all(|pair| pair[0].z <= pair[1].z),
+                "out of order: {}",
+                npc.describe()
+            );
+            let body = draws
+                .iter()
+                .position(|draw| draw.sheet.starts_with("body/"))
+                .expect("everyone has a body");
+            let clothes = draws
+                .iter()
+                .position(|draw| draw.sheet.starts_with("torso/"))
+                .expect("everyone has a shirt");
+            assert!(body < clothes, "dressed underneath: {}", npc.describe());
+        }
+    }
+
+    /// A palette-recoloured piece that came back with an empty swap would draw
+    /// in whatever the artist happened to use — orange hair on everybody.
+    #[test]
+    fn every_recoloured_piece_gets_a_full_swap() {
+        let wardrobe = Wardrobe::bundled();
+        for npc in cast(200, Era::Dyed) {
+            for piece in &npc.pieces {
+                let item = wardrobe
+                    .item(&piece.slot, &piece.item_id)
+                    .expect("piece came from the wardrobe");
+                let Some(recolor) = &item.recolor else {
+                    continue;
+                };
+                let target = wardrobe.ramp(&recolor.material, piece.color());
+                assert_eq!(
+                    target.map(<[String]>::len),
+                    Some(recolor.from.len()),
+                    "{} is drawn in a {} ramp of {} colours, and the wardrobe has no \
+                     matching '{}' to swap it to",
+                    piece.item_id,
+                    recolor.material,
+                    recolor.from.len(),
+                    piece.color()
+                );
+                assert_eq!(
+                    color_swap(wardrobe, item, piece.color()).len(),
+                    recolor.from.len(),
+                    "{}: the swap came back short, so some of its colours would \
+                     survive the recolour",
+                    piece.item_id
+                );
+            }
+            // And nothing draws with a half-applied palette.
+            for draw in npc.draws() {
+                assert!(
+                    draw.swap.is_empty() || draw.swap.len() >= 6,
+                    "{}: {} colours is not a whole LPC ramp",
+                    draw.sheet,
+                    draw.swap.len()
+                );
+            }
+        }
+    }
+
+    /// The wardrobe names sprite files; this is the check that they are on
+    /// disk. Nothing else catches a piece whose art was never copied — the
+    /// layer simply does not draw, and the traveller loses a garment.
+    #[test]
+    fn every_sheet_a_traveller_needs_is_in_the_runtime_tree() {
+        let art = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../runtime-assets/npc");
+        if !art.is_dir() {
+            eprintln!(
+                "no {} — generated visitor art was not built, so the sheets \
+                 travellers name are unchecked. Run `make assets` with an LPC checkout.",
+                art.display()
+            );
+            return;
+        }
+        let mut checked = 0;
+        for npc in cast(400, Era::Dyed) {
+            for draw in npc.draws() {
+                assert!(
+                    art.join(&draw.sheet).is_file(),
+                    "{} needs {}, which is not in the runtime tree",
+                    npc.describe(),
+                    draw.sheet
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked > 400, "only {checked} sheets checked");
+    }
+
+    /// A named cast has to survive a wardrobe that has moved on. Silently
+    /// skipping an id the wardrobe no longer knows would draw a person with a
+    /// missing limb and no complaint.
+    #[test]
+    fn an_assembled_traveller_refuses_pieces_the_wardrobe_does_not_have() {
+        let good = Npc::assembled(
+            "male",
+            &[
+                ("body", "body", "light"),
+                ("head", "heads_human_male", "light"),
+            ],
+        )
+        .expect("both pieces are real");
+        assert_eq!(good.pieces.len(), 2);
+        assert_eq!(good.body_type, "male");
+        assert!(!good.draws().is_empty());
+
+        assert!(Npc::assembled("male", &[("hair", "hair_of_flame", "black")]).is_err());
+        // Real piece, wrong body: the child head has no adult art.
+        assert!(Npc::assembled("male", &[("head", "heads_human_child", "light")]).is_err());
     }
 
     /// The one carried item, and it is a walking aid.

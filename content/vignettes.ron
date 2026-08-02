@@ -3,8 +3,8 @@
         id: "mara_grief",
         traveler_name: "Mara",
         lines: [
-            "I saw your smoke from the ridge. I had forgotten what a tended fire looked like.",
             "My brother walked ahead to find the river crossing. Three days now, and no returning sign.",
+            "I have gone back twice. The second time I could not tell my own footprints from the first.",
             "The road says to keep moving. My heart says I have left him behind.",
         ],
         needs: ["comfort", "presence"],

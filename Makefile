@@ -2,6 +2,7 @@
 
 assets:
 	python3 scripts/build-assets.py
+	python3 scripts/build-npc-art.py $(if $(LPC),--lpc $(LPC))
 
 prints:
 	python3 scripts/build-print-cards.py
@@ -61,6 +62,7 @@ test:
 	python3 scripts/test_fetch_verses.py
 	python3 scripts/test_publish_demo_assets.py
 	python3 scripts/test_build_npc_wardrobe.py
+	python3 scripts/test_build_npc_art.py
 	python3 scripts/test_preview_npcs.py
 	python3 scripts/test_lpc_art_tools.py
 	python3 scripts/test_web_smoke.py

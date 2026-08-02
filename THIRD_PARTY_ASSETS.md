@@ -40,7 +40,16 @@ be attributed. Of the five today, `scribe.png`, `old-guy.png` and
 `redhead-lady.png` carry share-alike art and `black-teen.png` and
 `little-sister.png` do not.
 
-Share-alike art is safe as animated art inside the running game. It must not be
+The runtime build now ships the LPC sprites themselves. `scripts/build-npc-art.py`
+copies the walk sheets the wardrobe names — and only those — into
+`runtime-assets/npc/`, prunes any that the wardrobe stops naming, and puts a copy
+of `docs/NPC_ART_CREDITS.md` beside them as `CREDITS.md`, so attribution travels
+with the art wherever the runtime tree goes. Redistributing these sheets is
+exactly what their licences permit, provided that credit goes with them.
+
+Share-alike art is safe as animated art inside the running game, and compositing
+a traveller happens only in memory: the sheet exists as a texture for as long as
+somebody is standing in the court, and is never written to disk. It must not be
 flattened into a single image with the purchased packs, which cannot be
 relicensed to match — that includes screenshots, trailer frames and store art.
 Generate people for those with `make npcs ART=attribution-only`. Full per-file

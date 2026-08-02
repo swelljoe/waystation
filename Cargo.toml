@@ -39,6 +39,7 @@ bevy = { version = "0.17.3", default-features = false, features = [
 ehttp = { version = "0.5", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+waystation-npcgen = { path = "crates/npcgen" }
 waystation-shared = { path = "crates/shared" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

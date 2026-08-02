@@ -1,0 +1,164 @@
+// The first thing a stranger says.
+//
+// Meeting anyone at all is the unusual event in this world, and the opening
+// line is where that shows. Nobody walks up pleased to see a fire. They walk up
+// having decided, over some number of days, that the risk is worth taking, and
+// the first sentence is usually about that decision rather than about the
+// waystation.
+//
+// These are drawn independently of the vignette that follows, so the same story
+// does not always begin the same way. `company` narrows a line to the shape of
+// the party: `Alone` for a lone walker, `Together` for anyone arriving with
+// someone else, `Any` for lines either can say.
+[
+    (
+        id: "careful_with_that_fire",
+        line: "You should be careful with that fire. Not everyone who sees the smoke will mean well.",
+        company: Any,
+    ),
+    (
+        id: "watched_a_day",
+        line: "I waited and watched for a day, to make sure you were alone and not dangerous.",
+        company: Alone,
+    ),
+    (
+        id: "hands_where_you_can_see",
+        line: "I am going to keep my hands where you can see them, and you can decide what happens after that.",
+        company: Any,
+    ),
+    (
+        id: "same_size_smoke",
+        line: "Three nights that smoke has held the same size. That is a hearth. A camp burns big and then it is gone.",
+        company: Any,
+    ),
+    (
+        id: "not_armed",
+        line: "I am not armed. I am saying it first so neither of us has to spend the next while wondering.",
+        company: Any,
+    ),
+    (
+        id: "rather_be_told",
+        line: "If you want me gone, say so plainly. I would rather be told than have to guess.",
+        company: Any,
+    ),
+    (
+        id: "four_burned_places",
+        line: "I have walked past four burned places to get here. Yours is still standing, which means luck or somebody minding it.",
+        company: Any,
+    ),
+    (
+        id: "came_down_slowly",
+        line: "I came down the road slowly on purpose. I did not want to come out of the dark at you.",
+        company: Any,
+    ),
+    (
+        id: "nobody_answered",
+        line: "Nobody has answered a door for me since the spring. I had stopped expecting it.",
+        company: Alone,
+    ),
+    (
+        id: "waited_for_light",
+        line: "We sat up on the ridge until it got light. It seemed politer than arriving at night.",
+        company: Together,
+    ),
+    (
+        id: "only_looking",
+        line: "I told her we were only going to look. Then the wind turned and we could smell the fire.",
+        company: Together,
+    ),
+    (
+        id: "eleven_days",
+        line: "You are the first person I have spoken to out loud in eleven days. Forgive me if I am slow with it.",
+        company: Alone,
+    ),
+    (
+        id: "not_asking_in",
+        line: "I will stand out here. I am not asking to come inside, and I want that understood before anything else.",
+        company: Any,
+    ),
+    (
+        id: "two_valleys_back",
+        line: "There was a fire like this two valleys back. It turned out to be bait. You will excuse me for saying so.",
+        company: Any,
+    ),
+    (
+        id: "search_my_pack",
+        line: "You can go through my pack if it makes this easier. There is nothing in it either of us would fight over.",
+        company: Any,
+    ),
+    (
+        id: "nothing_worth_taking",
+        line: "I have nothing worth taking. I know that is exactly what somebody with something worth taking would say.",
+        company: Any,
+    ),
+    (
+        id: "water_ran_out",
+        line: "I would have kept walking. My water ran out yesterday and the walking stopped being a choice.",
+        company: Any,
+    ),
+    (
+        id: "let_me_get_used_to_you",
+        line: "Do not come any closer yet. Let me get used to you standing there.",
+        company: Any,
+    ),
+    (
+        id: "walking_since_light",
+        line: "I have been walking since first light. I did not expect to find anybody to say that to.",
+        company: Alone,
+    ),
+    (
+        id: "see_both_of_us",
+        line: "There are two of us, and one of us is small. I wanted you to see us both before we came any nearer.",
+        company: Together,
+    ),
+    (
+        id: "name_can_wait",
+        line: "My name can wait. I would rather know first whether I am welcome to have one here.",
+        company: Any,
+    ),
+    (
+        id: "a_kept_road",
+        line: "Somebody keeps this road. The weeds are cut back. I have not seen a kept road in a long while.",
+        company: Any,
+    ),
+    (
+        id: "argued_with_myself",
+        line: "I saw your smoke four days ago and spent three of them arguing with myself about it.",
+        company: Any,
+    ),
+    (
+        id: "call_them_out",
+        line: "If there are others inside, call them out now. I would rather meet everyone at once than be surprised.",
+        company: Any,
+    ),
+    (
+        id: "too_tired_to_be_dangerous",
+        line: "I am too tired to be a danger to anybody, if that is any comfort to you.",
+        company: Any,
+    ),
+    (
+        id: "smoke_smelled_like_a_kitchen",
+        line: "There is smoke, and there is smoke you can smell a kitchen in. Yours is the second kind.",
+        company: Any,
+    ),
+    (
+        id: "counted_the_windows",
+        line: "I counted your windows from the ridge and there was light in one of them. Only one. That is why I came.",
+        company: Any,
+    ),
+    (
+        id: "she_asked_first",
+        line: "She asked whether we could stop. I said no twice. Then I looked at her face and turned down the road.",
+        company: Together,
+    ),
+    (
+        id: "no_dogs",
+        line: "No dogs, no lookout, no wall. Either you are new to this or you have decided something the rest of us have not.",
+        company: Any,
+    ),
+    (
+        id: "practised_this",
+        line: "I practised what to say to you for most of a morning, and now none of it seems worth the breath.",
+        company: Any,
+    ),
+]

@@ -6,6 +6,7 @@
 //! `scripts/build-npc-wardrobe.py`, which reads the Universal LPC Spritesheet
 //! Generator's own sheet definitions; nothing here should be hand-edited.
 
+use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use serde::Deserialize;
@@ -71,6 +72,37 @@ pub struct Item {
     /// appears and an empty list means something went wrong.
     #[serde(default)]
     pub licenses: Vec<String>,
+    /// The sprite directories this piece draws from, one entry per LPC layer.
+    pub layers: Vec<Layer>,
+    /// Substitutions for `${type}` placeholders in those paths, keyed by the
+    /// slot the placeholder names and then by the piece chosen there.
+    #[serde(default)]
+    pub replace: BTreeMap<String, BTreeMap<String, String>>,
+    /// The palette swap this piece needs, for pieces recoloured at draw time.
+    #[serde(default)]
+    pub recolor: Option<Recolor>,
+}
+
+/// One drawn layer of a piece: where its sheets live, per body type.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Layer {
+    /// LPC's own stacking number. It orders this layer against every *other*
+    /// piece as well, which is why it is kept rather than flattened into an
+    /// index — a hat at 130 has to land above hair at 120 whatever else the
+    /// traveller happens to be wearing.
+    pub z: i32,
+    /// Sprite directory per body type, with a trailing slash. Paths may still
+    /// carry a `${type}` placeholder; see [`Item::replace`].
+    pub paths: BTreeMap<String, String>,
+}
+
+/// The colours a piece was drawn in, so they can be swapped for others.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Recolor {
+    /// Which palette family the swap comes from: `body`, `hair`, `cloth`.
+    pub material: String,
+    /// The ramp the sprites on disk actually use.
+    pub from: Vec<String>,
 }
 
 impl Item {
@@ -122,7 +154,11 @@ pub struct Wardrobe {
     pub license_policy: String,
     pub body_types: Vec<BodyType>,
     pub palettes: Palettes,
-    pub slots: std::collections::BTreeMap<String, Slot>,
+    /// Target ramps for every recolour the generator can roll, by material and
+    /// then by colour name. A piece says which ramp it was drawn in; this says
+    /// what that ramp becomes.
+    pub materials: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    pub slots: BTreeMap<String, Slot>,
 }
 
 impl Wardrobe {
@@ -141,5 +177,17 @@ impl Wardrobe {
     #[must_use]
     pub fn slot(&self, name: &str) -> Option<&Slot> {
         self.slots.get(name)
+    }
+
+    /// The piece a slot holds, by id.
+    #[must_use]
+    pub fn item(&self, slot: &str, id: &str) -> Option<&Item> {
+        self.slot(slot)?.items.iter().find(|item| item.id == id)
+    }
+
+    /// What a named colour looks like in a material's palette.
+    #[must_use]
+    pub fn ramp(&self, material: &str, color: &str) -> Option<&[String]> {
+        self.materials.get(material)?.get(color).map(Vec::as_slice)
     }
 }

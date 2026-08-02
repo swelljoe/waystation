@@ -72,6 +72,41 @@ pub struct Vignette {
     pub needs: Vec<String>,
 }
 
+/// Who an opening line suits.
+///
+/// A line about the two of them sitting up on the ridge cannot be said by
+/// somebody walking alone, and the reverse is just as wrong.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum Company {
+    Any,
+    Alone,
+    Together,
+}
+
+impl Company {
+    /// Whether this line can be said by a party of the given size.
+    #[must_use]
+    pub const fn suits(self, party_size: usize) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Alone => party_size <= 1,
+            Self::Together => party_size > 1,
+        }
+    }
+}
+
+/// The first thing a stranger says, before any story of their own.
+///
+/// Drawn separately from the vignette so the same story does not always begin
+/// the same way — three authored stories and thirty openings meet as ninety
+/// different first minutes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Opening {
+    pub id: String,
+    pub line: String,
+    pub company: Company,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PassageCandidate {
     pub id: String,
@@ -105,6 +140,7 @@ struct BibleCatalog {
 }
 
 static VIGNETTES: OnceLock<Vec<Vignette>> = OnceLock::new();
+static OPENINGS: OnceLock<Vec<Opening>> = OnceLock::new();
 static PASSAGES: OnceLock<Vec<PassageCandidate>> = OnceLock::new();
 static BIBLE_VERSIONS: OnceLock<Vec<BibleVersion>> = OnceLock::new();
 
@@ -176,6 +212,23 @@ pub fn vignettes() -> &'static [Vignette] {
         ron::from_str(include_str!("../../../content/vignettes.ron"))
             .expect("content/vignettes.ron must be valid")
     })
+}
+
+#[must_use]
+pub fn openings() -> &'static [Opening] {
+    OPENINGS.get_or_init(|| {
+        ron::from_str(include_str!("../../../content/openings.ron"))
+            .expect("content/openings.ron must be valid")
+    })
+}
+
+/// The openings a party of this size could say.
+#[must_use]
+pub fn openings_for(party_size: usize) -> Vec<&'static Opening> {
+    openings()
+        .iter()
+        .filter(|opening| opening.company.suits(party_size))
+        .collect()
 }
 
 #[must_use]
@@ -279,6 +332,80 @@ mod tests {
     fn every_vignette_has_candidates() {
         for item in vignettes() {
             assert!(candidates_for(item).len() >= 2);
+        }
+    }
+
+    /// The opening is the sentence a player reads most often in a long game,
+    /// so the pool has to be a pool and not a rotation of three.
+    #[test]
+    fn there_are_enough_openings_for_either_kind_of_arrival() {
+        assert!(openings().len() >= 20, "{} openings", openings().len());
+        assert!(
+            openings_for(1).len() >= 15,
+            "only {} openings for a lone walker",
+            openings_for(1).len()
+        );
+        assert!(
+            openings_for(2).len() >= 15,
+            "only {} openings for a pair",
+            openings_for(2).len()
+        );
+    }
+
+    /// A line about the two of them on the ridge cannot be said by somebody
+    /// walking alone, and the reverse reads just as wrong.
+    #[test]
+    fn an_opening_is_only_offered_to_a_party_that_could_say_it() {
+        for opening in openings_for(1) {
+            assert_ne!(opening.company, Company::Together, "{}", opening.id);
+        }
+        for opening in openings_for(3) {
+            assert_ne!(opening.company, Company::Alone, "{}", opening.id);
+        }
+        assert!(Company::Any.suits(1) && Company::Any.suits(4));
+        // A party with nobody in it is not a party, but it must not be handed
+        // a line about the pair of them either.
+        assert!(Company::Alone.suits(0));
+        assert!(!Company::Together.suits(0));
+    }
+
+    #[test]
+    fn every_opening_is_a_distinct_spoken_line() {
+        let mut ids = std::collections::HashSet::new();
+        let mut lines = std::collections::HashSet::new();
+        for opening in openings() {
+            assert!(
+                ids.insert(&opening.id),
+                "two openings called {}",
+                opening.id
+            );
+            assert!(
+                lines.insert(&opening.line),
+                "{} repeats an existing line",
+                opening.id
+            );
+            assert!(
+                !opening.line.trim().is_empty(),
+                "{} says nothing",
+                opening.id
+            );
+        }
+    }
+
+    /// The greeting now comes from the opening pool, so a vignette that also
+    /// opens with one would have the traveller say hello twice.
+    #[test]
+    fn no_vignette_starts_by_greeting_the_scribe() {
+        for item in vignettes() {
+            let first = item.lines.first().expect("a vignette has lines").as_str();
+            for greeting in ["I saw your smoke", "your fire", "your smoke"] {
+                assert!(
+                    !first.contains(greeting),
+                    "{} opens with a greeting ({first:?}); that belongs in \
+                     content/openings.ron now",
+                    item.id
+                );
+            }
         }
     }
 

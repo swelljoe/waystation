@@ -14,6 +14,7 @@
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+use waystation_npcgen::{ArtLicense, Cast, Casting, Era, Npc};
 use waystation_shared::InterpretResponse;
 
 use crate::chance::Chance;
@@ -44,17 +45,32 @@ pub const PATIENCE_SECONDS: f32 = 70.0;
 /// only there so a stuck party cannot loiter for the rest of the game.
 const GUEST_PATIENCE_SECONDS: f32 = 600.0;
 
-/// One body in an arriving party: its sheet, where it stands relative to the
-/// party's spot, and the names it might give.
+/// What colours the valley can still make.
+///
+/// Everything anyone wears was scavenged, or dyed with what grows in a dry
+/// place. The story later brings real dye back and travellers start arriving in
+/// colours that cost something; when that lands, this is the one line that has
+/// to learn about it.
+pub const CURRENT_ERA: Era = Era::Scavenged;
+
+/// One body in an arriving party: who stands there, where they stand relative
+/// to the party's spot, and the names they might give.
 pub struct Body {
+    /// The kind of person this is. The traveller themself is generated fresh on
+    /// every arrival; this only fixes their age, because the authored shapes
+    /// need it — "two of them, and one of those is small" has to be true.
+    pub cast: Cast,
+    /// A hand-made sheet to fall back on if generated art was never built. It
+    /// is what the game shipped with before travellers were composited, and it
+    /// is still what a build without an LPC checkout draws.
     pub art: &'static str,
     pub names: &'static [&'static str],
     pub offset: Vec2,
 }
 
-/// A kind of person who might come down the road. Art and names are separate so
-/// the same sheet can arrive twice across a long game without being the same
-/// person, which is the cheapest replayability there is.
+/// A kind of arrival: how many people, roughly what ages, and what they might
+/// have come to say. Faces are not part of it — those are drawn fresh every
+/// time, so the same shape arriving twice is not the same person twice.
 pub struct Profile {
     #[cfg_attr(not(test), allow(dead_code))]
     pub id: &'static str,
@@ -62,49 +78,76 @@ pub struct Profile {
     /// Authored vignettes that suit this party. A lone walker cannot tell the
     /// story about being turned out of a camp with her brother in tow.
     pub vignettes: &'static [&'static str],
-    /// What the Scribe sees before anything is said.
-    pub sighting: &'static str,
+    /// What the Scribe sees before anything is said. A pool rather than one
+    /// line: this is the sentence a player reads most often in a long game.
+    pub sightings: &'static [&'static str],
 }
 
 pub const PROFILES: [Profile; 3] = [
     Profile {
         id: "walker",
         bodies: &[Body {
+            cast: Cast::Grown,
             art: "people/walker.png",
             names: &[
-                "Mara", "Sela", "Junia", "Rilla", "Hesper", "Ivy", "Noa", "Wren",
+                "Mara", "Sela", "Junia", "Rilla", "Hesper", "Ivy", "Noa", "Wren", "Tobin", "Amos",
+                "Elias", "Ford", "Ruth", "Halden", "Perrin", "Ost",
             ],
             offset: Vec2::ZERO,
         }],
         vignettes: &["mara_grief", "oren_weariness"],
-        sighting: "A woman, alone, with a much-mended pack.",
+        sightings: &[
+            "One traveller, alone, with a much-mended pack.",
+            "Somebody walking the ditch rather than the middle of the road.",
+            "One person, keeping to the long way round the open ground.",
+            "A walker alone, stopping every so often to look behind them.",
+            "One set of footsteps. Whoever it is has been carrying that pack a while.",
+        ],
     },
     Profile {
         id: "siblings",
         bodies: &[
             Body {
+                cast: Cast::Youth,
                 art: "people/elder-sibling.png",
-                names: &["Tobin", "Amos", "Cass", "Rue", "Elias", "Ford"],
+                names: &[
+                    "Tobin", "Amos", "Cass", "Rue", "Elias", "Ford", "Wren", "Sela",
+                ],
                 offset: Vec2::ZERO,
             },
             Body {
+                cast: Cast::Child,
                 art: "people/younger-sibling.png",
-                names: &["Nell", "Pip", "Bry", "Tam", "Ada", "Sook"],
+                names: &["Nell", "Pip", "Bry", "Tam", "Ada", "Sook", "Fen", "Mote"],
                 offset: Vec2::new(30.0, -14.0),
             },
         ],
         vignettes: &["fen_belonging"],
-        sighting: "Two of them, and one of those is small.",
+        sightings: &[
+            "Two of them, and one of those is small.",
+            "Two figures, close together, the taller one a half-step ahead.",
+            "Two on the road. The small one is being kept on the far side.",
+            "A pair, walking slowly enough that it is the smaller one setting the pace.",
+        ],
     },
     Profile {
         id: "old-hand",
         bodies: &[Body {
+            cast: Cast::Elder,
             art: "people/old-hand.png",
-            names: &["Oren", "Bertram", "Hale", "Sifter", "Corwin", "Marrow"],
+            names: &[
+                "Oren", "Bertram", "Hale", "Sifter", "Corwin", "Marrow", "Auda", "Merrin", "Bel",
+                "Tace",
+            ],
             offset: Vec2::ZERO,
         }],
         vignettes: &["oren_weariness", "mara_grief"],
-        sighting: "An old man, looking at your roofline rather than at you.",
+        sightings: &[
+            "Somebody old, looking at your roofline rather than at you.",
+            "An old traveller, taking the slope one careful step at a time.",
+            "Someone who has been walking a long time, and shows it.",
+            "An old figure on the road, stopped, deciding.",
+        ],
     },
 ];
 
@@ -164,7 +207,14 @@ pub struct Party {
     pub profile: usize,
     /// One name per body, in the profile's order.
     pub names: Vec<String>,
+    /// One generated traveller per body, in the profile's order. What they are
+    /// wearing, what their face is, whether they lean on a stick.
+    pub people: Vec<Npc>,
     pub vignette: String,
+    /// The first thing they say, drawn separately from the story that follows.
+    pub opening: String,
+    /// What the Scribe sees from across the court, before any of it.
+    pub sighting: String,
     pub stage: Stage,
     pub line: usize,
     pub patience: f32,
@@ -196,6 +246,45 @@ impl Party {
     /// player offering anything more.
     pub const fn can_be_greeted(&self) -> bool {
         matches!(self.stage, Stage::Waiting)
+    }
+
+    /// Everything they say, in the order they say it: the opening they chose
+    /// on the way down the road, then the story they came to tell.
+    #[must_use]
+    pub fn spoken(&self) -> Vec<&str> {
+        let mut lines = Vec::new();
+        if !self.opening.is_empty() {
+            lines.push(self.opening.as_str());
+        }
+        if let Some(vignette) = waystation_shared::vignette(&self.vignette) {
+            lines.extend(vignette.lines.iter().map(String::as_str));
+        }
+        lines
+    }
+
+    /// One thing about how they look that is worth putting in the journal.
+    ///
+    /// Generated travellers vary in ways a fixed sighting line cannot describe,
+    /// and a stick or a hood is the difference between "somebody is on the
+    /// road" and a person. Only the first of a party is described; the sighting
+    /// line already says how many there are.
+    #[must_use]
+    pub fn notable(&self) -> Option<&'static str> {
+        let first = self.people.first()?;
+        // Most telling first: a walking stick says more than a coat.
+        if first.piece("weapon").is_some() {
+            return Some("Whoever it is, they are leaning on a stick.");
+        }
+        if first.piece("hat").is_some() {
+            return Some("The hood is up. You cannot see a face from here.");
+        }
+        if first.piece("backpack").is_some() {
+            return Some("Everything they own looks to be on their back.");
+        }
+        if first.piece("neck").is_some() {
+            return Some("Muffled to the eyes, though it is not cold enough for it.");
+        }
+        None
     }
 }
 
@@ -254,10 +343,13 @@ impl Visitors {
         true
     }
 
-    /// Builds an arriving party. The profile, the names, and which story they
-    /// tell are all drawn fresh, so meeting the same sheet twice is not meeting
-    /// the same person twice.
-    pub fn arrive(&mut self, chance: &mut Chance) -> &Party {
+    /// Builds an arriving party.
+    ///
+    /// Everything about them is drawn fresh: the shape of the arrival, the
+    /// people standing in it, their names, the first thing they say, and which
+    /// story they tell. Two lone walkers a month apart share nothing but the
+    /// fact that they came alone.
+    pub fn arrive(&mut self, chance: &mut Chance, era: Era) -> &Party {
         let profile_index = chance.below(PROFILES.len());
         let profile = &PROFILES[profile_index];
         let names = profile
@@ -265,12 +357,41 @@ impl Visitors {
             .iter()
             .map(|body| (*chance.pick(body.names).unwrap_or(&"the stranger")).to_owned())
             .collect();
+        let people = profile
+            .bodies
+            .iter()
+            .map(|body| {
+                waystation_npcgen::generate_with(
+                    chance.seed(),
+                    Casting {
+                        era,
+                        // In-game art is only ever a texture standing in the
+                        // court, never a flat image beside purchased tilesets,
+                        // so share-alike pieces are welcome here. Screenshots
+                        // are the place that bar goes up.
+                        license: ArtLicense::ShareAlike,
+                        cast: body.cast,
+                    },
+                )
+            })
+            .collect();
         let vignette = (*chance.pick(profile.vignettes).unwrap_or(&"mara_grief")).to_owned();
+        let sighting = (*chance
+            .pick(profile.sightings)
+            .unwrap_or(&"Somebody is on the road."))
+        .to_owned();
+        let openings = waystation_shared::openings_for(profile.bodies.len());
+        let opening = chance
+            .pick(&openings)
+            .map_or_else(String::new, |opening| opening.line.clone());
         self.visits_received += 1;
         self.party.insert(Party {
             profile: profile_index,
             names,
+            people,
             vignette,
+            opening,
+            sighting,
             stage: Stage::Approaching,
             line: 0,
             patience: PATIENCE_SECONDS,
@@ -415,7 +536,7 @@ mod tests {
     fn a_stranger_left_standing_gives_up_and_walks_on() {
         let mut visitors = Visitors::default();
         let mut chance = Chance::default();
-        visitors.arrive(&mut chance);
+        visitors.arrive(&mut chance, CURRENT_ERA);
         visitors.party.as_mut().expect("party").stage = Stage::Waiting;
         assert!(!visitors.tick_patience(PATIENCE_SECONDS - 1.0));
         assert!(visitors.tick_patience(2.0), "patience should have run out");
@@ -426,7 +547,7 @@ mod tests {
     fn nobody_gets_impatient_in_the_middle_of_their_own_sentence() {
         let mut visitors = Visitors::default();
         let mut chance = Chance::default();
-        visitors.arrive(&mut chance);
+        visitors.arrive(&mut chance, CURRENT_ERA);
         visitors.party.as_mut().expect("party").stage = Stage::Telling;
         assert!(!visitors.tick_patience(PATIENCE_SECONDS * 10.0));
         assert_eq!(visitors.party.expect("party").stage, Stage::Telling);
@@ -436,7 +557,7 @@ mod tests {
     fn a_guest_given_a_room_stays_the_night_and_a_refused_one_leaves() {
         let mut visitors = Visitors::default();
         let mut chance = Chance::default();
-        visitors.arrive(&mut chance);
+        visitors.arrive(&mut chance, CURRENT_ERA);
         let party = visitors.party.as_mut().expect("party");
         party.stage = Stage::Deciding;
         party.given.room = Some("motel-room-01".to_owned());
@@ -478,11 +599,92 @@ mod tests {
         }
     }
 
+    /// Every arrival gets one, and the pool is what stops a player reading the
+    /// same sentence forty times.
+    #[test]
+    fn every_profile_has_more_than_one_thing_to_look_like() {
+        for profile in &PROFILES {
+            assert!(
+                profile.sightings.len() >= 4,
+                "{} has {} sightings",
+                profile.id,
+                profile.sightings.len()
+            );
+            for sighting in profile.sightings {
+                assert!(
+                    !sighting.trim().is_empty(),
+                    "{} has a blank one",
+                    profile.id
+                );
+            }
+            assert!(
+                !waystation_shared::openings_for(profile.bodies.len()).is_empty(),
+                "nothing in content/openings.ron suits a party of {} — {} would \
+                 arrive with nothing to say",
+                profile.bodies.len(),
+                profile.id
+            );
+        }
+    }
+
+    /// The whole point: two arrivals of the same shape are two different sets
+    /// of people, not one set of people twice.
+    #[test]
+    fn two_arrivals_of_the_same_shape_are_different_people() {
+        let mut chance = Chance::default();
+        let mut seen = std::collections::HashSet::new();
+        let mut shapes = std::collections::HashSet::new();
+        for _ in 0..60 {
+            let mut visitors = Visitors::default();
+            let party = visitors.arrive(&mut chance, CURRENT_ERA).clone();
+            assert_eq!(
+                party.people.len(),
+                party.profile().bodies.len(),
+                "somebody in the party was never generated"
+            );
+            for (npc, body) in party.people.iter().zip(party.profile().bodies) {
+                assert_eq!(npc.cast, body.cast, "the wrong sort of person arrived");
+                seen.insert(npc.describe());
+            }
+            shapes.insert(party.profile);
+        }
+        assert!(seen.len() > 60, "only {} distinct travellers", seen.len());
+        assert!(shapes.len() > 1, "only one kind of arrival ever happened");
+    }
+
+    /// The opening is what they say first, before any story of their own.
+    #[test]
+    fn a_party_speaks_its_opening_before_its_story() {
+        let mut visitors = Visitors::default();
+        let mut chance = Chance::default();
+        let party = visitors.arrive(&mut chance, CURRENT_ERA).clone();
+
+        let spoken = party.spoken();
+        assert_eq!(spoken.first().copied(), Some(party.opening.as_str()));
+        let story = waystation_shared::vignette(&party.vignette).expect("an authored story");
+        assert_eq!(spoken.len(), 1 + story.lines.len());
+        assert_eq!(spoken[1], story.lines[0]);
+    }
+
+    /// A party with no opening — which nothing produces today, but a content
+    /// edit could — still has a story to tell rather than an empty screen.
+    #[test]
+    fn a_party_with_nothing_to_open_with_still_tells_its_story() {
+        let mut visitors = Visitors::default();
+        let mut chance = Chance::default();
+        let mut party = visitors.arrive(&mut chance, CURRENT_ERA).clone();
+        party.opening = String::new();
+
+        let spoken = party.spoken();
+        assert!(!spoken.is_empty());
+        assert!(!spoken.iter().any(|line| line.is_empty()));
+    }
+
     #[test]
     fn a_pair_is_addressed_as_two_people() {
         let mut visitors = Visitors::default();
         let mut chance = Chance::default();
-        let party = visitors.arrive(&mut chance).clone();
+        let party = visitors.arrive(&mut chance, CURRENT_ERA).clone();
         let mut pair = party;
         pair.names = vec!["Tobin".to_owned(), "Nell".to_owned()];
         assert_eq!(pair.address(), "Tobin and Nell");

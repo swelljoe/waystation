@@ -5,10 +5,11 @@ hand-drawn sheets run out long before the game does, so `crates/npcgen` builds
 new travellers at runtime: a body, a face that suits it, and clothes that look
 like they came out of a valley rather than off a fantasy rack.
 
-It produces **Universal LPC Spritesheet Generator selections**, not pixels. A
-generated traveller can be opened in the LPC web tool from a link, looked at,
-adjusted, and exported as a finished action sheet — so when something comes out
-wrong the fix is visible rather than guessed at.
+`crates/npcgen` produces **Universal LPC Spritesheet Generator selections**, not
+pixels — a generated traveller can be opened in the LPC web tool from a link,
+looked at, adjusted, and exported as a finished action sheet, so when something
+comes out wrong the fix is visible rather than guessed at. The game composites
+those selections itself, at runtime; see **In the game** below.
 
 ## Pieces
 
@@ -21,6 +22,10 @@ wrong the fix is visible rather than guessed at.
 | `scripts/build-npc-wardrobe.py` | Writes the wardrobe from a local LPC checkout. **This is where you prune.** |
 | `crates/npcgen/src/bin/npc-preview.rs` | Writes a cast of `character.json` files plus a page of links. |
 | `scripts/preview-npcs.py` | Composites those files into a contact sheet, and verifies itself against hand-made characters. |
+| `scripts/build-npc-art.py` | Copies the walk sheets the wardrobe names into `runtime-assets/npc/`, and writes the reference sheets the game is tested against. |
+| `crates/game/src/npc_art.rs` | Stacks those sheets into one texture, in the running game. |
+| `crates/game/src/visitors.rs` | Who arrives, in what shape, and what they say first. |
+| `content/openings.ron` | The first thing a stranger says. **This is where you add lines.** |
 | `assets/custom/lpc/` | Project-drawn LPC pieces, laid out like an upstream checkout. See its README. |
 | `scripts/lpc-art-split.py` | Splits a sprite into editable hair/shadow layers and rejoins them exactly. |
 | `scripts/check-lpc-art.py` | Refuses hand-edited art that would not recolour. |
@@ -31,6 +36,10 @@ wrong the fix is visible rather than guessed at.
 make npcs                    # 24 travellers, early era
 make npcs ERA=dyed COUNT=48  # the later, brighter palette
 ```
+
+`npc-preview` also takes `--cast grown|elder|youth|child`, which is what the
+game asks for rather than "anybody" — an arrival is an authored shape with
+people of particular ages standing in it.
 
 That writes to `target/npc-preview/`:
 
@@ -285,6 +294,16 @@ Heads, faces, noses and wrinkles carry `match_body_color`, so they take the
 body's skin tone; eyebrows and beards take the hair colour. That is why the
 export sets `matchBodyColorEnabled`.
 
+One rule the catalogue cannot express is enforced in the generator: **a shirt
+has to look like a shirt.** LPC shades a torso gently, so a garment within a few
+tones of the wearer's skin does not read as brown cloth on a brown body, it
+reads as somebody with no shirt on — walnut on brown skin is seven units apart
+across the whole ramp. `clothes` and `legs` therefore reject cloth colours too
+close to the skin (`TELLS_APART` in `lib.rs`), falling back to the full palette
+rather than leaving anyone undressed. It costs the darkest skin tones about a
+third of the muted palette, and what it costs them is the browns they were
+disappearing into.
+
 `scripts/preview-npcs.py` implements all of this — including `${head}`-templated
 paths, where a face lives in a directory named for the head above it. It is
 checked against ground truth rather than trusted:
@@ -297,25 +316,97 @@ This renders the hand-made character and searches for the result inside the
 sheet the web app exported for them. All four of `old-guy`, `redhead-lady`,
 `black-teen` and `little-sister` match exactly, pixel for pixel.
 
+## In the game
+
+Travellers are composited at runtime, in the game, from the walk sheets in
+`runtime-assets/npc/`. Nothing is baked: a waystation that keeps its fire lit
+for two hundred days meets two hundred different strangers.
+
+The chain runs one way and each link is checked against the one before it:
+
+```
+scripts/build-npc-wardrobe.py   reads the LPC catalogue, writes wardrobe.json
+scripts/build-npc-art.py        copies the walk sheets the wardrobe names
+crates/npcgen  Npc::draws()     names sheets and palette swaps, in order
+crates/game/src/npc_art.rs      stacks them into one texture
+```
+
+`Npc::draws` is the whole contract: an ordered list of sheets with the colours
+to replace in each. `npc_art.rs` is the only part that knows what a pixel is,
+and `crates/npcgen` still has no idea what an image is.
+
+Only the **walk** rows are copied — nine frames by four facings, 576×256. A
+visitor approaches, stands on frame 0 of the south row, and leaves; the other
+fifty rows of an LPC action sheet never reach a screen, and copying them would
+multiply 4.5 MB by an order of magnitude. `runtime-assets/people/` still holds
+the four hand-made sheets, now cropped to the same shape, and a visitor falls
+back to one if their art fails to load or was never built.
+
+### Arrivals
+
+`visitors.rs` authors the *shape* of an arrival, not the people in it: someone
+alone, two siblings, an old hand. Each body in a shape names a `Cast` —
+`Grown`, `Elder`, `Youth`, `Child` — and the traveller standing in it is
+generated fresh. Two lone walkers a month apart share nothing but the fact that
+they came alone.
+
+What the Scribe reads is drawn from three pools that vary independently:
+
+- the **sighting**, from the profile — what you can make out from the court;
+- a **detail** from the generated traveller themself, when there is one worth
+  naming: a stick, a hood, a pack;
+- the **opening**, from `content/openings.ron` — the first thing they say.
+
+Openings are separate from vignettes on purpose. Three authored stories and
+thirty openings meet as ninety different first minutes, and the opening carries
+the thing the story cannot: that meeting anyone at all is the unusual event, and
+nobody walks up to a stranger's fire pleased about it.
+
+### Checking that it draws the right person
+
+Three implementations composite LPC layers, and they are checked against each
+other rather than trusted:
+
+| Check | Where | What it proves |
+| --- | --- | --- |
+| `preview-npcs.py --verify` | manual | Pillow compositing equals a sheet the LPC **web app** exported. |
+| `check_against_catalog` | every `make assets` | The committed wardrobe draws what the **LPC catalogue** draws. |
+| `every_reference_traveller_composes_to_the_same_pixels` | `cargo test` | The **game** draws what the reference renderer draws. |
+
+Each is a byte-for-byte comparison, not a tolerance. That is affordable because
+`npc_art.rs` reproduces Pillow's `alpha_composite` integer for integer — see the
+comment on `over_under`, which explains why matching a specific implementation
+is worth the fuss.
+
+The reference cast lives in `runtime-assets/npc/reference/`, written by
+`build-npc-art.py`: the first and the last fitting piece in every slot, for
+every body type. Not plausible travellers — they all end up in hoods with canes
+— but they exercise templated face paths, palette recolouring, baked colour
+variants, and two pieces claiming the same `zPos`.
+
+### Licences, in the game
+
+Compositing happens in memory and only in memory. A traveller is a texture for
+as long as somebody is standing in the court; they are never written to disk and
+never flattened into an image with the purchased tilesets around them, which is
+the distinction share-alike actually cares about. See **Screenshots and flat
+images** above for the case where that stops being true.
+
+`runtime-assets/npc/` carries `CREDITS.md` beside the art, so attribution
+travels with the sheets wherever the runtime tree goes — including into the
+demo-assets archive, which packs the whole tree.
+
 ## Not done yet
 
-**The game does not draw generated travellers.** `visitors.rs` still uses the
-four sheets in `runtime-assets/people/`, and `crates/npcgen` is not yet a
-dependency of the game crate. The generator itself is runtime-ready — pure Rust,
-no I/O, wasm-safe, one `u64` seed in — but something has to composite LPC layers
-into a 13×54 action sheet at runtime, or bake sheets ahead of time, before a
-generated traveller can walk down the road.
+**More stories.** Three vignettes is what the game has, and the opening pool
+hides that rather than fixing it. Adding one costs a block in
+`content/vignettes.ron` reusing the existing needs, plus its id in a profile's
+`vignettes` list — the server routes on the authored text and needs no change.
 
-Two routes, when that day comes:
+**One era.** `Era::Dyed` exists, is tested, and nothing turns it on;
+`visitors::CURRENT_ERA` is the single line that has to learn about the story
+beat where real dye comes back.
 
-1. **Bake.** Run the generator at build time, composite with the same rules
-   `preview-npcs.py` already proves correct, and write sheets into
-   `runtime-assets/people/`. Cheap, no new runtime code, but the cast is fixed
-   at build time — which loses the point.
-2. **Composite at runtime.** Port the path resolution and palette swap into
-   Bevy. The LPC sprites would have to ship with the game, and their credits
-   would need to reach `THIRD_PARTY_ASSETS.md` and `provenance.json`. The
-   attribution is already computed — `crates/npcgen/data/credits.json` — so this
-   is plumbing rather than research. Note that the exported `character.json`
-   carries a `credits` array the generator does not currently write, because
-   nothing reads it yet.
+**The exported `character.json` carries no `credits` array.** The generator does
+not write one because nothing reads it — the attribution is computed in
+`crates/npcgen/data/credits.json` instead.

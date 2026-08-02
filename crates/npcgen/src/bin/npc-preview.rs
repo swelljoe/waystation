@@ -13,7 +13,7 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use waystation_npcgen::{generate_for, ArtLicense, Era, Npc};
+use waystation_npcgen::{generate_with, ArtLicense, Cast, Casting, Era, Npc};
 
 const DEFAULT_OUT: &str = "target/npc-preview";
 
@@ -22,12 +22,13 @@ struct Args {
     seed: u64,
     era: Era,
     art: ArtLicense,
+    cast: Cast,
     out: PathBuf,
 }
 
 const fn usage() -> &'static str {
     "usage: npc-preview [--count N] [--seed N] [--era scavenged|dyed] \
-[--art any|attribution-only] [--out DIR]"
+[--art any|attribution-only] [--cast anyone|grown|elder|youth|child] [--out DIR]"
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -38,6 +39,7 @@ fn parse_args() -> Result<Args, String> {
         seed: 0x5EED_0000_0000_0001,
         era: Era::Scavenged,
         art: ArtLicense::ShareAlike,
+        cast: Cast::Anyone,
         out: PathBuf::from(DEFAULT_OUT),
     };
     let mut raw = std::env::args().skip(1);
@@ -61,6 +63,19 @@ fn parse_args() -> Result<Args, String> {
                     "any" => ArtLicense::ShareAlike,
                     "attribution-only" => ArtLicense::AttributionOnly,
                     other => return Err(format!("unknown art licence {other}")),
+                }
+            }
+            // The game does not ask for just anybody: an arrival is an
+            // authored shape with people of particular ages standing in it, so
+            // this is how a review pass looks at what actually walks in.
+            "--cast" => {
+                args.cast = match value()?.as_str() {
+                    "anyone" => Cast::Anyone,
+                    "grown" => Cast::Grown,
+                    "elder" => Cast::Elder,
+                    "youth" => Cast::Youth,
+                    "child" => Cast::Child,
+                    other => return Err(format!("unknown cast {other}")),
                 }
             }
             "-h" | "--help" => return Err(usage().to_owned()),
@@ -103,7 +118,14 @@ fn run() -> Result<(), String> {
         let seed = args
             .seed
             .wrapping_add(index.wrapping_mul(0x9E37_79B9_7F4A_7C15));
-        let npc = generate_for(seed, args.era, args.art);
+        let npc = generate_with(
+            seed,
+            Casting {
+                era: args.era,
+                license: args.art,
+                cast: args.cast,
+            },
+        );
         let name = format!("npc-{index:03}.json");
         let path = args.out.join(&name);
         std::fs::write(&path, npc.to_ulpc_json())

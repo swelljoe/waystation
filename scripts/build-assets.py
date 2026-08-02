@@ -38,8 +38,13 @@ SCRIBE_THRUST_FRAME_SIZE = 64
 SCRIBE_THRUST_COLUMNS = 8
 SCRIBE_THRUST_ROWS = 4
 SCRIBE_THRUST_FIRST_ROW = 4
-# Everyone else who walks into the valley. Each is a complete LPC action sheet in
-# the same geometry as the Scribe, so the walk cycle needs no special handling.
+# Everyone else who walks into the valley. Each source is a complete LPC action
+# sheet in the same geometry as the Scribe; only the walk rows are kept, because
+# that is all a visitor ever does on screen and it is the shape generated
+# travellers are composited at.
+VISITOR_WALK_FIRST_ROW = 8
+VISITOR_COLUMNS = 9
+VISITOR_ROWS = 4
 VISITOR_SHEETS = {
     "walker.png": "custom/redhead-lady.png",
     "elder-sibling.png": "custom/black-teen.png",
@@ -1102,8 +1107,28 @@ def write_world_art(source: Path, output: Path) -> list[dict[str, object]]:
     return records
 
 
+def walk_rows(sheet: Image.Image) -> Image.Image:
+    """The four walk rows of a full action sheet, and nothing else.
+
+    Visitors are drawn from the walk cycle alone — they approach, they stand on
+    frame 0, they leave — and generated travellers are composited at that size
+    because compositing fifty unused rows would cost fifty times as much. Both
+    kinds of visitor therefore share one atlas shape, which is the only reason
+    the fallback and the generated art are interchangeable at all.
+    """
+    top = VISITOR_WALK_FIRST_ROW * SCRIBE_FRAME_SIZE
+    return sheet.crop(
+        (
+            0,
+            top,
+            VISITOR_COLUMNS * SCRIBE_FRAME_SIZE,
+            top + VISITOR_ROWS * SCRIBE_FRAME_SIZE,
+        )
+    )
+
+
 def write_people_art(source: Path, output: Path) -> list[dict[str, object]]:
-    """Visitor action sheets, with a recognisable open fallback for each."""
+    """Visitor walk sheets, with a recognisable open fallback for each."""
     people = output / "people"
     people.mkdir(parents=True, exist_ok=True)
     expected = (SCRIBE_COLUMNS * SCRIBE_FRAME_SIZE, SCRIBE_ROWS * SCRIBE_FRAME_SIZE)
@@ -1121,6 +1146,7 @@ def write_people_art(source: Path, output: Path) -> list[dict[str, object]]:
         else:
             sheet = draw_fallback_person(VISITOR_FALLBACK_TINTS[name], expected)
             origin = "generated fallback"
+        sheet = walk_rows(sheet)
         destination = people / name
         sheet.save(destination, optimize=False)
         records.append(

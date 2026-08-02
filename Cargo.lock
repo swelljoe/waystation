@@ -5165,6 +5165,7 @@ dependencies = [
  "serde",
  "serde_json",
  "wasm-bindgen",
+ "waystation-npcgen",
  "waystation-shared",
  "web-sys",
 ]

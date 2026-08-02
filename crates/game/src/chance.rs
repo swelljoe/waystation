@@ -71,6 +71,15 @@ impl Chance {
         roll.mul_add(high - low, low)
     }
 
+    /// A fresh seed for something that keeps its own reproducible randomness.
+    ///
+    /// A generated traveller is built from one number, which is what makes them
+    /// reportable: a rogue-looking stranger can be rebuilt exactly from the seed
+    /// they came from, without the frame timings that produced it.
+    pub const fn seed(&mut self) -> u64 {
+        self.next()
+    }
+
     /// One of the slice, or `None` if there is nothing to pick from.
     pub fn pick<'a, T>(&mut self, items: &'a [T]) -> Option<&'a T> {
         items.get(self.below(items.len()))

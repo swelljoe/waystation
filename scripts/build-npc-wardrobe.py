@@ -776,6 +776,132 @@ def colour_field(definition: dict) -> tuple[str, list[str]]:
     return "none", []
 
 
+# --- Drawing ---------------------------------------------------------------
+#
+# Everything above decides *what* a traveller wears. What follows records how to
+# draw it, because the game composites travellers itself at runtime rather than
+# handing selections to the web tool.
+#
+# Two facts are needed and neither is derivable from the wardrobe as it stood:
+# the sprite directory each layer reads from, in draw order, and the palette
+# swap a recoloured piece needs. Both are copied out of the LPC catalogue here
+# so the runtime never has to parse a sheet definition.
+
+
+def load_materials(lpc: Path) -> dict[str, dict]:
+    """Every palette material, with its versions, base colour and ramps."""
+    materials: dict[str, dict] = {}
+    for meta in sorted((lpc / "palette_definitions").glob("*/meta_*.json")):
+        entry = json.loads(meta.read_text())
+        entry["palettes"] = {
+            version.stem.split("_", 1)[1]: json.loads(version.read_text())
+            for version in sorted(meta.parent.glob("*.json"))
+            if not version.name.startswith("meta_")
+        }
+        materials[meta.parent.name] = entry
+    return materials
+
+
+def palette_ramp(materials: dict, material: str, version: str, colour: str) -> list[str] | None:
+    """The colours a named palette entry is made of.
+
+    Tried in the material's own default version first, then anywhere else that
+    has an entry by that name — the generator only ever names a bare colour, and
+    a few materials keep their colours in a version other than the default.
+    """
+    meta = materials.get(material)
+    if not meta:
+        return None
+    found = meta["palettes"].get(version, {}).get(colour)
+    if found:
+        return found
+    for palette in meta["palettes"].values():
+        if colour in palette:
+            return palette[colour]
+    return None
+
+
+def recolor_slot(definition: dict) -> dict | None:
+    """The one colour slot the generator ever chooses.
+
+    A piece with a single colour states its material inline; a piece with more
+    than one — a hair with a tie, a head with eyes — nests them under `color_1`,
+    `color_2`. Only the first is ever picked, here and in the app; the rest keep
+    whatever they were drawn in.
+    """
+    recolors = definition.get("recolors")
+    if not recolors:
+        return None
+    if "material" in recolors:
+        return recolors
+    return recolors[sorted(recolors)[0]]
+
+
+def recolor_source(materials: dict, definition: dict, item_id: str) -> dict | None:
+    """The palette swap this piece needs: material, and the ramp it is drawn in.
+
+    The target ramp is not recorded per item — it depends on the colour rolled
+    for the traveller, and lives in `materials` under that colour's name.
+    """
+    slot = recolor_slot(definition)
+    if not slot:
+        return None
+    material = slot["material"]
+    base = slot.get("base") or materials[material]["base"]
+    version = materials[material]["default"]
+    if "." in base:
+        version, base = base.split(".", 1)
+    source = slot.get("source") or palette_ramp(materials, material, version, base)
+    if not source:
+        raise SystemExit(f"{item_id}: no {material} ramp named '{base}' to recolour away from")
+    return {"material": material, "from": source}
+
+
+def draw_layers(definition: dict, bodies: list[str], item_id: str) -> tuple[list[dict], dict]:
+    """Sprite directories this piece draws, in the order they stack.
+
+    `zPos` is kept rather than resolved into an index because it orders a piece
+    against every *other* piece as well: a hat at 130 must land above hair at
+    120 whatever else the traveller is wearing.
+
+    Paths keep their `${head}`-style placeholders. Resolving them here would
+    mean one entry per head the piece can sit under, when the runtime knows
+    which head it picked and can substitute in a line of code. The substitution
+    table travels with the piece so it can.
+    """
+    layers: list[dict] = []
+    wanted: set[str] = set()
+    for index in range(1, 9):
+        layer = definition.get(f"layer_{index}")
+        if not layer:
+            continue
+        paths = {body: layer[body] for body in bodies if body in layer}
+        if not paths:
+            continue
+        if "zPos" not in layer:
+            raise SystemExit(f"{item_id}: layer_{index} has no zPos, so it cannot be stacked")
+        layers.append({"z": layer["zPos"], "paths": paths})
+        for path in paths.values():
+            while "${" in path:
+                start = path.index("${")
+                end = path.index("}", start)
+                wanted.add(path[start + 2 : end])
+                path = path[end + 1 :]
+
+    replace = {
+        key: value
+        for key, value in definition.get("replace_in_path", {}).items()
+        if key in wanted
+    }
+    missing = wanted - set(replace)
+    if missing:
+        raise SystemExit(
+            f"{item_id}: layer paths use ${{{', '.join(sorted(missing))}}} with no "
+            "replace_in_path table, so the runtime cannot resolve them"
+        )
+    return layers, replace
+
+
 def check_stray_colours(item_id: str, definition: dict) -> None:
     """Refuse pieces that carry a colour nobody in this game ever chose.
 
@@ -806,6 +932,7 @@ def build_entry(
     tags: list[str],
     definition: dict,
     allowed_licences: set[str],
+    materials: dict,
 ) -> dict:
     check_stray_colours(item_id, definition)
     field, variants = colour_field(definition)
@@ -835,6 +962,13 @@ def build_entry(
         item_id, definition, layer_paths(definition, generated), allowed_licences
     )
 
+    # Narrowed to the bases the game rolls, for the same reason `layer_paths`
+    # is: those are the only paths whose licensing was checked, so those are the
+    # only ones whose art may be copied into the shipped runtime tree.
+    layers, replace = draw_layers(definition, generated, item_id)
+    if not layers:
+        raise SystemExit(f"{item_id}: no layer draws for any body type the game generates")
+
     entry = {
         "id": item_id,
         "name": definition["name"],
@@ -846,11 +980,16 @@ def build_entry(
         # How this piece's art may be used, in family form. `CC-BY-SA` here
         # means the art carries share-alike and there was no plainer offer.
         "licenses": sorted(licences),
+        "layers": layers,
     }
     if tags:
         entry["tags"] = tags
     if options:
         entry["options"] = options
+    if replace:
+        entry["replace"] = replace
+    if field == "recolor":
+        entry["recolor"] = recolor_source(materials, definition, item_id)
     return entry, refused
 
 
@@ -919,10 +1058,32 @@ def lpc_revision(lpc: Path) -> str:
         return "unknown"
 
 
+def reachable_colours(source: str) -> list[str]:
+    """Every colour a piece drawing from this source can ever be asked for.
+
+    Used to narrow the palette ramps shipped to the runtime to the ones the
+    generator can actually roll, so the game is not carrying wizard-blue.
+    """
+    if source == SKIN_SRC:
+        return [name for name, _ in SKIN]
+    if source == HAIR_SRC:
+        return [name for name, _ in HAIR] + [name for name, _ in HAIR_OLD]
+    if source == CLOTH:
+        return [name for name, _ in CLOTH_BRIGHT]
+    return []
+
+
 def build(lpc: Path, policy: str) -> tuple[dict, list[dict]]:
     definitions = load_definitions(lpc)
+    materials = load_materials(lpc)
+    if not materials:
+        raise SystemExit(f"no palette_definitions under {lpc}")
     allowed = LICENCE_POLICIES[policy]
     handmade, unlicensed = load_handmade(definitions, allowed)
+    # Which colours each material has to ship a ramp for, gathered as the items
+    # are built: a material is only ever asked for the colours the slots that
+    # use it can roll.
+    ramps_wanted: dict[str, set[str]] = {}
     slots = {}
     for slot_name, spec in SLOTS.items():
         entries = []
@@ -931,8 +1092,12 @@ def build(lpc: Path, policy: str) -> tuple[dict, list[dict]]:
                 raise SystemExit(f"{slot_name}: no sheet definition named {item_id}")
             definition, sprite_root, origin = definitions[item_id]
             entry, refused = build_entry(
-                sprite_root, item_id, source, weight, tags, definition, allowed
+                sprite_root, item_id, source, weight, tags, definition, allowed, materials
             )
+            if "recolor" in entry:
+                material = entry["recolor"]["material"]
+                ramps_wanted.setdefault(material, set())
+                ramps_wanted[material] |= set(reachable_colours(source))
             if origin == "overlay":
                 entry["origin"] = origin
             unlicensed += refused
@@ -953,11 +1118,26 @@ def build(lpc: Path, policy: str) -> tuple[dict, list[dict]]:
             "without the offending piece — it is already shipping."
         )
 
+    ramps: dict[str, dict[str, list[str]]] = {}
+    for material, colours in sorted(ramps_wanted.items()):
+        version = materials[material]["default"]
+        found = {}
+        for colour in sorted(colours):
+            ramp = palette_ramp(materials, material, version, colour)
+            if ramp:
+                found[colour] = ramp
+        if found:
+            ramps[material] = found
+
     wardrobe = {
         "note": "Generated by scripts/build-npc-wardrobe.py — edit the script, not this file.",
         "lpc_revision": lpc_revision(lpc),
         "license_policy": policy,
         "body_types": [{"id": name, "weight": w} for name, w in BODY_TYPES],
+        # Target ramps for every recolour the generator can roll. A piece names
+        # the material and the ramp it was drawn in; the colour rolled for the
+        # traveller names the ramp it becomes.
+        "materials": ramps,
         "palettes": {
             "skin": [{"color": c, "weight": w} for c, w in SKIN],
             "hair": [{"color": c, "weight": w} for c, w in HAIR],
