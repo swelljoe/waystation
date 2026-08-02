@@ -73,13 +73,37 @@ selected files and attribution notes into `runtime-assets/audio`; unused source
 audio is never packaged. AndriiG participates in YouTube Content ID, so retain
 the provider's license/certificate records when publishing captured gameplay.
 
-For the hosted demo, `make publish-demo-assets` performs a strict private build
-and uploads only `runtime-assets/` to the `demo-runtime-assets` Release. The
-repository is private, and default-branch CI overlays this archive after its open
-fallback build. This keeps purchased source sheets and catalogs out of git while
-allowing the licensed game build to be served. Delete that Release before making
-the source repository public; recreate an equivalent private delivery boundary
-if the project is later open-sourced.
+The source repository is public. The hosted demo serves the flattened licensed
+art, and that is deliberate: a game shipping its own assets is what these
+licences permit, and every game without copy protection is a disassembly away
+from giving its art up regardless. The line these licences actually draw is
+between art used in a game and art handed over as a pack.
+
+So the pack is what stays private. `make publish-demo-assets` performs a strict
+private build and uploads `runtime-assets/` to a Release in a **separate private
+repository**, named by `--repo` or `$WAYSTATION_ASSET_REPO`; the script refuses
+to run without one. Default-branch CI pulls that archive in with the `ASSET_REPO`
+variable and the `ASSET_TOKEN` secret and overlays it on the open fallback build.
+Purchased source sheets, catalogs and raw audio never enter git.
+
+That Release cannot live beside the source. A Release inherits its repository's
+visibility and has none of its own, so an archive here would be a single URL
+yielding the whole asset tree in its original layout, without the game around it
+— the one form these licences plainly refuse. The previous
+`demo-runtime-assets` Release on this repository became exactly that when the
+repository was made public, and has been deleted.
+
+Pull-request runners build the procedural fallback and need no secrets, so forks
+work. A default-branch build that did not receive the licensed art fails rather
+than publishing stand-in art to a demo link that is already submitted.
+
+Two things are worth knowing about what is served. The flattened room images and
+state crops are derived works, several removes from the purchased sheets. The
+audio is not: five of the eight files in `runtime-assets/audio` carry
+`transcode: None` in `assets-manifest.json` and are byte-identical copies of the
+purchased downloads, including both full-length AndriiG tracks. AndriiG
+participates in YouTube Content ID. The manifest supports a `transcode` block —
+the rain beside them uses one — if that distinction ever needs closing.
 
 The web shell links to the complete, revision-pinned Universal LPC Generator
 credits and license catalog for the Scribe sheet. The deliberately comprehensive

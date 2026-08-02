@@ -414,13 +414,20 @@ Bevy, satisfying browser audio-autoplay policy while keeping music and rain
 enabled from the first game frame.
 
 Because `assets/` is intentionally gitignored, pull-request runners build the
-distributable procedural fallback art. Default-branch builds overlay the
-flattened, runtime-only bundle held by the private `demo-runtime-assets` Release;
-they never receive the purchased source sheets or raw licensed audio. The same
-boundary selects only currently used files from ignored `music/` and places them
-under `runtime-assets/audio`. After changing licensed art or audio, run
-`make publish-demo-assets` from the authoring machine to rebuild and replace that
-bundle. Delete the private Release before ever making the repository public.
+distributable procedural fallback art. They need no secrets and work from forks.
+
+Default-branch builds overlay the flattened, runtime-only licensed art, which the
+published game then serves — ordinary game distribution, and what these licences
+allow: the art is used in a game rather than resold as a pack. That bundle comes
+from a Release in a **separate private repository**, named by the `ASSET_REPO`
+variable and fetched with the `ASSET_TOKEN` secret. It cannot live here: a
+Release inherits its repository's visibility and has none of its own, so a
+tarball beside public source is an asset pack anybody can take without the game
+around it. Private at build time, served at runtime. After changing licensed art
+or audio, run `make publish-demo-assets` from the authoring machine. A
+default-branch build that has not received the licensed art fails rather than
+quietly publishing stand-in art to the demo link. See
+[THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md).
 
 The code is public for competition review but remains all rights reserved unless
 the project wins. If selected, the submitted source will be relicensed under MIT

@@ -9,12 +9,14 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use axum::{
+    body::Body,
     extract::{DefaultBodyLimit, State},
-    http::StatusCode,
+    http::{header, HeaderValue, Request, Response, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -22,6 +24,7 @@ use tokio::sync::{Mutex, RwLock};
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
+    validate_request::{ValidateRequest, ValidateRequestHeaderLayer},
 };
 use waystation_shared::{
     candidates_for, fallback_version, fixture_reflection, fixture_response, passage,
@@ -59,6 +62,76 @@ struct Config {
     yvp_app_key: Option<String>,
     bible_id: u32,
     static_dir: PathBuf,
+    gate: Option<Credential>,
+}
+
+/// One shared username and password for the hosted demo.
+///
+/// The browser build serves purchased art that may not be redistributed, and a
+/// public URL would be publishing it. This is a door, not a security boundary:
+/// anyone let through can save the files, as they can from any game that runs in
+/// a browser. What it buys is the difference between art that is served and art
+/// that is published, which is the difference the licences care about.
+#[derive(Clone)]
+struct Credential {
+    /// The complete `Authorization` header the door will accept, folded once at
+    /// startup so that answering the knock is a string comparison.
+    expected: String,
+}
+
+impl Credential {
+    /// Reads `WAYSTATION_GATE`, as `user:password`. Unset — which is how local
+    /// development and the container's own defaults leave it — the road is open.
+    fn from_env() -> Option<Self> {
+        Self::parse(&env::var("WAYSTATION_GATE").ok()?)
+    }
+
+    /// A half-written credential is refused rather than half-applied. `user:` is
+    /// the shape a shell leaves behind when the secret it should have expanded to
+    /// was never set, and honouring it would open the door while logging it shut.
+    ///
+    /// Only the username is taken to end at the first colon; a password may
+    /// contain them, and basic authentication encodes the pair whole.
+    fn parse(value: &str) -> Option<Self> {
+        let (username, password) = value.split_once(':')?;
+        (!username.is_empty() && !password.is_empty()).then(|| Self {
+            expected: format!("Basic {}", BASE64.encode(value)),
+        })
+    }
+}
+
+/// Compares in time that does not depend on how much of the credential was
+/// right, so that repeated knocking cannot be used to read the password back one
+/// character at a time.
+fn matches_in_constant_time(offered: &[u8], expected: &[u8]) -> bool {
+    if offered.len() != expected.len() {
+        return false;
+    }
+    offered
+        .iter()
+        .zip(expected)
+        .fold(0_u8, |difference, (a, b)| difference | (a ^ b))
+        == 0
+}
+
+impl<B> ValidateRequest<B> for Credential {
+    type ResponseBody = Body;
+
+    fn validate(&mut self, request: &mut Request<B>) -> Result<(), Response<Body>> {
+        let offered = request
+            .headers()
+            .get(header::AUTHORIZATION)
+            .map(HeaderValue::as_bytes)
+            .unwrap_or_default();
+        if matches_in_constant_time(offered, self.expected.as_bytes()) {
+            return Ok(());
+        }
+        Err(Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .header(header::WWW_AUTHENTICATE, r#"Basic realm="Waystation""#)
+            .body(Body::from("The waystation is not open to the road yet.\n"))
+            .expect("the refusal is built from constants"))
+    }
 }
 
 impl Config {
@@ -74,6 +147,7 @@ impl Config {
                 .unwrap_or(DEFAULT_BIBLE_ID),
             static_dir: env::var("WAYSTATION_STATIC_DIR")
                 .map_or_else(|_| PathBuf::from("dist"), PathBuf::from),
+            gate: Credential::from_env(),
         }
     }
 
@@ -176,6 +250,7 @@ async fn main() -> anyhow::Result<()> {
         %address,
         mode = config.mode.label(),
         scripture = if config.yvp_app_key.is_some() { "youversion" } else { "reviewed-local" },
+        door = if config.gate.is_some() { "credentialed" } else { "open" },
         "waystation server listening"
     );
     axum::serve(listener, app)
@@ -190,11 +265,19 @@ fn build_router(state: AppState) -> Router {
     // back to index.html makes Bevy try to parse HTML as asset metadata and then
     // reject the corresponding texture.
     let static_files = ServeDir::new(state.config.static_dir.clone());
-    Router::new()
-        .route("/api/health", get(health))
+    let waystation = Router::new()
         .route("/api/interpret", post(interpret))
         .route_service("/", ServeFile::new(index))
-        .fallback_service(static_files)
+        .fallback_service(static_files);
+    // Health is deliberately outside the gate. The platform's own checks carry no
+    // credentials, and a 401 there reads to them as a machine that has died.
+    let waystation = match state.config.gate.clone() {
+        Some(gate) => waystation.layer(ValidateRequestHeaderLayer::custom(gate)),
+        None => waystation,
+    };
+    Router::new()
+        .route("/api/health", get(health))
+        .merge(waystation)
         .layer(DefaultBodyLimit::max(4 * 1_024))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
@@ -539,7 +622,7 @@ mod tests {
     use super::*;
     use axum::{
         body::Body,
-        http::{Request, StatusCode},
+        http::{header, Request, StatusCode},
     };
     use http_body_util::BodyExt;
     use tower::ServiceExt;
@@ -569,6 +652,7 @@ mod tests {
                 yvp_app_key: yvp_app_key.map(str::to_owned),
                 bible_id: DEFAULT_BIBLE_ID,
                 static_dir: PathBuf::from("dist"),
+                gate: None,
             },
             http: Client::new(),
             token: Arc::new(Mutex::new(None)),
@@ -704,5 +788,96 @@ mod tests {
             payload.provenance.scripture_source,
             ScriptureSource::Fixture
         );
+    }
+
+    fn gated_state() -> AppState {
+        let mut state = state_with(ApiMode::Fixture, None);
+        state.config.gate = Credential::parse("judge:let-me-in");
+        state
+    }
+
+    async fn status_of(state: AppState, uri: &str, credential: Option<&str>) -> StatusCode {
+        let mut request = Request::builder().method("GET").uri(uri);
+        if let Some(credential) = credential {
+            let encoded = BASE64.encode(credential);
+            request = request.header("authorization", format!("Basic {encoded}"));
+        }
+        build_router(state)
+            .oneshot(request.body(Body::empty()).unwrap())
+            .await
+            .unwrap()
+            .status()
+    }
+
+    /// The whole point of the gate. Every path that can hand back purchased art —
+    /// the page, the wasm, and every file under it — has to refuse a stranger,
+    /// and has to say what it wants, or the browser never offers a login box.
+    #[tokio::test]
+    async fn a_stranger_is_asked_for_the_password_before_any_licensed_art() {
+        for uri in ["/", "/runtime-assets/interiors/office.png", "/index.html"] {
+            let response = build_router(gated_state())
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{uri}");
+            assert_eq!(
+                response.headers()[header::WWW_AUTHENTICATE],
+                r#"Basic realm="Waystation""#,
+                "{uri}"
+            );
+        }
+    }
+
+    /// The platform's health check carries no credentials. Gating it would have
+    /// the host conclude the machine was dead and take it away mid-demo.
+    #[tokio::test]
+    async fn the_health_check_is_never_asked_for_a_password() {
+        assert_eq!(
+            status_of(gated_state(), "/api/health", None).await,
+            StatusCode::OK
+        );
+    }
+
+    /// The wrong password has to fail even though it is the right shape, and the
+    /// right one has to reach past the gate rather than merely satisfy it.
+    #[tokio::test]
+    async fn only_the_credential_that_was_issued_opens_the_door() {
+        assert_eq!(
+            status_of(gated_state(), "/", Some("judge:guess")).await,
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            status_of(gated_state(), "/", Some("stranger:let-me-in")).await,
+            StatusCode::UNAUTHORIZED
+        );
+        // `dist/index.html` is not built during tests, so reaching the handler at
+        // all is the assertion; what matters is that it is no longer a 401.
+        assert_ne!(
+            status_of(gated_state(), "/", Some("judge:let-me-in")).await,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    /// Local development and `make run-container` set nothing, and must stay
+    /// exactly as open as they were before the gate existed.
+    #[tokio::test]
+    async fn an_ungated_waystation_asks_nobody_for_anything() {
+        assert_eq!(
+            status_of(state_with(ApiMode::Fixture, None), "/api/health", None).await,
+            StatusCode::OK
+        );
+        assert_ne!(
+            status_of(state_with(ApiMode::Fixture, None), "/", None).await,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[test]
+    fn a_half_written_credential_is_no_credential() {
+        assert!(Credential::parse("judge:let-me-in").is_some());
+        assert!(Credential::parse("judge:").is_none());
+        assert!(Credential::parse(":let-me-in").is_none());
+        assert!(Credential::parse("judge").is_none());
+        assert!(Credential::parse("").is_none());
     }
 }

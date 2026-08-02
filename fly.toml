@@ -1,0 +1,52 @@
+# The hosted demo.
+#
+# GitHub Pages cannot host this game. Two reasons, and the second is the one that
+# decided it:
+#
+#   1. The browser build serves purchased art that may not be redistributed. A
+#      public URL would be publishing it. WAYSTATION_GATE is the door.
+#   2. On wasm the game asks for `/api/interpret` as a relative path, so on a
+#      static host the request 404s and every traveler silently falls back to the
+#      reviewed fixture. Served from here, the listening is real.
+#
+# First time:
+#
+#   fly launch --no-deploy --copy-config     # claims the name, keeps this file
+#   fly secrets set WAYSTATION_GATE='judge:some-passphrase'
+#   fly deploy
+#
+# To turn the listening on, which is the whole point of hosting it ourselves:
+#
+#   fly secrets set API_MODE=live GLOO_CLIENT_ID=... GLOO_CLIENT_SECRET=...
+#
+# Optionally YVP_APP_KEY, for the passage in the player's own language. Without
+# it the reviewed local wording is served and labelled as such, never miscredited.
+#
+# Deploys build the WebAssembly from source on Fly's builder, which is a release
+# Bevy build and takes its time. That is the cost of the licensed art never
+# touching a machine we do not control.
+
+app = "waystation"
+
+[build]
+  dockerfile = "Containerfile"
+
+[http_service]
+  internal_port = 7777
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # Health sits outside the gate on purpose. These checks carry no credentials,
+  # and a 401 here reads to Fly as a machine that has died.
+  [[http_service.checks]]
+    path = "/api/health"
+    method = "GET"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

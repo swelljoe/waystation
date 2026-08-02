@@ -892,7 +892,6 @@ struct OverlayWidgets<'w, 's> {
             Without<OverlayBody>,
             Without<StatusText>,
             Without<PromptText>,
-            Without<ProvenanceText>,
             Without<ProgressText>,
         ),
     >,
@@ -903,20 +902,6 @@ struct OverlayWidgets<'w, 's> {
         (
             With<OverlayBody>,
             Without<OverlayTitle>,
-            Without<StatusText>,
-            Without<PromptText>,
-            Without<ProvenanceText>,
-            Without<ProgressText>,
-        ),
-    >,
-    provenance: Query<
-        'w,
-        's,
-        &'static mut Text,
-        (
-            With<ProvenanceText>,
-            Without<OverlayTitle>,
-            Without<OverlayBody>,
             Without<StatusText>,
             Without<PromptText>,
             Without<ProgressText>,
@@ -1030,9 +1015,6 @@ struct OverlayTitle;
 
 #[derive(Component)]
 struct OverlayBody;
-
-#[derive(Component)]
-struct ProvenanceText;
 
 #[derive(Component)]
 struct ProgressText;
@@ -3056,16 +3038,6 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                                 ..default()
                             },
                             OverlayBody,
-                        ));
-                        column.spawn((
-                            Text::new(""),
-                            fonts.roman(13.0),
-                            TextColor(Color::srgb(0.62, 0.66, 0.61)),
-                            Node {
-                                max_width: Val::Percent(100.0),
-                                ..default()
-                            },
-                            ProvenanceText,
                         ));
                     });
                 });
@@ -5830,7 +5802,6 @@ fn sync_ui(
             Without<PromptText>,
             Without<OverlayTitle>,
             Without<OverlayBody>,
-            Without<ProvenanceText>,
         ),
     >,
     mut prompt: Query<
@@ -5840,7 +5811,6 @@ fn sync_ui(
             Without<StatusText>,
             Without<OverlayTitle>,
             Without<OverlayBody>,
-            Without<ProvenanceText>,
         ),
     >,
     mut overlay: OverlayWidgets,
@@ -6044,15 +6014,12 @@ fn sync_ui(
             Visibility::Visible
         };
     }
-    if let Some((heading, content, credit)) = overlay_content {
+    if let Some((heading, content)) = overlay_content {
         if let Ok(mut text) = overlay.title.single_mut() {
             **text = heading;
         }
         if let Ok(mut text) = overlay.body.single_mut() {
             **text = content;
-        }
-        if let Ok(mut text) = overlay.provenance.single_mut() {
-            **text = credit;
         }
     }
     if let Ok((mut image, mut node)) = overlay.card_art.single_mut() {
@@ -6087,7 +6054,7 @@ fn visit_overlay(
     progression: &Progression,
     state: &upkeep::Upkeep,
     motel_access: &MotelAccess,
-) -> Option<(String, String, String)> {
+) -> Option<(String, String)> {
     match party.stage {
         VisitStage::Telling => {
             let lines = party.spoken();
@@ -6095,14 +6062,12 @@ fn visit_overlay(
             Some((
                 party.address(),
                 format!("\u{201c}{line}\u{201d}\n\nSPACE — listen"),
-                String::new(),
             ))
         }
         VisitStage::Listening => Some((
             "The Scribe Listens".to_owned(),
             "Their words settle beside what you have been reading in room three. You go looking for the need underneath them…"
                 .to_owned(),
-            "Gloo AI is selecting from a reviewed passage catalogue.".to_owned(),
         )),
         VisitStage::Deciding => Some(deciding_overlay(
             party,
@@ -6125,7 +6090,7 @@ fn deciding_overlay(
     progression: &Progression,
     state: &upkeep::Upkeep,
     motel_access: &MotelAccess,
-) -> (String, String, String) {
+) -> (String, String) {
     let mut lines = Vec::new();
     if let Some(need) = party.need.as_ref() {
         lines.push(format!(
@@ -6158,31 +6123,7 @@ fn deciding_overlay(
         },
     ));
     lines.push("\nSPACE — let them go".to_owned());
-    (
-        party.address(),
-        lines.join("\n"),
-        party.need.as_ref().map_or_else(String::new, |need| {
-            format!(
-                "{} via {} · {} / {} via Gloo AI Studio",
-                need.passage.version,
-                scripture_attribution(need.provenance.scripture_source),
-                need.provenance.gloo_model,
-                need.provenance.routing,
-            )
-        }),
-    )
-}
-
-/// Who to credit for the words on the card. The line under a traveler's need is
-/// the only place the game says where its Scripture came from, so it has to name
-/// the thing that actually sent the text and not the thing we hope to be using.
-const fn scripture_attribution(source: waystation_shared::ScriptureSource) -> &'static str {
-    match source {
-        waystation_shared::ScriptureSource::YouVersionLive => "YouVersion",
-        waystation_shared::ScriptureSource::ReviewedLocal => "reviewed text",
-        waystation_shared::ScriptureSource::Fixture => "reviewed fixture",
-        waystation_shared::ScriptureSource::Cache => "cache",
-    }
+    (party.address(), lines.join("\n"))
 }
 
 /// The card line, before anything has been handed over. Naming the one the
@@ -6207,7 +6148,7 @@ fn card_offer_line(party: &visitors::Party, collection: &Collection, on_hand: us
         )
 }
 
-fn choosing_overlay(party: &visitors::Party, collection: &Collection) -> (String, String, String) {
+fn choosing_overlay(party: &visitors::Party, collection: &Collection) -> (String, String) {
     let suggestion = party
         .need
         .as_ref()
@@ -6228,11 +6169,7 @@ fn choosing_overlay(party: &visitors::Party, collection: &Collection) -> (String
         ));
     }
     lines.push("\nSPACE — keep them all for now".to_owned());
-    (
-        "The Block-Prints".to_owned(),
-        lines.join("\n"),
-        String::new(),
-    )
+    ("The Block-Prints".to_owned(), lines.join("\n"))
 }
 
 /// `P` opens the folio and, once it is open, the folio has the keyboard. It
@@ -6869,7 +6806,7 @@ mod tests {
     #[test]
     fn the_choosing_screen_always_offers_a_way_out_of_giving_anything() {
         let party = party_at(VisitStage::Deciding);
-        let (_, body, _) = deciding_overlay(
+        let (_, body) = deciding_overlay(
             &party,
             &Collection::default(),
             &Progression::default(),
@@ -6975,7 +6912,7 @@ mod tests {
             offer.starts_with('3'),
             "the card offer keeps its number: {offer}"
         );
-        let (_, body, _) = choosing_overlay(&party, &collection);
+        let (_, body) = choosing_overlay(&party, &collection);
         for (index, print) in collection.on_hand().iter().enumerate() {
             assert!(
                 body.contains(&print.title),
@@ -6990,36 +6927,52 @@ mod tests {
         );
     }
 
+    /// The game is the game. A traveler standing in the court is a person with
+    /// something to carry, and the screen has no business naming the machinery
+    /// that chose their passage — not the model, not the routing, not the
+    /// catalogue it came from. Whoever wants to know where the words came from
+    /// can read the repository; the Scribe just hands over a card.
     #[test]
-    fn the_deciding_screen_carries_the_provenance_of_whatever_was_heard() {
-        let mut party = party_at(VisitStage::Deciding);
-        party.need = Some(fixture_response("mara_grief").expect("a reviewed fixture"));
-        let (_, _, provenance) = deciding_overlay(
-            &party,
-            &Collection::default(),
-            &Progression::default(),
-            &upkeep::Upkeep::default(),
-            &MotelAccess::default(),
-        );
-        // A reviewed fixture never came off the wire, and the line under the
-        // traveler must not say it did. Crediting YouVersion for words
-        // YouVersion did not send is the one thing this line can get wrong.
-        assert!(provenance.contains("reviewed fixture"), "{provenance}");
-        assert!(!provenance.contains("YouVersion"), "{provenance}");
-        assert!(provenance.contains("Gloo"), "{provenance}");
-
-        let mut live = party_at(VisitStage::Deciding);
-        let mut heard = fixture_response("mara_grief").expect("a reviewed fixture");
-        heard.provenance.scripture_source = waystation_shared::ScriptureSource::YouVersionLive;
-        live.need = Some(heard);
-        let (_, _, provenance) = deciding_overlay(
-            &live,
-            &Collection::default(),
-            &Progression::default(),
-            &upkeep::Upkeep::default(),
-            &MotelAccess::default(),
-        );
-        assert!(provenance.contains("YouVersion"), "{provenance}");
+    fn no_screen_a_traveler_puts_up_ever_names_the_technology_behind_it() {
+        const MACHINERY: [&str; 7] = [
+            "Gloo",
+            "YouVersion",
+            "BSB",
+            "fixture",
+            "AI",
+            "catalogue",
+            "model",
+        ];
+        let stages = [
+            VisitStage::Approaching,
+            VisitStage::Waiting,
+            VisitStage::Telling,
+            VisitStage::Listening,
+            VisitStage::Deciding,
+            VisitStage::Choosing,
+            VisitStage::Lodging,
+            VisitStage::Leaving,
+        ];
+        for stage in stages {
+            let mut party = party_at(stage);
+            party.need = Some(fixture_response("mara_grief").expect("a reviewed fixture"));
+            let Some((heading, body)) = visit_overlay(
+                &party,
+                &Collection::default(),
+                &Progression::default(),
+                &upkeep::Upkeep::default(),
+                &MotelAccess::default(),
+            ) else {
+                continue;
+            };
+            let shown = format!("{heading}\n{body}");
+            for word in MACHINERY {
+                assert!(
+                    !shown.contains(word),
+                    "{stage:?} says {word:?} to the player:\n{shown}"
+                );
+            }
+        }
     }
 
     #[test]

@@ -27,3 +27,6 @@ __pycache__/
 
 # Local dev metadata
 /meta/
+
+# Working notes, kept out of the public repository.
+/docs/ai/

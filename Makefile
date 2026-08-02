@@ -1,4 +1,4 @@
-.PHONY: assets prints add-print print-art catalog wardrobe npcs bible-versions verses editor check test analyze build server server-live game web web-smoke publish-demo-assets container run-container
+.PHONY: assets prints add-print print-art catalog wardrobe npcs bible-versions verses editor check test analyze build server server-live game web web-smoke publish-demo-assets deploy container run-container
 
 assets:
 	python3 scripts/build-assets.py
@@ -102,6 +102,17 @@ web-smoke:
 
 publish-demo-assets:
 	python3 scripts/publish-demo-assets.py
+
+# Ships the gated demo. The image carries the licensed runtime art, so it goes
+# from here to Fly's own private registry and never to a public surface. The
+# deploy refuses to go out until the door has a lock on it: an ungated app on a
+# public hostname is exactly the publishing this whole boundary exists to prevent.
+deploy:
+	@fly secrets list 2>/dev/null | grep -q WAYSTATION_GATE || { \
+	  echo "refusing to deploy: no WAYSTATION_GATE secret, so the art would be public."; \
+	  echo "  fly secrets set WAYSTATION_GATE='judge:some-passphrase'"; \
+	  exit 1; }
+	fly deploy
 
 container: assets
 	podman build -t waystation:latest -f Containerfile .

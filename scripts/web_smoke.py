@@ -217,13 +217,32 @@ class Page:
         return path
 
 
-def page_url(port: int, query: str = "") -> str:
+def parse_headers(pairs: list[str]) -> dict[str, str]:
+    """`Name: value` strings, as the command line spells them, into a CDP map."""
+    headers = {}
+    for pair in pairs:
+        name, separator, value = pair.partition(":")
+        if not separator or not name.strip():
+            raise SystemExit(f"--header wants `Name: value`, not {pair!r}")
+        headers[name.strip()] = value.strip()
+    return headers
+
+
+def page_url(origin: int | str, query: str = "") -> str:
     """The page to open, with any query string the caller asked for.
 
     The game reads `?visitors=` at startup to stand a visit up immediately, so a
     screenshot of a traveller does not have to wait out three nights of smoke.
+
+    A bare port means the throwaway static server below. A whole origin means
+    somewhere else entirely — the real server, which is the only way to exercise
+    `/api/interpret`, or a credentialed one, which is the only way to find out
+    whether the asset loader's own fetches carry the password the page was opened
+    with. Both are things the static server cannot answer for.
     """
-    address = f"http://127.0.0.1:{port}/index.html"
+    if isinstance(origin, int):
+        origin = f"http://127.0.0.1:{origin}"
+    address = f"{origin.rstrip('/')}/index.html"
     query = query.lstrip("?")
     return f"{address}?{query}" if query else address
 
@@ -247,7 +266,18 @@ async def run(args) -> int:
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    server, http_port = serve(Path(args.dist))
+    server = None
+    if args.origin:
+        origin: int | str = args.origin
+    else:
+        server, http_port = serve(Path(args.dist))
+        origin = http_port
+    # Credentials cannot simply be written into the address: `fetch` refuses any
+    # URL carrying them, so the page would load and the wasm beside it would not.
+    # A browser sends them as a header once a person has answered the dialog, and
+    # extra headers are how that is reproduced — which means waiting for the
+    # debugger before navigating anywhere.
+    target = page_url(origin, args.query)
     debug_port = free_port()
     chromium = subprocess.Popen(
         [
@@ -262,7 +292,7 @@ async def run(args) -> int:
             "--disable-gpu-sandbox",
             *SOFTWARE_WEBGL,
             f"--user-data-dir={out / 'chromium-profile'}",
-            page_url(http_port, args.query),
+            "about:blank" if args.header else target,
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -273,6 +303,10 @@ async def run(args) -> int:
             page = Page(socket_, out)
             for domain in ("Page", "Runtime", "Log"):
                 await page.call(f"{domain}.enable")
+            if args.header:
+                await page.call("Network.enable")
+                await page.call("Network.setExtraHTTPHeaders", headers=parse_headers(args.header))
+                await page.call("Page.navigate", url=target)
 
             await page.until(
                 "!!(window.wasmBindings && window.wasmBindings.start_web_game)",
@@ -310,7 +344,8 @@ async def run(args) -> int:
             return 0
     finally:
         chromium.terminate()
-        server.shutdown()
+        if server is not None:
+            server.shutdown()
 
 
 def main() -> int:
@@ -342,8 +377,21 @@ def main() -> int:
         default=[],
         help="key:seconds steps to run after starting, e.g. d:2.2 s:0.35 r:0.08",
     )
+    parser.add_argument(
+        "--origin",
+        help="serve nothing and point the browser at this origin instead, e.g."
+        " http://127.0.0.1:7788 for the real server rather than a static directory",
+    )
+    parser.add_argument(
+        "--header",
+        action="append",
+        default=[],
+        metavar="NAME: VALUE",
+        help="extra header on every request; `Authorization: Basic ...` is how a"
+        " gated build is exercised, since credentials in the URL break fetch",
+    )
     args = parser.parse_args()
-    if not Path(args.dist, "index.html").is_file():
+    if not args.origin and not Path(args.dist, "index.html").is_file():
         raise SystemExit(f"no web bundle at {args.dist}; run `make web` first")
     return asyncio.run(run(args))
 
