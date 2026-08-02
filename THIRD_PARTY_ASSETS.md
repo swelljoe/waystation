@@ -105,13 +105,26 @@ purchased downloads, including both full-length AndriiG tracks. AndriiG
 participates in YouTube Content ID, certificate for usage in YouTube videos
 is available from the artist's Pixabay when the time comes for that.
 
-The web shell links to the complete, revision-pinned Universal LPC Generator
-credits and license catalog for the Scribe sheet. The deliberately comprehensive
-catalog is used because the original per-export selection file was not retained.
-Regenerate the Scribe with its selection-specific credits before a final release.
-The same applies to the generator's hand-tool overlay layers under
-`assets/custom/lpc-tools` — hammer, axe, hoe, shovel, and watering can — which
-the build composites onto the Scribe's own slash and thrust rows.
+The web shell links to an About page beside the game, at `web/about.html`.
+`scripts/build-about-page.py` writes it from `docs/NPC_ART_CREDITS.md` and the
+manifest's licensed audio, so it names exactly the artists the wardrobe names
+and cannot fall behind them; the page is committed and CI fails if regenerating
+it would change anything. The page counts an artist once however many ways the
+LPC catalogue spells them, which is why it says 37 people where the credits file
+says 39 — `bluecarrot16` and `ElizaWy` each appear upstream under two spellings.
+
+Attribution belongs there rather than in the game. Nothing a traveller puts on
+the screen names a licence, an API or a model — `crates/game` has a test that
+says so, over the visit overlay — and the About page is beside the game rather
+than inside it, so it is free to say all of it plainly.
+
+The Scribe sheet is a separate obligation the About page does not discharge. Its
+export used the deliberately comprehensive catalog because the original
+per-export selection file was not retained. Regenerate the Scribe with its
+selection-specific credits before a final release. The same applies to the
+generator's hand-tool overlay layers under `assets/custom/lpc-tools` — hammer,
+axe, hoe, shovel, and watering can — which the build composites onto the
+Scribe's own slash and thrust rows.
 
 The four visitor sheets are from the same generator and carry the same
 obligation: `redhead-lady.png`, `black-teen.png`, `little-sister.png`, and

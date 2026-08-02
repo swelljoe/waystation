@@ -19,6 +19,11 @@ jobs:
       - name: System libraries
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev libxkbcommon-dev libx11-dev python3-pil
       - run: python3 scripts/build-assets.py
+      # Artists get added to and dropped from the wardrobe, and a credits page
+      # that has stopped matching the art it credits is worse than none: it
+      # names the wrong people with confidence.
+      - name: Credits page still matches the art it credits
+        run: python3 scripts/build-about-page.py --check
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --workspace

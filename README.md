@@ -456,6 +456,17 @@ supplies the wording afterwards, and without a key the reviewed English in
 `content/passages.ron` is served and labelled `reviewed_local` rather than
 credited to a translation that did not send it.
 
+### Credits
+
+An About page provides attributions for the art, music, sounds, and APIs in
+use within the game.
+
+`make about` writes `web/about.html` from `docs/NPC_ART_CREDITS.md` and the
+audio manifest, so it names exactly the artists the wardrobe names. It is
+committed, and CI fails if regenerating it would change anything: a credits page
+that has stopped matching the art it credits names the wrong people with
+confidence, which is worse than naming none.
+
 The code is public for competition review but remains all rights reserved unless
 the project wins. If selected, the submitted source will be relicensed under MIT
 OR Apache-2.0 as required by the competition rules. Third-party assets remain

@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Who made the art, the music, and the words in The Waystation at the Edge of the Ash."
+    />
+    <title>About — The Waystation at the Edge of the Ash</title>
+    <style>
+      @font-face {
+        font-family: "EB Garamond";
+        src: url("runtime-assets/fonts/EBGaramond-Variable.ttf") format("truetype");
+        font-style: normal;
+        font-weight: 400 800;
+        font-display: swap;
+      }
+      :root {
+        color-scheme: dark;
+        background: #151613;
+        color: #eadcb9;
+        font-family: "EB Garamond", Georgia, "Times New Roman", serif;
+      }
+      body {
+        margin: 0;
+        padding: 2.5rem 1.25rem 5rem;
+        line-height: 1.55;
+        background:
+          radial-gradient(circle at 50% 0, #293023 0, #151613 45%, #090a08 100%)
+          no-repeat;
+        background-attachment: fixed;
+      }
+      main {
+        max-width: 46rem;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0 0 0.35rem;
+        font-size: clamp(1.8rem, 5vw, 2.6rem);
+        font-weight: 600;
+      }
+      h2 {
+        margin: 2.75rem 0 0.6rem;
+        padding-bottom: 0.3rem;
+        border-bottom: 1px solid #3d3a2c;
+        font-size: 1.45rem;
+        font-weight: 600;
+      }
+      h3 {
+        margin: 1.75rem 0 0.4rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #cbb98c;
+      }
+      p {
+        margin: 0.8rem 0;
+      }
+      a {
+        color: #d8c390;
+        text-decoration-color: #6f603f;
+      }
+      a:hover,
+      a:focus-visible {
+        color: #f4e6c2;
+      }
+      .lede {
+        margin-bottom: 2rem;
+        color: #a99a77;
+        font-size: 1.05rem;
+      }
+      .back {
+        display: inline-block;
+        margin-bottom: 2rem;
+        padding: 0.35rem 0.9rem 0.45rem;
+        border: 1px solid #6f603f;
+        border-radius: 0.2rem;
+        background: #23241d;
+        text-decoration: none;
+      }
+      blockquote {
+        margin: 1rem 0 1rem 0;
+        padding-left: 1rem;
+        border-left: 2px solid #4d4636;
+        color: #cbb98c;
+        font-style: italic;
+      }
+      ul.names {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+        gap: 0.1rem 1.5rem;
+        margin: 0.8rem 0;
+        padding-left: 1.15rem;
+      }
+      ul.plain {
+        margin: 0.8rem 0;
+        padding-left: 1.15rem;
+      }
+      ul.plain li {
+        margin: 0.35rem 0;
+      }
+      .scroller {
+        max-height: 34rem;
+        overflow: auto;
+        margin: 1rem 0;
+        border: 1px solid #3d3a2c;
+        border-radius: 0.2rem;
+        background: #1b1c17;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        padding: 0.5rem 0.7rem;
+        border-bottom: 1px solid #4d4636;
+        background: #23241d;
+        text-align: left;
+        white-space: nowrap;
+      }
+      td {
+        padding: 0.4rem 0.7rem;
+        border-bottom: 1px solid #26271f;
+        vertical-align: top;
+      }
+      td:first-child {
+        min-width: 11rem;
+      }
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.9em;
+        color: #cbb98c;
+        overflow-wrap: break-word;
+      }
+      .footnote {
+        margin-top: 3rem;
+        color: #8c8267;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="./">← Back to the Waystation</a>
+
+      <h1>About</h1>
+      <p class="lede">
+        Who made the art, the music and the words, and what the game is doing
+        when a traveller tells you what is wrong.
+      </p>
+
+      <h2>Scripture</h2>
+      <p>
+        The verses on the cards and in the little book are the
+        <strong>Berean Standard Bible</strong>, which its translation committee
+        dedicated to the public domain on 30 April 2023. Attribution is
+        appreciated and not required, so here it is:
+      </p>
+      <blockquote>
+        The Holy Bible, Berean Standard Bible, BSB is produced in cooperation
+        with Bible Hub, Discovery Bible, OpenBible.com, and the Berean Bible
+        Translation Committee.
+      </blockquote>
+      <p>
+        When the game is running with a key for the
+        <a href="https://developers.youversion.com/" target="_blank" rel="noopener noreferrer">YouVersion&nbsp;Platform&nbsp;API</a>,
+        a traveller's passage arrives in the language your browser asks for,
+        from an edition chosen for that language. Those words are fetched for
+        that one card and are not stored here. Editions other than the Berean
+        Standard Bible carry their own terms, so the card names the edition
+        beside the reference; the public-domain BSB asks for nothing and is
+        left unnamed. Without a key, the game serves reviewed English wording
+        held in this repository and credits nobody it should not.
+      </p>
+
+      <h2>What listens</h2>
+      <p>
+        A traveller says what is wrong in their own words. Deciding which need
+        that is, and which of the reviewed passages answers it, is done by a
+        model reached through the
+        <a href="https://www.gloo.com/" target="_blank" rel="noopener noreferrer">Gloo AI Platform</a>.
+        It chooses from a fixed set of passages that were selected and read in
+        advance — it is choosing which one to offer, not writing Scripture, and
+        it cannot offer anything that is not on the list. If it cannot be
+        reached, the game falls back to reviewed wording written by hand, and
+        plays exactly as it otherwise would.
+      </p>
+
+      <h2>Music and sound</h2>
+      <p>Every sound in the game comes from two people.</p>
+      <ul class="plain">
+          <li><a href="https://pixabay.com/users/andriig-54059306/" target="_blank" rel="noopener noreferrer">AndriiG</a> — music.</li>
+          <li><a href="https://pixabay.com/sound-effects/nature-relaxing-rain-444802/" target="_blank" rel="noopener noreferrer">Dragon Studio</a> — rain, floorboards, hammering.</li>
+      </ul>
+
+      <h2>The people you meet</h2>
+      <p>
+        Everyone who walks up the road is assembled from the
+        <a href="https://lpc.opengameart.org/" target="_blank" rel="noopener noreferrer">Liberated Pixel Cup</a>
+        sprite collection, through the
+        <a href="https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator" target="_blank" rel="noopener noreferrer">Universal LPC Spritesheet Generator</a>
+        at revision <code>0f898bb675</code>.
+        37 people made the 215 pieces of art below, and all
+        37 are named here.
+      </p>
+      <p>
+        Waystation is not open source, so it cannot take art offered only under
+        the GPL. Every piece below is used under one of the other licences its
+        authors also offered it under: CC-BY, CC-BY 3.0, CC-BY 3.0+, CC-BY 4.0, CC-BY-SA 3.0, CC0, OGA-BY 3.0, OGA-BY 3.0+. The offers not taken, listed
+        so the choice is on the record: GPL 2.0, GPL 3.0, GPL 3.0+, OGA-SA 3.0.
+      </p>
+
+      <h3>Artists</h3>
+      <ul class="names">
+          <li>Ahmad3366</li>
+          <li>Barbara Riviera</li>
+          <li>Benjamin K. Smith (BenCreating)</li>
+          <li>bluecarrot16</li>
+          <li>Carlo Enrico Victoria (Nemisys)</li>
+          <li>Durrani</li>
+          <li>Eliza Wyatt (ElizaWy)</li>
+          <li>Emilio J. Sanchez-Sierra</li>
+          <li>Evert</li>
+          <li>Fabzy</li>
+          <li>JaidynReiman</li>
+          <li>Joe White</li>
+          <li>Johannes Sjölund (wulax)</li>
+          <li>kcilds/Rocetti/Eredah</li>
+          <li>kheftel</li>
+          <li>laetissima</li>
+          <li>Lanea Zimmerman (Sharm)</li>
+          <li>macmanmatty</li>
+          <li>Mandi Paugh</li>
+          <li>Manuel Riecke (MrBeast)</li>
+          <li>Marcel van de Steeg (MadMarcel)</li>
+          <li>Matthew Krohn (makrohn)</li>
+          <li>Michael Whitlock (bigbeargames)</li>
+          <li>MuffinElZangano</li>
+          <li>Napsio (Vitruvian Studio)</li>
+          <li>Nila122</li>
+          <li>Nyom</li>
+          <li>Page</li>
+          <li>Pierre Vigier (pvigier)</li>
+          <li>Radomir Dopieralski</li>
+          <li>Skorpio</li>
+          <li>Stephen Challener (Redshrike)</li>
+          <li>Thane Brimhall (pennomi)</li>
+          <li>thecilekli</li>
+          <li>TheraHedwig</li>
+          <li>William.Thompsonj</li>
+          <li>Yamilian</li>
+      </ul>
+
+      <h3>Piece by piece</h3>
+      <p>
+        <em>Used under</em> is the licence Waystation takes.
+        <em>Also offered</em> is the rest of what the authors offered.
+      </p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th>Art</th><th>Authors</th><th>Used under</th>
+              <th>Also offered</th><th>Where it came from</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>backpack/<wbr>backpack</code></td><td>Benjamin K. Smith (BenCreating), macmanmatty</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-backpacks" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>backpack/<wbr>squarepack</code></td><td>Benjamin K. Smith (BenCreating), macmanmatty</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-backpacks" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>beards/<wbr>beard/<wbr>5oclock_shadow</code></td><td>JaidynReiman, Thane Brimhall (pennomi), laetissima</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-base-character-expressions" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>beards/<wbr>beard/<wbr>basic</code></td><td>JaidynReiman, Carlo Enrico Victoria (Nemisys)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-white-beard" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>beards/<wbr>beard/<wbr>medium</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>beards/<wbr>beard/<wbr>trimmed</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>beards/<wbr>beard/<wbr>winter</code></td><td>bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-santa" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>beards/<wbr>mustache/<wbr>basic</code></td><td>JaidynReiman, Carlo Enrico Victoria (Nemisys)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-brunet-mustache" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>beards/<wbr>mustache/<wbr>bigstache</code></td><td>JaidynReiman, Thane Brimhall (pennomi), laetissima</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-base-character-expressions" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>beards/<wbr>mustache/<wbr>chevron</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>beards/<wbr>mustache/<wbr>horseshoe</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>beards/<wbr>mustache/<wbr>lampshade</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>beards/<wbr>mustache/<wbr>walrus</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>body/<wbr>bodies/<wbr>child</code></td><td>bluecarrot16, Benjamin K. Smith (BenCreating), ElizaWy, MuffinElZangano, Durrani, Nila122, kheftel, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-child-standing-template" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>body/<wbr>bodies/<wbr>female</code></td><td>Benjamin K. Smith (BenCreating), bluecarrot16, TheraHedwig, Evert, MuffinElZangano, Durrani, Pierre Vigier (pvigier), ElizaWy, Matthew Krohn (makrohn), Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>body/<wbr>bodies/<wbr>male</code></td><td>bluecarrot16, JaidynReiman, Benjamin K. Smith (BenCreating), Evert, Eliza Wyatt (ElizaWy), TheraHedwig, MuffinElZangano, Durrani, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>body/<wbr>bodies/<wbr>teen</code></td><td>bluecarrot16, Evert, TheraHedwig, Benjamin K. Smith (BenCreating), MuffinElZangano, Durrani, Pierre Vigier (pvigier), Eliza Wyatt (ElizaWy), Matthew Krohn (makrohn), Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>eyes/<wbr>eyebrows/<wbr>thick</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>eyes/<wbr>eyebrows/<wbr>thin</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>boots/<wbr>basic</code></td><td>JaidynReiman, bluecarrot16, Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-socks-shoes" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>boots/<wbr>basic/<wbr>thin</code></td><td>JaidynReiman, bluecarrot16, Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-socks-shoes" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>boots/<wbr>fold</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-kimono-relm" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-socks-shoes" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>boots/<wbr>revised</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>boots/<wbr>revised/<wbr>male</code></td><td>JaidynReiman, ElizaWy, Bluecarrot16, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-socks-shoes" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>boots/<wbr>rimmed</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-kimono-relm" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-socks-shoes" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>sandals</code></td><td>Nila122, JaidynReiman, Matthew Krohn (makrohn), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-roman-armor" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>shoes</code></td><td>JaidynReiman, bluecarrot16, Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>shoes/<wbr>basic/<wbr>thin</code></td><td>JaidynReiman, Joe White, Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>shoes/<wbr>revised</code></td><td>ElizaWy, JaidynReiman</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>shoes/<wbr>revised/<wbr>male</code></td><td>JaidynReiman, ElizaWy, Bluecarrot16, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-socks-shoes" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>shoes/<wbr>sara/<wbr>male</code></td><td>JaidynReiman, Bluecarrot16, Mandi Paugh, Stephen Challener (Redshrike), William.Thompsonj</td><td>OGA-BY 3.0, CC-BY 3.0+</td><td>GPL 2.0, GPL 3.0</td><td><a href="http://opengameart.org/content/sara-wizard" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-sara" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>feet/<wbr>shoes/<wbr>sara/<wbr>thin</code></td><td>JaidynReiman, Bluecarrot16, Mandi Paugh, Stephen Challener (Redshrike), William.Thompsonj</td><td>OGA-BY 3.0, CC-BY 3.0+</td><td>GPL 2.0, GPL 3.0</td><td><a href="http://opengameart.org/content/sara-wizard" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-sara" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>afro</code></td><td>bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>balding</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>bangs</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>bangs_bun</code></td><td>ElizaWy, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/blob/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>bangslong</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>bangslong2</code></td><td>JaidynReiman, Barbara Riviera, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/concept-art-for-lpc-entry" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>bangsshort</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>bedhead</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>bob</code></td><td>ElizaWy, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/blob/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>bob_side_part</code></td><td>thecilekli, bluecarrot16, ElizaWy</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-pink-short-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>braid</code></td><td>Nila122, ElizaWy</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0, GPL 2.0</td><td><a href="https://opengameart.org/content/3-hairs-for-lpc" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>braid2</code></td><td>Yamilian, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-heroine" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>bunches</code></td><td>JaidynReiman, Barbara Riviera, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/concept-art-for-lpc-entry" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>buzzcut</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>cornrows</code></td><td>ElizaWy, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/blob/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>cowlick</code></td><td>ElizaWy, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/blob/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>cowlick_tall</code></td><td>Fabzy, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>—</td><td><a href="https://opengameart.org/content/the-revolution-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>curls_large</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+</td><td>GPL 3.0+</td><td><a href="https://opengameart.org/content/lpc-expanded-xlong-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>curls_large_xlong</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+</td><td>GPL 3.0+</td><td><a href="https://opengameart.org/content/lpc-expanded-xlong-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>curly_long</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>curly_short</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>curly_short2</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>curtains</code></td><td>Mandi Paugh, bluecarrot16</td><td>CC-BY 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/star-overland" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>curtains_long</code></td><td>Mandi Paugh, bluecarrot16</td><td>CC-BY 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/trevor-overland" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>dreadlocks_long</code></td><td>bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>dreadlocks_short</code></td><td>ElizaWy, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/blob/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>extensions/<wbr>ponytails/<wbr>topknot_long</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-1-hairstyle-2-hair-extensions-3-previously-unofficially-released-hairstyles" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>extensions/<wbr>ponytails/<wbr>topknot_short</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-1-hairstyle-2-hair-extensions-3-previously-unofficially-released-hairstyles" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>flat_top_fade</code></td><td>ElizaWy, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/blob/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>flat_top_straight</code></td><td>ElizaWy, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/blob/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>half_up</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>halfmessy</code></td><td>Nila122, bluecarrot16</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0, GPL 2.0</td><td><a href="https://opengameart.org/content/more-lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>high_and_tight</code></td><td>Skorpio, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-skorpios-scifi-sprite-pack" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>high_ponytail</code></td><td>JaidynReiman, ElizaWy, bluecarrot16</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>jewfro</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-1-hairstyle-2-hair-extensions-3-previously-unofficially-released-hairstyles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/jrconway3/Universal-LPC-spritesheet/commit/46ddcf05a0e43e7aa6ffd47d350eef0eb529ac24" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>lob</code></td><td>bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>long</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>long_center_part</code></td><td>thecilekli, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-long-straight-hair-with-12-colors" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>long_messy</code></td><td>Mandi Paugh, bluecarrot16</td><td>CC-BY 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/puck-overland" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>long_messy2</code></td><td>Yamilian, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-heroine-2" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>long_straight</code></td><td>JaidynReiman, thecilekli, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-long-straight-hair-with-12-colors" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>loose</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>messy1</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>messy2</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>messy3</code></td><td>Fabzy, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>—</td><td><a href="https://opengameart.org/content/the-revolution-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>mop</code></td><td>Radomir Dopieralski, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/alternate-lpc-character-sprites-george" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>natural</code></td><td>ElizaWy, bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/blob/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>page</code></td><td>Page, Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>page2</code></td><td>JaidynReiman, ElizaWy, Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>parted</code></td><td>JaidynReiman, Joe White, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/jrconway3/Universal-LPC-spritesheet/commit/46ddcf05a0e43e7aa6ffd47d350eef0eb529ac24" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>parted2</code></td><td>Skorpio, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-skorpios-scifi-sprite-pack" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>parted3</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>parted_side_bangs</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-1-hairstyle-2-hair-extensions-3-previously-unofficially-released-hairstyles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/jrconway3/Universal-LPC-spritesheet/commit/46ddcf05a0e43e7aa6ffd47d350eef0eb529ac24" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>parted_side_bangs2</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-1-hairstyle-2-hair-extensions-3-previously-unofficially-released-hairstyles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/jrconway3/Universal-LPC-spritesheet/commit/46ddcf05a0e43e7aa6ffd47d350eef0eb529ac24" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>pigtails_bangs</code></td><td>Emilio J. Sanchez-Sierra, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/steampun-a-fy-with-concept-art" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>pixie</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>plain</code></td><td>JaidynReiman, Manuel Riecke (MrBeast), Joe White</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ponytail-and-plain-hairstyles" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>ponytail</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>ponytail2</code></td><td>JaidynReiman, Manuel Riecke (MrBeast), Joe White</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ponytail-and-plain-hairstyles" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>relm_ponytail</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-relm-hair-xlong-ponytail" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-xlong-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>relm_short</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-relm-hair-xlong-ponytail" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>relm_xlong</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-expanded-xlong-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>shoulderl</code></td><td>JaidynReiman, Lanea Zimmerman (Sharm), Manuel Riecke (MrBeast)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/jrconway3/Universal-LPC-spritesheet/commit/c32ce8a7edd9fc7fe7daa62a39cf64e5946020a2" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>shoulderr</code></td><td>JaidynReiman, Lanea Zimmerman (Sharm), Manuel Riecke (MrBeast)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/jrconway3/Universal-LPC-spritesheet/commit/c32ce8a7edd9fc7fe7daa62a39cf64e5946020a2" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>single</code></td><td>JaidynReiman, Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/3-hairs-for-lpc" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>spiked</code></td><td>kcilds/<wbr>Rocetti/<wbr>Eredah</td><td>CC-BY 4.0</td><td>—</td><td><a href="https://opengameart.org/content/eredah-rpg-character-base-48x64-ongoing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>spiked2</code></td><td>Fabzy, bluecarrot16</td><td>CC-BY-SA 3.0</td><td>—</td><td><a href="https://opengameart.org/content/the-revolution-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>swoop</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>swoop_side</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-1-hairstyle-2-hair-extensions-3-previously-unofficially-released-hairstyles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/jrconway3/Universal-LPC-spritesheet/commit/46ddcf05a0e43e7aa6ffd47d350eef0eb529ac24" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>twists_fade</code></td><td>bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>twists_straight</code></td><td>bluecarrot16</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>unkempt</code></td><td>JaidynReiman, Manuel Riecke (MrBeast)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>wavy</code></td><td>JaidynReiman, Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/3-hairs-for-lpc" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>wavy/<wbr>child</code></td><td>Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/3-hairs-for-lpc" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hair/<wbr>xlong</code></td><td>JaidynReiman, Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-xlong-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hair/<wbr>xlong_wavy</code></td><td>JaidynReiman, Nila122</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-expanded-xlong-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>hat/<wbr>cloth/<wbr>bandana</code></td><td>Matthew Krohn (makrohn), JaidynReiman, Marcel van de Steeg (MadMarcel), JaidynReiman</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/makrohn/Universal-LPC-spritesheet/commit/f50007cb47c235d8896cafae7a613f0b6a9a09a8?short_path=02b86d4#diff-02b86d45789a3e3e8e79519c7d17d15c9e6ecc9b4ddecb1bcd8dfbbaef430b75" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hat/<wbr>cloth/<wbr>bandana2</code></td><td>Napsio (Vitruvian Studio), JaidynReiman, Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Marcel van de Steeg (MadMarcel)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/makrohn/Universal-LPC-spritesheet/commit/f50007cb47c235d8896cafae7a613f0b6a9a09a8?short_path=02b86d4#diff-02b86d45789a3e3e8e79519c7d17d15c9e6ecc9b4ddecb1bcd8dfbbaef430b75" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hat/<wbr>cloth/<wbr>hijab</code></td><td>thecilekli</td><td>CC0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-hijab" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hats-facial-helmets" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hat/<wbr>cloth/<wbr>hood</code></td><td>Johannes Sjölund (wulax), JaidynReiman</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hats-facial-helmets" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hat/<wbr>cloth/<wbr>hood_sack/<wbr>adult</code></td><td>Nila122, JaidynReiman</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-lizard-headgear" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hats-facial-helmets" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hat/<wbr>headband/<wbr>thick</code></td><td>JaidynReiman</td><td>OGA-BY 3.0+, CC-BY 3.0+</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-relm-hair-xlong-ponytail" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hats-facial-helmets" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hat/<wbr>headband/<wbr>tied</code></td><td>Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-lizard-headgear" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-hats-facial-helmets" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>hat/<wbr>pirate/<wbr>kerchief</code></td><td>bluecarrot16, JaidynReiman, Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/more-lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-pirates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>elderly/<wbr>closed</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>elderly/<wbr>closing</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>elderly/<wbr>happy</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>elderly/<wbr>neutral</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>elderly/<wbr>sad</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>elderly/<wbr>shame</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>female/<wbr>closed</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>female/<wbr>closing</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>female/<wbr>happy</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>female/<wbr>neutral</code></td><td>JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>female/<wbr>sad</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>female/<wbr>shame</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>male/<wbr>closed</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>male/<wbr>closing</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>male/<wbr>happy</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>male/<wbr>neutral</code></td><td>JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>male/<wbr>sad</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>faces/<wbr>male/<wbr>shame</code></td><td>JaidynReiman, ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/ulpc-expanded-expressions" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>child</code></td><td>Stephen Challener (Redshrike), kheftel, bluecarrot16</td><td>OGA-BY 3.0, CC-BY 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-child-standing-template" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>elderly_small</code></td><td>ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY</td><td>—</td><td>—</td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>female</code></td><td>bluecarrot16, Benjamin K. Smith (BenCreating), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-character-bases" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>female_elderly</code></td><td>Benjamin K. Smith (BenCreating), Eliza Wyatt (ElizaWy), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-revised-elders" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>female_small</code></td><td>ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY</td><td>—</td><td>—</td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>male</code></td><td>bluecarrot16, Benjamin K. Smith (BenCreating), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-character-bases" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>male_elderly</code></td><td>Benjamin K. Smith (BenCreating), Eliza Wyatt (ElizaWy), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-revised-elders" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>male_gaunt</code></td><td>Stephen Challener (Redshrike), bluecarrot16</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-folk" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>heads/<wbr>human/<wbr>male_small</code></td><td>ElizaWy, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY</td><td>—</td><td>—</td></tr>
+            <tr><td><code>head/<wbr>nose/<wbr>big</code></td><td>Thane Brimhall (pennomi), laetissima, Matthew Krohn (makrohn)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-base-character-expressions" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>head/<wbr>nose/<wbr>button</code></td><td>Thane Brimhall (pennomi), laetissima, Matthew Krohn (makrohn)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-base-character-expressions" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>head/<wbr>nose/<wbr>elderly</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-revised-elders" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>head/<wbr>nose/<wbr>large</code></td><td>ElizaWy</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Head/Head%20Overlay%2001%20-%20Large%20Nose" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>head/<wbr>nose/<wbr>straight</code></td><td>Thane Brimhall (pennomi), laetissima, Matthew Krohn (makrohn)</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-base-character-expressions" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>head/<wbr>wrinkles</code></td><td>bluecarrot16</td><td>CC0</td><td>—</td><td>—</td></tr>
+            <tr><td><code>legs/<wbr>cuffed</code></td><td>ElizaWy, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>cuffed/<wbr>male</code></td><td>JaidynReiman, ElizaWy, Bluecarrot16, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>hose</code></td><td>ElizaWy, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>hose/<wbr>male</code></td><td>JaidynReiman, ElizaWy, bluecarrot16, JaidynReiman, ElizaWy, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-pants" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>leggings</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Mandi Paugh, William.Thompsonj, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/sara-wizard" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-sara" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>leggings/<wbr>male</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Mandi Paugh, William.Thompsonj, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-pants" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>leggings2</code></td><td>ElizaWy, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>leggings2/<wbr>male</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Mandi Paugh, William.Thompsonj, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-pants" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>pantaloons</code></td><td>Nila122, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-pirates" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/more-lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>pantaloons/<wbr>thin</code></td><td>Nila122, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-pirates" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/more-lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>pants/<wbr>child</code></td><td>Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-clothes-for-children" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>legs/<wbr>pants/<wbr>male</code></td><td>bluecarrot16, JaidynReiman, ElizaWy, Matthew Krohn (makrohn), Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>pants/<wbr>thin</code></td><td>bluecarrot16, JaidynReiman, ElizaWy, Joe White, Matthew Krohn (makrohn), Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>pants2</code></td><td>ElizaWy, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>pants2/<wbr>male</code></td><td>JaidynReiman, ElizaWy, Bluecarrot16, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>shorts/<wbr>shorts</code></td><td>ElizaWy, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>shorts/<wbr>shorts/<wbr>male</code></td><td>JaidynReiman, ElizaWy, Bluecarrot16, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-pants" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>legs/<wbr>skirts/<wbr>child</code></td><td>Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-clothes-for-children" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>legs/<wbr>skirts/<wbr>plain</code></td><td>bluecarrot16, Pierre Vigier (pvigier), Johannes Sjölund (wulax), Ahmad3366, JaidynReiman</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>legs/<wbr>skirts/<wbr>straight</code></td><td>bluecarrot16, ElizaWy</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>neck/<wbr>scarf</code></td><td>Nila122, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>CC-BY-SA 3.0</td><td>OGA-SA 3.0, GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/more-lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>torso/<wbr>aprons/<wbr>apron</code></td><td>Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-aprons" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>torso/<wbr>aprons/<wbr>apron_full</code></td><td>ElizaWy, bluecarrot16</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>torso/<wbr>aprons/<wbr>apron_half</code></td><td>ElizaWy, bluecarrot16</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>torso/<wbr>aprons/<wbr>overalls</code></td><td>ElizaWy, bluecarrot16, JaidynReiman</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>aprons/<wbr>suspenders</code></td><td>ElizaWy, JaidynReiman</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>blouse</code></td><td>bluecarrot16, ElizaWy, Lanea Zimmerman (Sharm)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-7-womens-shirts" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>blouse_longsleeve</code></td><td>bluecarrot16, ElizaWy, Lanea Zimmerman (Sharm)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-7-womens-shirts" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeve/<wbr>female</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-7-womens-shirts" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeve/<wbr>male</code></td><td>JaidynReiman, Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeve/<wbr>teen</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-teen-unisex-base-clothes" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeve2</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeve2_buttoned</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeve2_cardigan</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeve2_scoop</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeve2_vneck</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>longsleeves/<wbr>male</code></td><td>JaidynReiman, Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-medieval-fantasy-character-sprites" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>scoop/<wbr>female</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>longsleeve/<wbr>scoop/<wbr>male</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-clothing-updates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shirt/<wbr>child</code></td><td>Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-clothes-for-children" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shortsleeve/<wbr>shortsleeve/<wbr>female</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-7-womens-shirts" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shortsleeve/<wbr>shortsleeve/<wbr>male</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shortsleeve/<wbr>shortsleeve/<wbr>teen</code></td><td>Nyom, bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-7-womens-shirts" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shortsleeve/<wbr>shortsleeve_cardigan</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-expanded-sit-run-jump-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shortsleeve/<wbr>tshirt</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shortsleeve/<wbr>tshirt_buttoned</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shortsleeve/<wbr>tshirt_scoop</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>shortsleeve/<wbr>tshirt_vneck</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="https://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>sleeveless/<wbr>sleeveless/<wbr>female</code></td><td>ElizaWy, JaidynReiman, Matthew Krohn (makrohn), Marcel van de Steeg (MadMarcel), Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>sleeveless/<wbr>sleeveless/<wbr>male</code></td><td>bluecarrot16, Matthew Krohn (makrohn), JaidynReiman, Marcel van de Steeg (MadMarcel), Nila122, Johannes Sjölund (wulax), Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>sleeveless/<wbr>sleeveless1/<wbr>female</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-7-womens-shirts" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>sleeveless/<wbr>sleeveless1/<wbr>male</code></td><td>bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>sleeveless/<wbr>sleeveless1/<wbr>teen</code></td><td>Nyom, bluecarrot16, ElizaWy, JaidynReiman, Stephen Challener (Redshrike)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-7-womens-shirts" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>sleeveless/<wbr>sleeveless2</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>sleeveless/<wbr>sleeveless2_buttoned</code></td><td>ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/lpc-revised-character-basics" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>tunic</code></td><td>bluecarrot16, JaidynReiman, Matthew Krohn (makrohn), Marcel van de Steeg (MadMarcel), Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>clothes/<wbr>tunic_sara</code></td><td>Mandi Paugh, William.Thompsonj, Stephen Challener (Redshrike), Johannes Sjölund (wulax)</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/sara-wizard" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-sara" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>waist/<wbr>belt_double</code></td><td>bluecarrot16, Johannes Sjölund (wulax), Matthew Krohn (makrohn)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-combat-armor-for-women" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-pirates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>waist/<wbr>belt_leather</code></td><td>bluecarrot16, Johannes Sjölund (wulax), Matthew Krohn (makrohn)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-combat-armor-for-women" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-pirates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>waist/<wbr>belt_leather2</code></td><td>Johannes Sjölund (wulax), Matthew Krohn (makrohn)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-combat-armor-for-women" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+            <tr><td><code>torso/<wbr>waist/<wbr>belt_loose</code></td><td>bluecarrot16, Johannes Sjölund (wulax), Matthew Krohn (makrohn)</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-combat-armor-for-women" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-pirates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>waist/<wbr>sash</code></td><td>bluecarrot16, Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/more-lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-pirates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>waist/<wbr>sash_narrow</code></td><td>bluecarrot16, Nila122</td><td>OGA-BY 3.0, CC-BY-SA 3.0</td><td>GPL 2.0, GPL 3.0</td><td><a href="https://opengameart.org/content/more-lpc-clothes-and-hair" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-pirates" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>torso/<wbr>waist/<wbr>waistband</code></td><td>Bluecarrot16, Mandi Paugh, Stephen Challener (Redshrike), William.Thompsonj</td><td>OGA-BY 3.0</td><td>—</td><td><a href="http://opengameart.org/content/sara-wizard" target="_blank" rel="noopener noreferrer">source 1</a> <a href="https://opengameart.org/content/lpc-sara" target="_blank" rel="noopener noreferrer">source 2</a></td></tr>
+            <tr><td><code>weapon/<wbr>polearm/<wbr>cane</code></td><td>bluecarrot16</td><td>CC-BY-SA 3.0</td><td>GPL 3.0</td><td><a href="https://opengameart.org/content/lpc-gentleman" target="_blank" rel="noopener noreferrer">source</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="footnote">
+        This page is generated from the same records the art is built from, so
+        it cannot fall behind what the game actually ships.
+      </p>
+    </main>
+  </body>
+</html>

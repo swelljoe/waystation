@@ -1,4 +1,4 @@
-.PHONY: assets prints add-print print-art catalog wardrobe npcs bible-versions verses editor check test analyze build server server-live game web web-smoke publish-demo-assets deploy container run-container
+.PHONY: assets prints add-print print-art catalog wardrobe npcs bible-versions verses editor check test analyze build server server-live game about web web-smoke publish-demo-assets deploy container run-container
 
 assets:
 	python3 scripts/build-assets.py
@@ -91,7 +91,14 @@ server-live:
 game:
 	cargo run -p waystation-game
 
-web: assets
+# The credits page beside the game. Generated from the wardrobe's own credits
+# file and the audio manifest, so it cannot drift from the art it credits;
+# committed, so a build needs no extra step and CI can tell when it has gone
+# stale.
+about:
+	python3 scripts/build-about-page.py
+
+web: assets about
 	NO_COLOR=true trunk build --release
 
 # Looks at the game as well as exercising it: a Wayland session will not let a
