@@ -92,6 +92,8 @@ six-frame work layers; the remaining action rows stay available for farming,
 sitting, climbing, expression, and combat systems. The complete matrix is in
 [docs/LPC_ACTIONS.md](docs/LPC_ACTIONS.md).
 
+![Screenshot of procedurally generated NPCs](/static/npc-procgen.png)
+
 Travelers who arrive are generated rather than drawn, and composited in the
 running game rather than baked: humans only, in scavenged browns and tans, no
 armor and no weapon but the occasional cane. A waystation that keeps its fire
