@@ -102,8 +102,8 @@ state crops are derived works, several removes from the purchased sheets. The
 audio is not: five of the eight files in `runtime-assets/audio` carry
 `transcode: None` in `assets-manifest.json` and are byte-identical copies of the
 purchased downloads, including both full-length AndriiG tracks. AndriiG
-participates in YouTube Content ID. The manifest supports a `transcode` block —
-the rain beside them uses one — if that distinction ever needs closing.
+participates in YouTube Content ID, certificate for usage in YouTube videos
+is available from the artist's Pixabay when the time comes for that.
 
 The web shell links to the complete, revision-pinned Universal LPC Generator
 credits and license catalog for the Scribe sheet. The deliberately comprehensive
