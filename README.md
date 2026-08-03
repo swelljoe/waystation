@@ -346,6 +346,8 @@ is BSB, and that wording is what a player sees whenever the live path is
 unavailable. It is labelled English even when another language was requested:
 visible English beats English under a Spanish name.
 
+![Screenshot of the folio display with YouVersion translated verse](/static/translated-verse.png)
+
 Only Scripture is translated. The vignettes, the reflections, and the rest of
 the game are still English.
 
