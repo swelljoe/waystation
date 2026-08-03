@@ -6065,26 +6065,38 @@ fn sync_ui(
         }
     }
     if let Ok((mut image, mut node)) = overlay.card_art.single_mut() {
-        let showing = visit.and_then(|party| match party.stage {
-            VisitStage::Choosing => ui_knowledge
-                .collection
-                .on_hand()
-                .first()
-                .map(|print| print.art_path()),
-            VisitStage::Deciding => party
-                .given
-                .card
-                .as_deref()
-                .and_then(cards::print)
-                .map(cards::Print::art_path),
-            _ => None,
-        });
+        let showing = visit.and_then(|party| card_on_show(party, &ui_knowledge.collection));
         if let Some(path) = showing {
             image.image = asset_server.load(path);
             node.display = Display::Flex;
         } else {
             node.display = Display::None;
         }
+    }
+}
+
+/// The block held up beside the words, if any.
+///
+/// While the Scribe is still choosing, that is the one their hand went to —
+/// the same print the list marks — because a card is a picture of a verse and
+/// the wrong picture beside the passage reads as a mistake rather than as a
+/// choice not yet made. Once one has been handed over it is that one, right or
+/// wrong: the player picked it, and the screen should not soften that.
+fn card_on_show(party: &visitors::Party, collection: &Collection) -> Option<String> {
+    match party.stage {
+        VisitStage::Choosing => party
+            .need
+            .as_ref()
+            .and_then(|need| collection.suggestion_for(&need.need_id))
+            .or_else(|| collection.on_hand().first().copied())
+            .map(cards::Print::art_path),
+        VisitStage::Deciding => party
+            .given
+            .card
+            .as_deref()
+            .and_then(cards::print)
+            .map(cards::Print::art_path),
+        _ => None,
     }
 }
 
@@ -6918,6 +6930,56 @@ mod tests {
         folio.open_at_a_real_leaf(2);
         assert!(folio.is_open());
         assert_eq!(folio.index, 1);
+    }
+
+    /// A card is a picture of a verse, and the panel sits beside the passage
+    /// the visitor was answered with. Holding up whatever happened to be cut
+    /// first puts a print about strangers next to a reading about rest, which
+    /// a player reads as a mix-up rather than as a choice not yet made.
+    #[test]
+    fn the_block_held_up_while_choosing_is_the_one_the_hand_went_to() {
+        let mut party = party_at(VisitStage::Choosing);
+        let mut need = fixture_response("mara_grief").expect("a reviewed fixture");
+        need.need_id = "rest".to_owned();
+        party.need = Some(need);
+
+        let mut collection = Collection::default();
+        collection.restore(
+            vec!["early-hospitality".to_owned(), "early-rest".to_owned()],
+            Vec::new(),
+            cards::Tier::Monochrome,
+        );
+        assert_eq!(
+            collection.on_hand().first().map(|print| print.id.as_str()),
+            Some("early-hospitality"),
+            "the oldest block is what a panel ignoring the need would reach for"
+        );
+        assert_eq!(
+            card_on_show(&party, &collection),
+            Some("prints/early-rest-card.png".to_owned())
+        );
+
+        // Nothing on the theme to hand: the panel still shows a block rather
+        // than emptying out in the middle of a choice.
+        let mut nothing_fitting = Collection::default();
+        nothing_fitting.restore(
+            vec!["early-hospitality".to_owned()],
+            Vec::new(),
+            cards::Tier::Monochrome,
+        );
+        assert_eq!(
+            card_on_show(&party, &nothing_fitting),
+            Some("prints/early-hospitality-card.png".to_owned())
+        );
+
+        // Once it is out of the Scribe's hands the screen shows what was
+        // actually given, fitting or not. That was the player's call.
+        party.stage = VisitStage::Deciding;
+        party.given.card = Some("early-hospitality".to_owned());
+        assert_eq!(
+            card_on_show(&party, &collection),
+            Some("prints/early-hospitality-card.png".to_owned())
+        );
     }
 
     #[test]
