@@ -28,9 +28,10 @@ use tower_http::{
     validate_request::{ValidateRequest, ValidateRequestHeaderLayer},
 };
 use waystation_shared::{
-    candidates_for, fallback_version, fixture_reflection, fixture_response, passage,
-    valid_selection, version_by_id, version_for_language, vignette, BibleVersion, HealthResponse,
-    InterpretRequest, InterpretResponse, Passage, Provenance, ScriptureSource, DEFAULT_BIBLE_ID,
+    candidates_for, card_catalogue, card_print, fallback_version, fixture_reflection,
+    fixture_response, passage, valid_selection, version_by_id, version_for_language, vignette,
+    BibleVersion, CardPrint, CardRequest, CardResponse, HealthResponse, InterpretRequest,
+    InterpretResponse, Passage, Provenance, ScriptureSource, DEFAULT_BIBLE_ID,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -177,6 +178,11 @@ struct AppState {
     http: Client,
     token: Arc<Mutex<Option<CachedToken>>>,
     cache: Arc<RwLock<HashMap<String, InterpretResponse>>>,
+    /// Unlike a vignette, a card has exactly one right answer per translation:
+    /// the same phrase of the same verse, every time. So this one is read
+    /// through rather than kept for a rainy day — a second traveler reading
+    /// Spanish costs nothing.
+    cards: Arc<RwLock<HashMap<String, CardResponse>>>,
 }
 
 #[derive(Clone)]
@@ -194,6 +200,11 @@ struct TokenResponse {
 
 const fn default_token_lifetime() -> u64 {
     3_600
+}
+
+#[derive(Debug, Deserialize)]
+struct SpanSelection {
+    span: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -254,6 +265,7 @@ async fn main() -> anyhow::Result<()> {
             .build()?,
         token: Arc::new(Mutex::new(None)),
         cache: Arc::new(RwLock::new(HashMap::new())),
+        cards: Arc::new(RwLock::new(HashMap::new())),
     };
     let app = build_router(state);
     let listener = tokio::net::TcpListener::bind(address).await?;
@@ -278,6 +290,7 @@ fn build_router(state: AppState) -> Router {
     let static_files = ServeDir::new(state.config.static_dir.clone());
     let waystation = Router::new()
         .route("/api/interpret", post(interpret))
+        .route("/api/card", post(card))
         .route_service("/", ServeFile::new(index))
         .fallback_service(static_files);
     // Health is deliberately outside the gate. The platform's own checks carry no
@@ -377,6 +390,178 @@ async fn interpret(
             Ok(Json(response))
         }
     }
+}
+
+/// The most a block can hold, counted in characters rather than words because
+/// not every script has words in the sense a space would settle. A span longer
+/// than this would draw over the illustration, so it is refused and the card is
+/// handed over in the Scribe's own English instead — legible beats overflowing.
+const CARD_EXCERPT_LIMIT: usize = 96;
+
+/// The words for one card, in the language of whoever is being handed it.
+///
+/// The card is a physical thing with fixed words, so nothing here is composed:
+/// the answer is always a literal span of a published verse, either the English
+/// one already cut into the block or the matching span of the same verse in
+/// another translation. What cannot be verified is not sent.
+async fn card(
+    State(state): State<AppState>,
+    Json(request): Json<CardRequest>,
+) -> Result<Json<CardResponse>, ApiError> {
+    let print = card_print(&request.print_id)
+        .ok_or_else(|| anyhow!("unknown print id: {}", request.print_id))?;
+    let version = requested_version(&state, request.language.as_deref());
+    // Nothing to do for a reader of the edition the blocks were cut from, and
+    // nothing to do without the key that would fetch another one.
+    if state.config.mode == ApiMode::Fixture
+        || state.config.yvp_app_key.is_none()
+        || version.id == card_catalogue().translation.youversion_id
+    {
+        return Ok(Json(card_as_cut(print)));
+    }
+
+    let cache_key = format!("{}@{}", print.id, version.id);
+    // Bound before the branch: a read guard held across the branch body would
+    // still be alive when the miss path takes the write lock.
+    let known = state.cards.read().await.get(&cache_key).cloned();
+    if let Some(known) = known {
+        return Ok(Json(known));
+    }
+    match translated_card(&state, print, version).await {
+        Ok(response) => {
+            state
+                .cards
+                .write()
+                .await
+                .insert(cache_key, response.clone());
+            Ok(Json(response))
+        }
+        Err(error) => {
+            tracing::warn!(
+                %error,
+                print_id = print.id,
+                version = version.abbreviation,
+                "no verifiable span; handing the card over as it was cut"
+            );
+            Ok(Json(card_as_cut(print)))
+        }
+    }
+}
+
+/// The card exactly as it is printed. Labelled with the edition it was cut from,
+/// for the same reason `reviewed_passage` is: a Spanish reader is better served
+/// by visible English than by English under a Spanish name.
+fn card_as_cut(print: &'static CardPrint) -> CardResponse {
+    CardResponse {
+        print_id: print.id.clone(),
+        reference: print.reference.clone(),
+        excerpt: print.excerpt.clone(),
+        version: card_catalogue().translation.name.clone(),
+    }
+}
+
+async fn translated_card(
+    state: &AppState,
+    print: &'static CardPrint,
+    version: &'static BibleVersion,
+) -> anyhow::Result<CardResponse> {
+    let whole = fetch_passage(state, &print.passage_id, version).await?;
+    let excerpt = matching_span(state, print, &whole, version).await?;
+    Ok(CardResponse {
+        print_id: print.id.clone(),
+        reference: whole.reference,
+        excerpt,
+        version: version.abbreviation.clone(),
+    })
+}
+
+/// Which run of the published verse says what the block says.
+///
+/// A model is asked to point, never to write. Whatever comes back is held to
+/// being a literal contiguous span of the text that was sent, so the words on
+/// the card are the translators' own — a quotation, not a machine's rendering of
+/// Scripture. A model that paraphrases, corrects, or invents fails the check and
+/// the card falls back to English, which is a card nobody has to take on trust.
+async fn matching_span(
+    state: &AppState,
+    print: &'static CardPrint,
+    whole: &Passage,
+    version: &'static BibleVersion,
+) -> anyhow::Result<String> {
+    let token = access_token(state).await?;
+    let prompt = format!(
+        "Here is {reference} as published in {title}:\n\n{content}\n\nAn English \
+         edition of the same verse carries this phrase: \u{201c}{excerpt}\u{201d}\n\n\
+         Point at the shortest unbroken run of the text above that says what that \
+         phrase says. Copy it out exactly as it appears there, character for \
+         character, starting and ending at a word boundary. Do not translate, \
+         correct, reorder, shorten a word, or add punctuation that is not there. \
+         If no unbroken run of it carries that meaning, return an empty string.",
+        reference = whole.reference,
+        title = version.title,
+        content = whole.content,
+        excerpt = print.excerpt,
+    );
+    let body = json!({
+        "auto_routing": true,
+        "stream": false,
+        "temperature": 0.0,
+        "max_tokens": 220,
+        "messages": [
+            {"role": "system", "content": "Return the span by calling select_span exactly once. The span must be copied verbatim from the verse in the user message."},
+            {"role": "user", "content": prompt}
+        ],
+        "tools": [{
+            "type": "function",
+            "function": {
+                "name": "select_span",
+                "description": "Quote one unbroken run of the supplied verse.",
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["span"],
+                    "properties": {"span": {"type": "string"}}
+                }
+            }
+        }],
+        "tool_choice": "required"
+    });
+    let completion: Value = state
+        .http
+        .post("https://platform.ai.gloo.com/ai/v2/chat/completions")
+        .bearer_auth(token)
+        .json(&body)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let arguments = tool_arguments(&completion)?;
+    let offered: SpanSelection = serde_json::from_str(arguments)?;
+    verified_span(&whole.content, &offered.span).ok_or_else(|| {
+        anyhow!(
+            "{}: offered span is not a run of {} in {}",
+            print.id,
+            whole.reference,
+            version.abbreviation
+        )
+    })
+}
+
+/// The whole of the trust in this path, and deliberately small enough to read.
+///
+/// Quote marks a model wrapped around its answer are its own and come off; after
+/// that the text either occurs in the verse or it does not, and nothing that
+/// does not occur in the verse goes on a card.
+fn verified_span(whole: &str, offered: &str) -> Option<String> {
+    let span = offered
+        .trim()
+        .trim_matches(|mark| matches!(mark, '"' | '\u{201c}' | '\u{201d}'))
+        .trim();
+    if span.is_empty() || span.chars().count() > CARD_EXCERPT_LIMIT {
+        return None;
+    }
+    whole.contains(span).then(|| span.to_owned())
 }
 
 /// The translation a request asks for, or the reviewed English one.
@@ -807,6 +992,7 @@ mod tests {
             http: Client::new(),
             token: Arc::new(Mutex::new(None)),
             cache: Arc::new(RwLock::new(HashMap::new())),
+            cards: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -938,6 +1124,116 @@ mod tests {
             payload.provenance.scripture_source,
             ScriptureSource::Fixture
         );
+    }
+
+    /// The whole safety of a translated card. A model is asked to point at a
+    /// run of published text; anything that is not literally there is refused,
+    /// so no card can ever carry a machine's own wording of Scripture.
+    #[test]
+    fn only_words_that_are_literally_in_the_verse_can_go_on_a_card() {
+        const VERSE: &str = "Vengan a mí todos ustedes que están cansados y \
+                             agobiados, y yo les daré descanso.";
+
+        assert_eq!(
+            verified_span(VERSE, "yo les daré descanso"),
+            Some("yo les daré descanso".to_owned())
+        );
+        // A model that wrapped its answer in quotation marks still pointed at
+        // the right words.
+        assert_eq!(
+            verified_span(VERSE, " \u{201c}yo les daré descanso\u{201d} "),
+            Some("yo les daré descanso".to_owned())
+        );
+        // A paraphrase, a correction and a different translation are all the
+        // same failure: text nobody published.
+        for invented in [
+            "yo os daré descanso",
+            "Yo Les Daré Descanso",
+            "I will give you rest",
+            "",
+            "   ",
+        ] {
+            assert_eq!(verified_span(VERSE, invented), None, "{invented:?}");
+        }
+    }
+
+    /// A span long enough to draw over the illustration is no use on a card, and
+    /// a block cut by hand would not carry it either.
+    #[test]
+    fn a_span_too_long_to_cut_is_refused_like_any_other() {
+        let sprawling = "a ".repeat(CARD_EXCERPT_LIMIT);
+        let whole = format!("Before {sprawling} after");
+
+        assert!(verified_span(&whole, &sprawling).is_none());
+        assert!(verified_span(&whole, "Before").is_some());
+    }
+
+    async fn card_for(state: AppState, body: &str) -> CardResponse {
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/card")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_owned()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    /// Without a key to fetch another edition there is nothing to choose from,
+    /// so the card goes over as it was cut — under the name of the edition it
+    /// was cut from, never under a Spanish one.
+    #[tokio::test]
+    async fn a_card_nobody_can_translate_is_handed_over_as_it_was_cut() {
+        let payload = card_for(
+            state_with(ApiMode::Fixture, None),
+            r#"{"print_id":"early-hospitality","language":"es"}"#,
+        )
+        .await;
+
+        let cut = card_print("early-hospitality").expect("a catalogued card");
+        assert_eq!(payload.excerpt, cut.excerpt);
+        assert_eq!(payload.reference, cut.reference);
+        assert_eq!(payload.version, card_catalogue().translation.name);
+    }
+
+    /// An English reader is asking for the words already on the block, so
+    /// nothing is fetched and nothing is chosen.
+    #[tokio::test]
+    async fn a_card_in_its_own_edition_costs_nothing_to_answer() {
+        let payload = card_for(
+            state_with(ApiMode::Live, Some("test-key")),
+            r#"{"print_id":"early-rest","language":"en"}"#,
+        )
+        .await;
+
+        assert_eq!(payload.excerpt, "I will give you rest");
+        assert_eq!(payload.version, card_catalogue().translation.name);
+    }
+
+    /// The catalogue is the whole of what can be asked for. A server that
+    /// fetched any reference it was handed would be a public proxy to somebody
+    /// else's licensed text, on our key.
+    #[tokio::test]
+    async fn a_card_that_was_never_cut_is_not_a_way_to_ask_for_a_verse() {
+        let response = build_router(state_with(ApiMode::Live, Some("test-key")))
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/card")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"print_id":"JHN.3.16","language":"es"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
     }
 
     fn gated_state() -> AppState {

@@ -36,7 +36,8 @@ use serde::{Deserialize, Serialize};
 use terrain::{MAP_HALF_HEIGHT, MAP_HALF_WIDTH};
 use visitors::{Stage as VisitStage, Visitors};
 use waystation_shared::{
-    fixture_response, InterpretRequest, InterpretResponse, DEFAULT_BIBLE_ABBREVIATION,
+    fixture_response, CardRequest, CardResponse, InterpretRequest, InterpretResponse,
+    DEFAULT_BIBLE_ABBREVIATION,
 };
 
 const PLAYER_SPEED: f32 = 210.0;
@@ -281,6 +282,7 @@ fn install_resources(app: &mut App) -> &mut App {
         .insert_resource(UiScale(DEVELOPMENT_PRESENTATION_SCALE))
         .insert_resource(Journal::at_arrival())
         .insert_resource(InterpretInbox::default())
+        .init_resource::<CardWords>()
         .init_resource::<Clock>()
         .init_resource::<Chance>()
         .init_resource::<Visitors>()
@@ -378,9 +380,9 @@ fn run_game() {
                 update_nearby_interaction,
                 (handle_portfolio_input, handle_tool_hotkeys).chain(),
                 handle_visit_input,
-                poll_interpretation,
+                (poll_interpretation, poll_card_words),
                 sync_ui,
-                (sync_narrative_popup_ui, sync_portfolio_ui).chain(),
+                (sync_narrative_popup_ui, sync_portfolio_ui, letter_cards).chain(),
                 save_story,
             )
                 .chain(),
@@ -912,7 +914,16 @@ struct OverlayWidgets<'w, 's> {
     // The slot is emptied out of the layout rather than merely hidden. A hidden
     // node still holds its place, which on the screens carrying no art would
     // leave a card-shaped gap beside the words.
-    card_art: Query<'w, 's, (&'static mut ImageNode, &'static mut Node), With<CardArt>>,
+    card_art: Query<
+        'w,
+        's,
+        (
+            &'static mut ImageNode,
+            &'static mut Node,
+            &'static mut LetteredCard,
+        ),
+        With<CardArt>,
+    >,
     prompt_panel: Query<'w, 's, &'static mut Visibility, (With<PromptPanel>, Without<OverlayRoot>)>,
 }
 
@@ -1031,6 +1042,35 @@ const CARD_ASPECT: f32 = 512.0 / 768.0;
 /// What a card slot holds before it has been told which print to draw. It is
 /// never on screen: both slots start with their `Display` off.
 const CARD_PLACEHOLDER_PATH: &str = "card/illustration_1_1.png";
+
+/// Where the words sit on a card, as shares of it rather than pixels.
+///
+/// These mirror the panel `scripts/build-print-cards.py` leaves blank, so a card
+/// lettered here at runtime and one lettered at build time put their words in
+/// the same place at the same size. A card is one object; a player who reads
+/// Spanish should not be holding a visibly different one.
+const CARD_PANEL_TOP: f32 = 557.0 / 768.0;
+const CARD_PANEL_BOTTOM: f32 = 733.0 / 768.0;
+const CARD_PANEL_MARGIN: f32 = 42.0 / 512.0;
+const CARD_VERSE_SHARE: f32 = 30.0 / 768.0;
+const CARD_REFERENCE_SHARE: f32 = 21.0 / 768.0;
+/// The ink `build-print-cards.py` prints with.
+const CARD_INK: Color = Color::srgb(20.0 / 255.0, 19.0 / 255.0, 15.0 / 255.0);
+
+/// A card-shaped widget and the words currently on it.
+///
+/// Empty means the composed card is being shown and already carries its own
+/// words. Anything else is a card whose panel was left blank for exactly this.
+#[derive(Component, Default)]
+struct LetteredCard {
+    verse: String,
+    reference: String,
+}
+
+/// Which card-shaped widget a run of type belongs to. Both the visit overlay and
+/// the folio show cards, and one system letters either.
+#[derive(Component)]
+struct CardTextOf(Entity);
 
 /// How much of the overlay a card takes across. The web shell stretches the
 /// canvas to whatever window it is given, so the space these panels are laid
@@ -1448,6 +1488,85 @@ type InboxValue = Option<Result<InterpretResponse, String>>;
 
 #[derive(Resource, Clone, Default)]
 struct InterpretInbox(Arc<Mutex<InboxValue>>);
+
+/// What each card says, for a player who does not read the edition it was cut
+/// from.
+///
+/// A card is asked about the first time it is looked at rather than all twelve
+/// at once: a playthrough looks at few of them, and each answer is one call the
+/// server will not have to make again for anybody. Until an answer arrives the
+/// composed English card is shown, so the wait costs a translation and never a
+/// card.
+#[derive(Resource, Default)]
+struct CardWords {
+    known: HashMap<String, CardResponse>,
+    asked: std::collections::HashSet<String>,
+    inbox: Arc<Mutex<Vec<CardResponse>>>,
+}
+
+impl CardWords {
+    /// The words for a card, asking for them if this is the first time anyone
+    /// has looked at it. `None` means the card says what is printed on it.
+    fn look_at(&mut self, print: &cards::Print) -> Option<&CardResponse> {
+        if !self.asked.contains(&print.id) {
+            self.asked.insert(print.id.clone());
+            ask_for_card_words(&print.id, &self.inbox);
+        }
+        self.known.get(&print.id)
+    }
+}
+
+/// The words for one card, in whatever language the player reads.
+///
+/// Nothing is done with a failure. A card that cannot be translated is a card
+/// that stays in English, which is what is already on screen — so there is
+/// nothing to report and nobody to report it to.
+fn ask_for_card_words(print_id: &str, inbox: &Arc<Mutex<Vec<CardResponse>>>) {
+    let Some(language) = player_language() else {
+        return;
+    };
+    let request = CardRequest {
+        print_id: print_id.to_owned(),
+        language: Some(language),
+    };
+    let Ok(body) = serde_json::to_vec(&request) else {
+        return;
+    };
+    let inbox = Arc::clone(inbox);
+    let mut request = ehttp::Request::post(api_url("/api/card"), body);
+    request.headers = ehttp::Headers::new(&[
+        ("Accept", "application/json"),
+        ("Content-Type", "application/json"),
+    ]);
+    ehttp::fetch(request, move |response| {
+        let Ok(response) = response else {
+            return;
+        };
+        if !response.ok {
+            return;
+        }
+        if let Ok(words) = serde_json::from_slice::<CardResponse>(&response.bytes) {
+            if let Ok(mut slot) = inbox.lock() {
+                slot.push(words);
+            }
+        }
+    });
+}
+
+fn poll_card_words(mut words: ResMut<CardWords>) {
+    let Some(arrived) = words
+        .inbox
+        .lock()
+        .ok()
+        .map(|mut slot| std::mem::take(&mut *slot))
+        .filter(|arrived| !arrived.is_empty())
+    else {
+        return;
+    };
+    for card in arrived {
+        words.known.insert(card.print_id.clone(), card);
+    }
+}
 
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::too_many_arguments)]
@@ -2869,6 +2988,45 @@ fn load_ui_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 }
 
+/// The empty panel on a card, ready to be lettered.
+///
+/// Nothing is written here and no size is set: `letter_cards` does both, because
+/// how large a card is on screen is not known until the window it is being drawn
+/// in has been laid out. Both runs of type are absolutely positioned over the
+/// blank the composite leaves, so they land where the printed words would have.
+fn spawn_card_panel(card: &mut EntityCommands, fonts: &UiFonts) {
+    let owner = card.id();
+    card.with_children(|slot| {
+        slot.spawn(Node {
+            position_type: PositionType::Absolute,
+            top: Val::Percent(CARD_PANEL_TOP * 100.0),
+            bottom: Val::Percent((1.0 - CARD_PANEL_BOTTOM) * 100.0),
+            left: Val::Percent(CARD_PANEL_MARGIN * 100.0),
+            right: Val::Percent(CARD_PANEL_MARGIN * 100.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        })
+        .with_children(|panel| {
+            panel
+                .spawn((
+                    Text::new(""),
+                    fonts.roman(1.0),
+                    TextColor(CARD_INK),
+                    TextLayout::new_with_justify(Justify::Center),
+                    CardTextOf(owner),
+                ))
+                .with_child((
+                    TextSpan::new(String::new()),
+                    fonts.roman(1.0),
+                    TextColor(CARD_INK),
+                    CardTextOf(owner),
+                ));
+        });
+    });
+}
+
 #[allow(clippy::too_many_lines)]
 fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<UiFonts>) {
     terrain::spawn_debug_legend(&mut commands);
@@ -3029,7 +3187,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                     ..default()
                 })
                 .with_children(|row| {
-                    row.spawn((
+                    let mut card = row.spawn((
                         ImageNode::new(asset_server.load(CARD_PLACEHOLDER_PATH)),
                         Node {
                             display: Display::None,
@@ -3039,7 +3197,9 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                             ..default()
                         },
                         CardArt,
+                        LetteredCard::default(),
                     ));
+                    spawn_card_panel(&mut card, &fonts);
                     row.spawn(Node {
                         flex_grow: 1.0,
                         flex_basis: Val::Px(0.0),
@@ -3182,7 +3342,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                     // A card is taller than it is wide and the window is not, so
                     // the height it can have is settled first and the width
                     // follows from the shape rather than the other way round.
-                    panel.spawn((
+                    let mut card = panel.spawn((
                         ImageNode::new(asset_server.load(CARD_PLACEHOLDER_PATH)),
                         Node {
                             display: Display::None,
@@ -3192,7 +3352,9 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, fonts: Res<U
                             ..default()
                         },
                         PortfolioArt,
+                        LetteredCard::default(),
                     ));
+                    spawn_card_panel(&mut card, &fonts);
                     panel
                         .spawn(Node {
                             width: Val::Percent(FOLIO_TEXT_SHARE),
@@ -5830,6 +5992,7 @@ fn sync_ui(
     ui_knowledge: UiKnowledge,
     nearby: Res<Nearby>,
     asset_server: Res<AssetServer>,
+    mut card_words: ResMut<CardWords>,
     interactables: Query<&Interactable>,
     interaction_details: Query<(
         Option<&AuthoredInteractionLabel>,
@@ -6064,14 +6227,16 @@ fn sync_ui(
             **text = content;
         }
     }
-    if let Ok((mut image, mut node)) = overlay.card_art.single_mut() {
+    if let Ok((mut image, mut node, mut lettering)) = overlay.card_art.single_mut() {
         let showing = visit.and_then(|party| card_on_show(party, &ui_knowledge.collection));
-        if let Some(path) = showing {
-            image.image = asset_server.load(path);
-            node.display = Display::Flex;
-        } else {
-            node.display = Display::None;
-        }
+        dress_card_slot(
+            showing,
+            &mut card_words,
+            &asset_server,
+            &mut image,
+            &mut node,
+            &mut lettering,
+        );
     }
 }
 
@@ -6082,21 +6247,104 @@ fn sync_ui(
 /// the wrong picture beside the passage reads as a mistake rather than as a
 /// choice not yet made. Once one has been handed over it is that one, right or
 /// wrong: the player picked it, and the screen should not soften that.
-fn card_on_show(party: &visitors::Party, collection: &Collection) -> Option<String> {
+fn card_on_show(party: &visitors::Party, collection: &Collection) -> Option<&'static cards::Print> {
     match party.stage {
         VisitStage::Choosing => party
             .need
             .as_ref()
             .and_then(|need| collection.suggestion_for(&need.need_id))
-            .or_else(|| collection.on_hand().first().copied())
-            .map(cards::Print::art_path),
-        VisitStage::Deciding => party
-            .given
-            .card
-            .as_deref()
-            .and_then(cards::print)
-            .map(cards::Print::art_path),
+            .or_else(|| collection.on_hand().first().copied()),
+        VisitStage::Deciding => party.given.card.as_deref().and_then(cards::print),
         _ => None,
+    }
+}
+
+/// Puts one print into a card-shaped slot, or empties the slot out.
+///
+/// The composed card is the card: it carries its own words, cut at the same size
+/// and set in the same place. It is only set aside for a player reading another
+/// language, and then only once that language's words have actually arrived —
+/// so a slow answer shows the English card rather than a blank one.
+fn dress_card_slot(
+    print: Option<&'static cards::Print>,
+    words: &mut CardWords,
+    asset_server: &AssetServer,
+    image: &mut ImageNode,
+    node: &mut Node,
+    lettering: &mut LetteredCard,
+) {
+    let Some(print) = print else {
+        node.display = Display::None;
+        return;
+    };
+    node.display = Display::Flex;
+    let (path, face) = card_face(print, words.look_at(print));
+    image.image = asset_server.load(path);
+    *lettering = face;
+}
+
+/// Which of a print's two composites to show, and what has to be set on it.
+///
+/// Separated from the widget because this is the whole of the decision and none
+/// of it needs Bevy: given a card and whatever the server has said about it, the
+/// answer is either the printed card or the blank plus a run of type.
+fn card_face(print: &cards::Print, words: Option<&CardResponse>) -> (String, LetteredCard) {
+    match words {
+        // The same words the block already carries — which is what an English
+        // reader gets, and what any card the server could not translate gets.
+        // Lettering those by hand over a blank would only render them worse.
+        Some(words) if words.excerpt != print.verse => (
+            print.blank_path(),
+            LetteredCard {
+                verse: words.excerpt.clone(),
+                reference: words.reference.clone(),
+            },
+        ),
+        _ => (print.art_path(), LetteredCard::default()),
+    }
+}
+
+/// Sets the words on any card whose panel was left blank.
+///
+/// The size has to be measured rather than chosen: the web shell stretches the
+/// canvas to whatever window it is given, so a card is a different number of
+/// pixels tall in every session. Taking it from the laid-out card keeps runtime
+/// type the same size relative to the block as the printed type is.
+fn letter_cards(
+    cards: Query<(Entity, &ComputedNode, &LetteredCard)>,
+    mut verses: Query<(&mut Text, &mut TextFont, &CardTextOf), Without<TextSpan>>,
+    mut references: Query<(&mut TextSpan, &mut TextFont, &CardTextOf), Without<Text>>,
+) {
+    for (entity, computed, lettering) in &cards {
+        // A slot that is out of the layout measures nothing, and type of no size
+        // is not something to ask a font atlas for. It gets a real size on the
+        // first frame it is actually on screen.
+        let height = computed.size.y.max(1.0);
+        for (mut text, mut font, owner) in &mut verses {
+            if owner.0 != entity {
+                continue;
+            }
+            if **text != lettering.verse {
+                (**text).clone_from(&lettering.verse);
+            }
+            font.font_size = height * CARD_VERSE_SHARE;
+        }
+        for (mut span, mut font, owner) in &mut references {
+            if owner.0 != entity {
+                continue;
+            }
+            // Only when there is a verse above it: a lone reference floating on a
+            // composed card would be the same words printed twice.
+            let wanted = if lettering.verse.is_empty() {
+                String::new()
+            } else {
+                format!("\n{}", lettering.reference)
+            };
+            if **span != wanted {
+                **span = wanted;
+            }
+            font.font_size = height * CARD_REFERENCE_SHARE;
+        }
     }
 }
 
@@ -6278,7 +6526,16 @@ fn handle_portfolio_input(
 #[derive(SystemParam)]
 struct PortfolioWidgets<'w, 's> {
     root: Query<'w, 's, &'static mut Visibility, With<PortfolioRoot>>,
-    art: Query<'w, 's, (&'static mut ImageNode, &'static mut Node), With<PortfolioArt>>,
+    art: Query<
+        'w,
+        's,
+        (
+            &'static mut ImageNode,
+            &'static mut Node,
+            &'static mut LetteredCard,
+        ),
+        With<PortfolioArt>,
+    >,
     caption: Query<'w, 's, &'static mut Text, (With<PortfolioCaption>, Without<PortfolioTally>)>,
     tally: Query<'w, 's, &'static mut Text, (With<PortfolioTally>, Without<PortfolioCaption>)>,
 }
@@ -6287,6 +6544,7 @@ fn sync_portfolio_ui(
     portfolio: Res<Portfolio>,
     collection: Res<Collection>,
     asset_server: Res<AssetServer>,
+    mut card_words: ResMut<CardWords>,
     mut widgets: PortfolioWidgets,
 ) {
     if let Ok(mut visibility) = widgets.root.single_mut() {
@@ -6301,13 +6559,15 @@ fn sync_portfolio_ui(
     }
     let cut = collection.made();
     let showing = cut.get(portfolio.index).and_then(|id| cards::print(id));
-    if let Ok((mut image, mut node)) = widgets.art.single_mut() {
-        if let Some(print) = showing {
-            image.image = asset_server.load(print.art_path());
-            node.display = Display::Flex;
-        } else {
-            node.display = Display::None;
-        }
+    if let Ok((mut image, mut node, mut lettering)) = widgets.art.single_mut() {
+        dress_card_slot(
+            showing,
+            &mut card_words,
+            &asset_server,
+            &mut image,
+            &mut node,
+            &mut lettering,
+        );
     }
     if let Ok(mut text) = widgets.caption.single_mut() {
         **text = showing.map_or_else(
@@ -6955,8 +7215,8 @@ mod tests {
             "the oldest block is what a panel ignoring the need would reach for"
         );
         assert_eq!(
-            card_on_show(&party, &collection),
-            Some("prints/early-rest-card.png".to_owned())
+            card_on_show(&party, &collection).map(|print| print.id.as_str()),
+            Some("early-rest")
         );
 
         // Nothing on the theme to hand: the panel still shows a block rather
@@ -6968,8 +7228,8 @@ mod tests {
             cards::Tier::Monochrome,
         );
         assert_eq!(
-            card_on_show(&party, &nothing_fitting),
-            Some("prints/early-hospitality-card.png".to_owned())
+            card_on_show(&party, &nothing_fitting).map(|print| print.id.as_str()),
+            Some("early-hospitality")
         );
 
         // Once it is out of the Scribe's hands the screen shows what was
@@ -6977,8 +7237,8 @@ mod tests {
         party.stage = VisitStage::Deciding;
         party.given.card = Some("early-hospitality".to_owned());
         assert_eq!(
-            card_on_show(&party, &collection),
-            Some("prints/early-hospitality-card.png".to_owned())
+            card_on_show(&party, &collection).map(|print| print.id.as_str()),
+            Some("early-hospitality")
         );
     }
 
@@ -7153,7 +7413,97 @@ mod tests {
                 "{} has no composed card; run `make assets`",
                 print.id
             );
+            // The unlettered one too: without it a player reading Spanish is
+            // handed a card with nothing on it at all.
+            let blank = std::path::Path::new("runtime-assets").join(print.blank_path());
+            assert!(
+                blank.is_file(),
+                "{} has no blank to letter; run `make prints && make assets`",
+                print.id
+            );
         }
+    }
+
+    /// The composed card is the card. It is only set aside when words have
+    /// actually arrived in another language — a slow answer, a failed one, or a
+    /// server that handed back the English shows the printed card, never a blank
+    /// one.
+    /// A card's verse and its reference are one text block set in two sizes, so
+    /// lettering it means writing through two queries that both reach for
+    /// `TextFont`. Running the real system against a real world is the only
+    /// thing here that exercises that at all: everything else about this path is
+    /// a pure function, and a system that will not run is a card that stays
+    /// blank on a player's machine and nowhere else.
+    #[test]
+    fn lettering_a_card_writes_both_runs_of_type() {
+        let mut world = World::new();
+        let card = world
+            .spawn((
+                ComputedNode::default(),
+                LetteredCard {
+                    verse: "yo les daré descanso".to_owned(),
+                    reference: "Mateo 11:28".to_owned(),
+                },
+            ))
+            .id();
+        let verse = world
+            .spawn((
+                Text::new(String::new()),
+                TextFont::default(),
+                CardTextOf(card),
+            ))
+            .id();
+        let reference = world
+            .spawn((
+                TextSpan::new(String::new()),
+                TextFont::default(),
+                CardTextOf(card),
+            ))
+            .id();
+
+        // Running it is what proves the borrows: a conflicting pair panics here
+        // rather than at compile time.
+        let mut schedule = Schedule::default();
+        schedule.add_systems(letter_cards);
+        schedule.run(&mut world);
+
+        assert_eq!(
+            world.get::<Text>(verse).map(|text| text.0.clone()),
+            Some("yo les daré descanso".to_owned())
+        );
+        assert_eq!(
+            world.get::<TextSpan>(reference).map(|span| span.0.clone()),
+            Some("\nMateo 11:28".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_card_is_only_left_blank_once_there_is_something_else_to_put_on_it() {
+        let print = cards::print("early-rest").expect("a catalogued card");
+        let answered = |reference: &str, excerpt: &str| CardResponse {
+            print_id: print.id.clone(),
+            reference: reference.to_owned(),
+            excerpt: excerpt.to_owned(),
+            version: DEFAULT_BIBLE_ABBREVIATION.to_owned(),
+        };
+
+        // Nothing has come back yet, so the printed card stands.
+        let (path, face) = card_face(print, None);
+        assert_eq!(path, print.art_path());
+        assert!(face.verse.is_empty() && face.reference.is_empty());
+
+        // The server handed back the English already cut into the block —
+        // because the player reads English, or because no span could be
+        // verified. Either way there is nothing to letter.
+        let english = answered(&print.reference, &print.verse);
+        assert_eq!(card_face(print, Some(&english)).0, print.art_path());
+
+        // A translation is something else to put on it.
+        let spanish = answered("Mateo 11:28", "yo les daré descanso");
+        let (path, face) = card_face(print, Some(&spanish));
+        assert_eq!(path, print.blank_path());
+        assert_eq!(face.verse, "yo les daré descanso");
+        assert_eq!(face.reference, "Mateo 11:28");
     }
 
     #[test]

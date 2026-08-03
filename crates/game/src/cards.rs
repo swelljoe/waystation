@@ -54,6 +54,7 @@ struct PrintDefinition {
     title: String,
     theme: String,
     reference: String,
+    passage_id: String,
     verse: String,
     #[serde(default)]
     stage: String,
@@ -69,7 +70,18 @@ pub struct Print {
     pub id: String,
     pub title: String,
     pub theme: String,
+    /// The reference as it is cut into the block, in the Scribe's own English.
     pub reference: String,
+    /// The same place, as the API names it. A traveler who reads another
+    /// language is handed this verse in theirs, and `HEB.13.2` is what asks for
+    /// it; `Hebrews 13:2` is a thing only an English reader can look up.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "read once a card can be asked for in a language")
+    )]
+    pub passage_id: String,
+    /// A phrase of the verse, never the whole of it — see the excerpt rule in
+    /// `scripts/fetch-verses.py`.
     pub verse: String,
     pub tier: Tier,
 }
@@ -78,6 +90,12 @@ impl Print {
     /// Where the composed card lives in the runtime tree.
     pub fn art_path(&self) -> String {
         format!("prints/{}-card.png", self.id)
+    }
+
+    /// The same card with its panel still empty, for when the words have to be
+    /// set in a language the block was not cut in.
+    pub fn blank_path(&self) -> String {
+        format!("prints/{}-blank.png", self.id)
     }
 }
 
@@ -97,6 +115,7 @@ pub fn prints() -> &'static [Print] {
                 title: definition.title,
                 theme: definition.theme,
                 reference: definition.reference,
+                passage_id: definition.passage_id,
                 verse: definition.verse,
             })
             .collect()
@@ -253,6 +272,36 @@ mod tests {
                 print.art_path().starts_with("prints/"),
                 "{} points outside the runtime print tree",
                 print.id
+            );
+        }
+    }
+
+    /// Every card is a phrase somebody cut out of a verse on purpose. The
+    /// length is the whole point: a block cut by hand carries a few words, and
+    /// a panel that only just holds the English has nowhere to put a
+    /// translation that runs longer — which most of them do.
+    #[test]
+    fn every_card_holds_a_phrase_and_knows_which_verse_it_came_out_of() {
+        for print in prints() {
+            let words = print.verse.split_whitespace().count();
+            assert!(
+                words <= 8,
+                "{} carries {words} words; a card holds a phrase",
+                print.id
+            );
+            let mut parts = print.passage_id.split('.');
+            let book = parts.next().unwrap_or_default();
+            assert!(
+                book.len() == 3 && book.chars().all(|mark| mark.is_ascii_alphanumeric()),
+                "{} has no book in {:?}",
+                print.id,
+                print.passage_id
+            );
+            assert!(
+                parts.clone().count() == 2 && parts.all(|number| number.parse::<u16>().is_ok()),
+                "{} is not a chapter and verse: {:?}",
+                print.id,
+                print.passage_id
             );
         }
     }

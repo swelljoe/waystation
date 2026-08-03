@@ -12,6 +12,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from bible_reference import usfm
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "content" / "prints.json"
@@ -63,11 +65,21 @@ def make_entry(
     stage: str = "early_monochrome",
     note: str | None = None,
 ) -> dict[str, str]:
+    # A card carries a phrase, and the id of the whole verse it was cut out of:
+    # the reference is for the reader, the id is what asks for that verse in a
+    # language the reader can read.
+    verse_id, part = usfm(reference)
+    if part is not None:
+        raise ValueError(
+            f"{reference}: cite the verse a card quotes from, not half of it — "
+            "the excerpt is the `verse` field"
+        )
     entry = {
         "id": print_id,
         "title": title,
         "theme": theme,
         "reference": reference,
+        "passage_id": verse_id,
         "verse": verse,
         "art": f"assets/prints/{print_id}-art.png",
         "card": f"assets/prints/{print_id}-card.png",

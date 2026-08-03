@@ -1212,6 +1212,23 @@ def write_print_cards(source: Path, output: Path) -> list[dict[str, object]]:
                 "source": origin,
             }
         )
+        # The unlettered composite goes with it. A card handed to somebody who
+        # does not read English has to be lettered at runtime, and there is no
+        # talking a PNG out of the words already in it.
+        blank_source = ROOT / entry["card"].replace("-card.png", "-blank.png")
+        if not blank_source.is_file():
+            continue
+        blank_destination = prints / f"{entry['id']}-blank.png"
+        blank = Image.open(blank_source).convert("RGBA")
+        blank.save(blank_destination, optimize=False)
+        records.append(
+            {
+                "path": str(blank_destination.relative_to(output)),
+                "sha256": sha256(blank_destination),
+                "size": list(blank.size),
+                "source": "print card with its panel left for runtime lettering",
+            }
+        )
     return records
 
 

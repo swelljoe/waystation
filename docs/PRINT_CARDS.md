@@ -34,20 +34,51 @@ returned. `make verses VERSION=ASV` changes translation; anything in
 
 Two things it will not do quietly:
 
-- **Partial references.** `Matthew 12:20a` names half a verse and the API only
-  serves whole ones. Where the verse divides into sentences the matching
-  sentence is taken. Where it does not — Matthew 12:20 is a single sentence —
-  the whole verse is written and reported for a human to cut. That cut is then
-  preserved across reruns, because a stored excerpt that is a literal span of
-  the fetched verse is treated as reviewed. Text from a different translation is
-  not a span of it, so switching versions correctly discards the old excerpt and
-  asks again.
+- **Excerpts.** A card carries a phrase — a few words, the way a block cut by
+  hand does — and the API serves whole verses, so every card's wording is a
+  literal contiguous span of one, chosen by a person. That cut is preserved
+  across reruns, because a stored excerpt that is a span of the fetched verse is
+  treated as reviewed. A card with no reviewed span gets the whole verse and is
+  reported, which then fails `make prints` rather than reaching a player. Text
+  from a different translation is not a span of the new one, so switching
+  versions correctly discards the old excerpt and asks again. Readings are not
+  cards and still keep whole verses; the older `Matthew 12:20a` form names the
+  sentence to take.
 - **Cards that no longer fit.** The blank panel holds four wrapped lines and a
   reference, and nothing clips — an overlong verse draws over the illustration.
-  `build-print-cards.py` now refuses to write such a card, and a test checks the
+  `build-print-cards.py` refuses to write such a card, and a test checks the
   whole catalog. This matters because a different translation of the same
   reference can be longer: moving from KJV to BSB pushed three cards past the
-  border and one to five lines, which became `Mark 4:39b`.
+  border and one to five lines. Holding every card to a phrase is what leaves
+  the panel room for a language that renders longer than English, which most do.
+
+### Two composites per card
+
+`build-print-cards.py` writes each card twice: `{id}-card.png` with the words
+set, and `{id}-blank.png` with the panel still empty. The illustration, paper and
+border are identical, so the two never read as different objects.
+
+The finished card is the card, and it is what the game shows. The blank is only
+reached for when the words have to be set in a language the block was not cut
+in — `letter_cards` draws them over the same panel at the same share of the card,
+so a runtime-lettered card and a printed one put their type in the same place at
+the same size. A card whose translation has not arrived, or could not be
+verified, shows the printed card; the blank is never shown empty.
+
+### Why a card cites a whole verse
+
+Every entry carries a `passage_id` — `HEB.13.2` — beside its printed
+`reference`. The reference is for whoever reads the card; the id is what asks
+YouVersion for that verse in the reader's own language, which is how a card
+reaches a traveler who does not read English. `add-print.py` and `make verses`
+both derive it from the reference through `scripts/bible_reference.py`, so the
+two cannot drift apart.
+
+Cards no longer cite `12:20a`. That distinction existed when the excerpt was
+half a verse; now that every card holds a phrase, the card cites the verse it
+quotes from and the phrase itself is the `verse` field. It also removes a part
+marker that would have to be translated by hand into sixty-odd languages, where
+the reference for a whole verse comes back from the API already localized.
 
 ## Add another card
 
@@ -57,9 +88,10 @@ For a guided prompt, run:
 make add-print
 ```
 
-It asks for an ID, title, theme, Bible reference, exact reviewed verse, and a
-plain-language illustration description. It derives both PNG paths and appends
-the complete entry to `content/prints.json` atomically.
+It asks for an ID, title, theme, Bible reference, the exact reviewed phrase to
+cut, and a plain-language illustration description. It derives both PNG paths
+and the passage id, and appends the complete entry to `content/prints.json`
+atomically.
 
 The same operation can be scripted:
 
@@ -69,7 +101,7 @@ python3 scripts/add-print.py \
   --title "A Place at the Table" \
   --theme hospitality \
   --reference "Romans 12:13" \
-  --verse "Distributing to the necessity of saints; given to hospitality." \
+  --verse "given to hospitality" \
   --art-prompt "An ordinary host makes room at a rough table for a tired traveler; the host divides one modest loaf between them. Keep the scene humble and avoid wealth, ceremony, halos, weapons, and text."
 ```
 
@@ -81,7 +113,8 @@ This creates a catalog job equivalent to:
   "title": "A Place at the Table",
   "theme": "hospitality",
   "reference": "Romans 12:13",
-  "verse": "Distributing to the necessity of saints; given to hospitality.",
+  "passage_id": "ROM.12.13",
+  "verse": "given to hospitality",
   "art": "assets/prints/early-welcome-art.png",
   "card": "assets/prints/early-welcome-card.png",
   "stage": "early_monochrome",
@@ -105,7 +138,7 @@ so only the newly cataloged jobs invoke image generation.
 | --- | --- | --- | --- |
 | `early-hospitality` | hospitality | Hebrews 13:2 | A lamp raised for a stranger at an inn door |
 | `early-burdens` | mutual aid | Galatians 6:2 | Two travelers sharing one heavy load |
-| `early-bruised-reed` | gentleness | Matthew 12:20a | Hands tending a bent reed and weak wick |
+| `early-bruised-reed` | gentleness | Matthew 12:20 | Hands tending a bent reed and weak wick |
 | `early-rest` | rest | Matthew 11:28 | A weary traveler resting safely by the road |
 | `early-light` | hope | John 1:5 | One inn light answered across a dark valley |
 
@@ -114,8 +147,8 @@ not hand-entered. The Berean Standard Bible was dedicated to the public domain
 (CC0) in April 2023, so the wording can live in a public repository and ship in
 the game. KJV was the original choice and is no longer possible here: the whole
 YouVersion catalog reachable by this key contains no English KJV, only a Thai
-one. The `a` and `b` suffixes name half a verse, which the API does not do —
-see below.
+one. Each card cites the whole verse it quotes from and carries a phrase of it —
+see above.
 
 ## Practical-help expansion
 
@@ -128,16 +161,18 @@ in the image and decide what, if anything, to make of its words.
 | ID | Need | Passage | Image |
 | --- | --- | --- | --- |
 | `early-great-calm` | fear | Mark 4:39 | A storm settling around a crowded open boat |
-| `early-this-day` | anxiety | Matthew 6:34b | One worker attending to one repair today |
+| `early-this-day` | anxiety | Matthew 6:34 | One worker attending to one repair today |
 | `early-forsaken` | friends failing | 2 Timothy 4:16 | Departing tracks, an opened hand, and a stone set down |
 | `early-going-out` | leaving home | Psalm 121:8 | A traveler at a door with tracks going and returning |
 | `early-comfortless` | loneliness | John 14:18 | A real human figure approaching with lamp and blanket |
-| `early-perfect-weakness` | pain or frailty | 2 Corinthians 12:9a | Aging hands braiding weak fibers into strong cord |
+| `early-perfect-weakness` | pain or frailty | 2 Corinthians 12:9 | Aging hands braiding weak fibers into strong cord |
 | `early-out-of-the-mire` | sorrow or trouble | Psalm 40:2 | One traveler helping another onto firm rock |
 
-Matthew 6:34b and 2 Corinthians 12:9a are deliberately short excerpts. Keeping
-them short preserves the established 30-pixel type instead of shrinking the
-words beyond what an apprentice could plausibly cut and a player could read.
+Every one of these is a deliberately short excerpt — four to seven words.
+Keeping them short preserves the established 30-pixel type instead of shrinking
+the words beyond what an apprentice could plausibly cut and a player could read,
+and it is also the only honest shape for the object: a block cut by hand carries
+a phrase, not three sentences.
 
 ## Reaching the game
 

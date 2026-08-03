@@ -36,6 +36,35 @@ pub struct InterpretResponse {
     pub provenance: Provenance,
 }
 
+/// A card the Scribe is about to hand to somebody who does not read English.
+///
+/// The card itself is an object cut in this valley and its words are fixed; what
+/// is being asked for is the same phrase of the same verse, in the language of
+/// the person receiving it, so that a gift is legible to whoever it is given to.
+/// A request names a card, not a place in the Bible. The verse it quotes and
+/// the phrase it carries are both in the catalogue, so neither is worth asking a
+/// caller for — and a server that fetched whatever reference it was handed would
+/// be a public proxy to somebody else's licensed text.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CardRequest {
+    pub print_id: String,
+    /// Absent means English, and English needs nothing done to it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+}
+
+/// The words to set on a card, and whose translation they are.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CardResponse {
+    pub print_id: String,
+    /// The verse as that translation names it — `Mateo 11:28`.
+    pub reference: String,
+    /// A literal contiguous span of the verse in that translation. Never a
+    /// paraphrase, never the whole verse, never text nobody can point at.
+    pub excerpt: String,
+    pub version: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Passage {
     pub id: String,
@@ -107,6 +136,33 @@ pub struct Opening {
     pub company: Company,
 }
 
+/// One entry of `content/prints.json`, read narrowly.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CardPrint {
+    pub id: String,
+    /// The verse the phrase was cut out of, as the API names it: `HEB.13.2`.
+    pub passage_id: String,
+    /// The reference as it is printed on the block, in English.
+    pub reference: String,
+    /// The phrase itself, a literal span of the English verse.
+    #[serde(rename = "verse")]
+    pub excerpt: String,
+}
+
+/// The edition every card in the catalogue was cut from. A card already in this
+/// translation needs nothing fetched and nothing chosen.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct CardTranslation {
+    pub name: String,
+    pub youversion_id: u32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CardCatalogue {
+    pub translation: CardTranslation,
+    pub prints: Vec<CardPrint>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PassageCandidate {
     pub id: String,
@@ -142,6 +198,7 @@ struct BibleCatalog {
 static VIGNETTES: OnceLock<Vec<Vignette>> = OnceLock::new();
 static OPENINGS: OnceLock<Vec<Opening>> = OnceLock::new();
 static PASSAGES: OnceLock<Vec<PassageCandidate>> = OnceLock::new();
+static CARD_PRINTS: OnceLock<CardCatalogue> = OnceLock::new();
 static BIBLE_VERSIONS: OnceLock<Vec<BibleVersion>> = OnceLock::new();
 
 /// Every translation the catalog knows, each language's chosen pick first.
@@ -229,6 +286,31 @@ pub fn openings_for(party_size: usize) -> Vec<&'static Opening> {
         .iter()
         .filter(|opening| opening.company.suits(party_size))
         .collect()
+}
+
+/// Every card the Scribe can cut, as far as anything outside the game needs to
+/// know: which verse it quotes, and the phrase it carries.
+///
+/// The game keeps its own richer reading of the same file — themes, tiers, art
+/// paths, the brief the illustration was drawn from. Both are `include_str!` of
+/// `content/prints.json`, so there is one catalogue and no way for the two to
+/// disagree about a card that exists.
+#[must_use]
+pub fn card_catalogue() -> &'static CardCatalogue {
+    CARD_PRINTS.get_or_init(|| {
+        serde_json::from_str(include_str!("../../../content/prints.json"))
+            .expect("content/prints.json must be valid")
+    })
+}
+
+#[must_use]
+pub fn card_prints() -> &'static [CardPrint] {
+    &card_catalogue().prints
+}
+
+#[must_use]
+pub fn card_print(print_id: &str) -> Option<&'static CardPrint> {
+    card_prints().iter().find(|print| print.id == print_id)
 }
 
 #[must_use]
@@ -571,6 +653,31 @@ mod tests {
         assert_eq!(fallback.language, "en");
         assert_eq!(fallback.id, DEFAULT_BIBLE_ID);
         assert_eq!(version_by_id(DEFAULT_BIBLE_ID), Some(fallback));
+    }
+
+    /// What the API side of a card needs is small: a verse to ask for and a
+    /// phrase to match. Both have to be there for every card, because a card
+    /// missing either is one that silently never translates.
+    #[test]
+    fn every_card_names_a_verse_and_carries_a_phrase_of_it() {
+        let prints = card_prints();
+        assert!(!prints.is_empty(), "the catalogue is empty");
+        assert!(card_catalogue().translation.youversion_id > 0);
+        for print in prints {
+            assert!(!print.excerpt.trim().is_empty(), "{} is blank", print.id);
+            assert_eq!(
+                print.passage_id.split('.').count(),
+                3,
+                "{} cannot be asked for: {:?}",
+                print.id,
+                print.passage_id
+            );
+            assert_eq!(
+                card_print(&print.id).map(|found| &found.id),
+                Some(&print.id)
+            );
+        }
+        assert!(card_print("no-such-block").is_none());
     }
 
     #[test]

@@ -15,6 +15,15 @@ Bevy WASM ── POST /api/interpret { vignette_id }
                          └─ YouVersion passage lookup
                                       │
 Bevy card UI ◀── InterpretResponse + provenance
+
+Bevy WASM ── POST /api/card { print_id, language }
+                         │
+                         ├─ catalogue lookup (no caller-supplied references)
+                         ├─ YouVersion whole-verse lookup in that translation
+                         ├─ Gloo asked to point at the matching run
+                         └─ verbatim-span check, else the English as cut
+                                      │
+Bevy card UI ◀── CardResponse
 ```
 
 The client cannot inject dialogue or arbitrary passage IDs. Gloo may choose only
@@ -34,6 +43,30 @@ reflection, exact passage content/reference/version/deep-link, and provenance fo
 the Gloo route and Scripture source. `GET /api/health` reports configuration booleans
 but never credential values.
 
+`POST /api/card`
+
+```json
+{"print_id":"early-hospitality","language":"es"}
+```
+
+The words to set on one block-print, in the language of whoever is being handed
+it. A request names a card, never a place in the Bible: the verse and the English
+phrase both come from `content/prints.json`, so the endpoint cannot be used as a
+public proxy to somebody else's licensed text on our key. The response is the
+reference as that translation names it, the excerpt, and the version.
+
+The excerpt is always a literal contiguous span of a published verse. Where a
+translation is needed, the whole verse is fetched and a model is asked to point
+at the run of it matching the English phrase — never to write one. Whatever comes
+back is checked against the fetched text with `verified_span` and discarded
+unless it occurs there verbatim and fits the block. A card that cannot be
+verified is handed over as it was cut, in English, under the name of the edition
+it was cut from. So no card can ever carry a machine's own wording of Scripture:
+the words are the translators', quoted, or they are the reviewed English ones.
+
+Answers are cached per print and version and read through, because unlike a
+vignette a card has exactly one right answer per translation.
+
 ## Failure behavior
 
 - Live configuration is fail-fast at server startup if a credential is missing.
@@ -42,6 +75,8 @@ but never credential values.
 - A successful live result is retained in an in-memory per-vignette cache.
 - On dependency failure the service uses that cache, then a reviewed fixture.
 - Every fallback remains explicit in `provenance.scripture_source` and the UI.
+- A card whose span cannot be verified falls back to English rather than to
+  anything unchecked; nothing on a card is ever text the API did not send.
 
 ## Builds
 
@@ -535,6 +570,25 @@ composes every catalogue entry into `runtime-assets/prints/`, falling back to a
 readable placeholder card when an illustration has not been generated yet — so
 authoring a reviewed verse is never blocked on running the image pipeline, and a
 test asserts every catalogue entry has a card in the runtime tree.
+
+Every card is composed twice: finished, and with its panel left blank. A player
+reading something other than the edition the blocks were cut from is handed the
+blank with the words set over it at runtime by `letter_cards`, at the same share
+of the card the printed type occupies, so the two are the same object. The words
+come from `POST /api/card`, asked for the first time a card is looked at rather
+than all at once — a playthrough looks at few of them, and each answer is one
+call the server never has to make again for anybody. Until an answer arrives, or
+if none can be verified, the printed English card is what is on screen: the wait
+costs a translation and never a card.
+
+Type size is measured from the laid-out card rather than chosen, because the web
+shell stretches the canvas to whatever window it is given and a card is a
+different number of pixels tall in every session.
+
+The font is EB Garamond, which covers Latin, Greek and Cyrillic. Languages in
+other scripts are in the version catalogue and will render as boxes until there
+is a fallback stack; that is a known ceiling on translation, not a bug in this
+path.
 
 ## Nothing tells the player what to do
 

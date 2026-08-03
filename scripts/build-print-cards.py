@@ -72,6 +72,18 @@ def fits_text_panel(lines: list[str]) -> bool:
     return len(lines) * LINE_HEIGHT + REFERENCE_HEIGHT <= TEXT_BOTTOM - TEXT_TOP
 
 
+def blank_path(card: Path) -> Path:
+    """The same card with its panel still empty.
+
+    A card handed to somebody who does not read English needs its words set in
+    theirs, and words are not something a PNG can be talked out of. So the
+    composite is written twice: once finished, and once with the panel left for
+    the game to letter at runtime. The illustration, the paper and the border are
+    identical between them, so the two do not read as different objects.
+    """
+    return card.with_name(card.name.replace("-card.png", "-blank.png"))
+
+
 def render_card(entry: dict[str, str], font_path: Path) -> None:
     source_path = ROOT / entry["art"]
     output_path = ROOT / entry["card"]
@@ -80,6 +92,10 @@ def render_card(entry: dict[str, str], font_path: Path) -> None:
         source.thumbnail(WORK_SIZE, Image.Resampling.LANCZOS)
         canvas = Image.new("RGB", WORK_SIZE, source.getpixel((0, 0)))
         canvas.paste(source, ((WORK_SIZE[0] - source.width) // 2, 0))
+
+    blank = blank_path(output_path)
+    blank.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(blank, optimize=True)
 
     draw = ImageDraw.Draw(canvas)
     verse_font = ImageFont.truetype(str(font_path), 30)
@@ -122,7 +138,8 @@ def main() -> None:
         entries = [entry for entry in entries if entry["id"] in requested]
     for entry in entries:
         render_card(entry, font_path)
-        print(f"wrote {entry['card']}")
+        blank = blank_path(Path(entry["card"]))
+        print(f"wrote {entry['card']} and {blank.as_posix()}")
 
 
 if __name__ == "__main__":

@@ -32,6 +32,22 @@ class AddPrintTests(unittest.TestCase):
         self.assertEqual(entry["card"], "assets/prints/early-welcome-card.png")
         self.assertEqual(entry["stage"], "early_monochrome")
 
+    def test_entry_carries_the_id_the_server_asks_a_translation_for(self) -> None:
+        self.assertEqual(self.entry()["passage_id"], "ROM.12.13")
+
+    def test_a_card_cannot_be_added_citing_half_a_verse(self) -> None:
+        # The excerpt is the `verse` field now; a part marker in the reference
+        # would be a second, disagreeing account of the same cut.
+        with self.assertRaisesRegex(ValueError, "not half of it"):
+            ADD_PRINT.make_entry(
+                print_id="early-welcome",
+                title="A Place at the Table",
+                theme="hospitality",
+                reference="Romans 12:13a",
+                verse="given to hospitality",
+                art_prompt="An ordinary host makes room at a rough table.",
+            )
+
     def test_append_rejects_duplicate_identity_or_paths(self) -> None:
         entry = self.entry()
         manifest: dict[str, object] = {"prints": [entry.copy()]}

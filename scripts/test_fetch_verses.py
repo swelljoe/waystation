@@ -112,6 +112,38 @@ class ExcerptTests(unittest.TestCase):
         self.assertNotEqual(text, kjv)
 
 
+class CardExcerptTests(unittest.TestCase):
+    """A card holds a phrase, so `span_only` never takes a whole verse quietly."""
+
+    VERSE = (
+        "Do not neglect to show hospitality to strangers, for by so doing some "
+        "people have entertained angels without knowing it."
+    )
+
+    def test_a_reviewed_span_survives_a_rerun(self) -> None:
+        span = "Do not neglect to show hospitality to strangers"
+
+        self.assertEqual(
+            VERSES.excerpt(self.VERSE, None, span, span_only=True), (span, False)
+        )
+
+    def test_a_whole_reference_no_longer_takes_the_whole_verse(self) -> None:
+        # Without `span_only` this is a reading, and a reading wants the verse.
+        self.assertEqual(VERSES.excerpt(self.VERSE, None), (self.VERSE, False))
+
+        text, needs_review = VERSES.excerpt(self.VERSE, None, span_only=True)
+
+        self.assertEqual(text, self.VERSE)
+        self.assertTrue(needs_review, "a card was given a whole verse to hold")
+
+    def test_text_that_is_not_a_span_is_handed_back_for_review(self) -> None:
+        for existing in ["", "Show hospitality unto strangers", self.VERSE]:
+            with self.subTest(existing=existing):
+                self.assertTrue(
+                    VERSES.excerpt(self.VERSE, None, existing, span_only=True)[1]
+                )
+
+
 class ShippedContentTests(unittest.TestCase):
     def documents(self) -> list[tuple[str, list[dict]]]:
         return [
@@ -139,12 +171,43 @@ class ShippedContentTests(unittest.TestCase):
             self.assertTrue(translation["licence_note"].strip())
 
     def test_the_two_files_agree_on_shared_references(self) -> None:
-        prints = {e["reference"]: e["verse"] for e in self.documents()[0][1]}
-        readings = {e["reference"]: e["verse"] for e in self.documents()[1][1]}
+        # Keyed by USFM rather than by the printed reference: a card cites the
+        # whole verse it quotes from, so `Matthew 12:20` on a card and
+        # `Matthew 12:20a` in the book are the same place in the same Bible.
+        def keyed(entries: list[dict]) -> dict[str, str]:
+            return {VERSES.usfm(e["reference"])[0]: e["verse"] for e in entries}
 
-        for reference in set(prints) & set(readings):
-            with self.subTest(reference=reference):
-                self.assertEqual(prints[reference], readings[reference])
+        prints = keyed(self.documents()[0][1])
+        readings = keyed(self.documents()[1][1])
+
+        for verse_id in set(prints) & set(readings):
+            with self.subTest(verse=verse_id):
+                self.assertIn(
+                    prints[verse_id],
+                    readings[verse_id],
+                    "the card quotes words the book does not have",
+                )
+
+    def test_every_card_carries_the_usfm_id_the_server_will_ask_for(self) -> None:
+        for entry in self.documents()[0][1]:
+            with self.subTest(id=entry["id"]):
+                self.assertEqual(
+                    entry["passage_id"], VERSES.usfm(entry["reference"])[0]
+                )
+
+    def test_no_card_cites_half_a_verse(self) -> None:
+        # A card carries a phrase, so the `a`/`b` distinction it once made is
+        # gone — and a part marker has no rendering in the sixty-odd languages
+        # a card can arrive in.
+        for entry in self.documents()[0][1]:
+            with self.subTest(id=entry["id"]):
+                self.assertIsNone(VERSES.usfm(entry["reference"])[1])
+
+    def test_every_card_holds_a_phrase_rather_than_a_verse(self) -> None:
+        # Room for a translation that renders longer than the English does.
+        for entry in self.documents()[0][1]:
+            with self.subTest(id=entry["id"]):
+                self.assertLessEqual(len(entry["verse"].split()), 8)
 
 
 if __name__ == "__main__":

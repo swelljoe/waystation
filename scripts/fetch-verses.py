@@ -9,11 +9,13 @@ game is text somebody can point at.
 The illustrations are untouched. They carry no words by design, so changing
 translation is a `make prints` recomposite and not a regeneration.
 
-Partial references — `Matthew 12:20a` — are the one place this cannot be fully
-automatic. The API returns whole verses; the card holds about four lines. Where
-the verse divides into sentences the matching sentence is taken; where it does
-not, the whole verse is written and reported, because guessing at a clause
-boundary in Scripture is not something a script should do quietly.
+Excerpting is the one place this cannot be fully automatic. A card carries a
+phrase — a few words, the way a block cut by hand does — and the API returns
+whole verses, so every card's wording is a literal span of one, chosen by a
+person and preserved across reruns. A card with no reviewed span comes back
+whole and is reported, because guessing at a clause boundary in Scripture is
+not something a script should do quietly. Readings keep whole verses, and the
+older `Matthew 12:20a` form still names the sentence to take.
 """
 
 from __future__ import annotations
@@ -28,83 +30,14 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from bible_reference import ReferenceError, usfm
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PRINTS = ROOT / "content" / "prints.json"
 READINGS = ROOT / "content" / "readings.json"
 VERSIONS = ROOT / "content" / "bible-versions.json"
 PASSAGE_URL = "https://api.youversion.com/v1/bibles/{version}/passages/{reference}"
-
-BOOKS = {
-    "genesis": "GEN", "exodus": "EXO", "leviticus": "LEV", "numbers": "NUM",
-    "deuteronomy": "DEU", "joshua": "JOS", "judges": "JDG", "ruth": "RUT",
-    "1 samuel": "1SA", "2 samuel": "2SA", "1 kings": "1KI", "2 kings": "2KI",
-    "1 chronicles": "1CH", "2 chronicles": "2CH", "ezra": "EZR",
-    "nehemiah": "NEH", "esther": "EST", "job": "JOB", "psalm": "PSA",
-    "psalms": "PSA", "proverbs": "PRO", "ecclesiastes": "ECC",
-    "song of solomon": "SNG", "isaiah": "ISA", "jeremiah": "JER",
-    "lamentations": "LAM", "ezekiel": "EZK", "daniel": "DAN", "hosea": "HOS",
-    "joel": "JOL", "amos": "AMO", "obadiah": "OBA", "jonah": "JON",
-    "micah": "MIC", "nahum": "NAM", "habakkuk": "HAB", "zephaniah": "ZEP",
-    "haggai": "HAG", "zechariah": "ZEC", "malachi": "MAL",
-    "matthew": "MAT", "mark": "MRK", "luke": "LUK", "john": "JHN",
-    "acts": "ACT", "romans": "ROM", "1 corinthians": "1CO",
-    "2 corinthians": "2CO", "galatians": "GAL", "ephesians": "EPH",
-    "philippians": "PHP", "colossians": "COL", "1 thessalonians": "1TH",
-    "2 thessalonians": "2TH", "1 timothy": "1TI", "2 timothy": "2TI",
-    "titus": "TIT", "philemon": "PHM", "hebrews": "HEB", "james": "JAS",
-    "1 peter": "1PE", "2 peter": "2PE", "1 john": "1JN", "2 john": "2JN",
-    "3 john": "3JN", "jude": "JUD", "revelation": "REV",
-}
-
-# `Ecclesiastes 4:9–10` uses an en dash; `2 Corinthians 12:9a` carries a part
-# marker. Both appear in the authored files and neither is valid in a USFM id.
-REFERENCE = re.compile(
-    r"^\s*(?P<book>[1-3]?\s*[A-Za-z][A-Za-z ]*?)\s+"
-    r"(?P<chapter>\d+):(?P<verse>\d+)(?:\s*[-–—]\s*(?P<end>\d+))?"
-    r"(?P<part>[ab])?\s*$"
-)
-
-
-class ReferenceError(ValueError):
-    """A reference this script will not guess at."""
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--version",
-        default="BSB",
-        help="Abbreviation from content/bible-versions.json (default: BSB).",
-    )
-    parser.add_argument(
-        "--app-key",
-        default=os.environ.get("YVP_APP_KEY"),
-        help="YouVersion app key; defaults to YVP_APP_KEY.",
-    )
-    parser.add_argument("--dry-run", action="store_true", help="Report without writing.")
-    parser.add_argument("--prints", type=Path, default=PRINTS)
-    parser.add_argument("--readings", type=Path, default=READINGS)
-    return parser.parse_args()
-
-
-def usfm(reference: str) -> tuple[str, str | None]:
-    """`2 Corinthians 12:9a` -> (`2CO.12.9`, `a`).
-
-    Returns the part marker separately because the API has no notion of one; the
-    caller has to decide what half of a verse means.
-    """
-    match = REFERENCE.match(reference)
-    if not match:
-        raise ReferenceError(f"cannot parse reference: {reference!r}")
-    book = re.sub(r"\s+", " ", match.group("book").strip().lower())
-    code = BOOKS.get(book)
-    if code is None:
-        raise ReferenceError(f"unknown book in reference: {reference!r}")
-    verse_id = f"{code}.{match.group('chapter')}.{match.group('verse')}"
-    if match.group("end"):
-        verse_id = f"{verse_id}-{match.group('end')}"
-    return verse_id, match.group("part")
 
 
 def sentences(text: str) -> list[str]:
@@ -125,21 +58,37 @@ def clean(content: str) -> str:
     return re.sub(r"\s+", " ", stripped).strip()
 
 
-def excerpt(text: str, part: str | None, existing: str | None = None) -> tuple[str, bool]:
-    """The half a partial reference names, and whether a human still has to look.
+def excerpt(
+    text: str,
+    part: str | None,
+    existing: str | None = None,
+    *,
+    span_only: bool = False,
+) -> tuple[str, bool]:
+    """The words a reference names, and whether a human still has to look.
 
     An `existing` excerpt that is a literal span of the fetched verse is a cut
     somebody already reviewed, so it survives a rerun. Otherwise a verse that
     divides into sentences divides cleanly, and a verse that is one sentence
     does not — that one comes back whole rather than cut at a comma and hoped
     over.
+
+    `span_only` is what a card holds: a phrase of a few words rather than a
+    verse, because a block cut by hand carries a phrase and because a whole
+    verse in a language that renders longer than English will not fit the panel.
+    There is no rule for finding that phrase, so nothing here invents one — a
+    print with no reviewed cut comes back whole and is reported, which is a
+    failed `make prints` rather than an unread excerpt on a card.
     """
-    if part is None:
-        return text, False
     # A *proper* span only. Text equal to the whole verse is what this function
     # wrote last time when it could not divide it, not a cut anybody approved.
     trimmed = (existing or "").strip()
-    if trimmed and trimmed != text and trimmed in text:
+    reviewed = bool(trimmed) and trimmed != text and trimmed in text
+    if span_only:
+        return (trimmed, False) if reviewed else (text, True)
+    if part is None:
+        return text, False
+    if reviewed:
         return trimmed, False
     divided = sentences(text)
     if len(divided) < 2:
@@ -169,13 +118,23 @@ def fetch(app_key: str, version: int, reference: str) -> str:
     return clean(content)
 
 
-def update(entries: list[dict], app_key: str, version: int) -> list[dict]:
-    """Rewrite each entry's verse in place; report what changed and what to read."""
+def update(
+    entries: list[dict], app_key: str, version: int, *, span_only: bool = False
+) -> list[dict]:
+    """Rewrite each entry's verse in place; report what changed and what to read.
+
+    A card also gets its USFM id written back, because that — not the printed
+    reference — is what the server asks YouVersion for when a traveler arrives
+    speaking something other than English. Deriving it here keeps the two from
+    drifting apart.
+    """
     report = []
     for entry in entries:
         verse_id, part = usfm(entry["reference"])
+        if span_only:
+            entry["passage_id"] = verse_id
         whole = fetch(app_key, version, verse_id)
-        text, needs_review = excerpt(whole, part, entry.get("verse"))
+        text, needs_review = excerpt(whole, part, entry.get("verse"), span_only=span_only)
         report.append(
             {
                 "id": entry["id"],
@@ -183,7 +142,7 @@ def update(entries: list[dict], app_key: str, version: int) -> list[dict]:
                 "usfm": verse_id,
                 "was": entry["verse"],
                 "now": text,
-                "whole_verse": whole if part else None,
+                "whole_verse": whole if part or span_only else None,
                 "needs_review": needs_review,
             }
         )
@@ -230,7 +189,9 @@ def main() -> int:
     for path, key in ((args.prints, "prints"), (args.readings, "readings")):
         document = json.loads(path.read_text(encoding="utf-8"))
         try:
-            reports[key] = update(document[key], args.app_key, version)
+            reports[key] = update(
+                document[key], args.app_key, version, span_only=key == "prints"
+            )
         except (ReferenceError, urllib.error.HTTPError, ValueError) as error:
             print(f"{path.name}: {error}", file=sys.stderr)
             return 1
@@ -248,7 +209,7 @@ def main() -> int:
     review = [item for report in reports.values() for item in report if item["needs_review"]]
     print(f"\n{changed} verses changed to {args.version}.")
     if review:
-        print(f"{len(review)} partial reference(s) need a human excerpt:")
+        print(f"{len(review)} reference(s) need a human excerpt:")
         for item in review:
             print(f"  {item['reference']}: {item['whole_verse']}")
 
